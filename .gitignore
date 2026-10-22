@@ -1,0 +1,19 @@
+node_modules/
+.backups/
+desktop-build/
+release/
+evidence/
+.downloads/
+.cache/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+*.log
+.DS_Store
+*.sqlite
+*.db
+*.db-*
+
+# 本地代理交接文档（含敏感操作记录，永不公开）
+docs/ZCODE_*.md

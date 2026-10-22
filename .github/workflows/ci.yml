@@ -1,0 +1,24 @@
+name: Validate QIYU
+
+# Not yet validated on a hosted runner: desktop stages need a real Electron window.
+# Switch back to push/pull_request after the first green manual run.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run desktop:build
+      - run: node scripts/verify-desktop.cjs
+      - run: node scripts/verify-features.cjs

@@ -1,0 +1,91 @@
+{
+  "name": "qiyu-media",
+  "private": true,
+  "version": "0.4.23",
+  "description": "栖域 · 个人文娱收藏",
+  "author": "QIYU",
+  "license": "UNLICENSED",
+  "main": "desktop-build/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test --experimental-strip-types src/domain/*.test.ts src/infrastructure/*.test.ts desktop/*.test.ts",
+    "test:desktop": "npm run desktop:build && node scripts/verify-desktop.cjs",
+    "test:features": "npm run desktop:build && node scripts/verify-features.cjs",
+    "test:workflow": "node scripts/verify-workflow.cjs",
+    "desktop:build": "npm run build && tsc -p desktop/tsconfig.json && node scripts/build-desktop.mjs",
+    "desktop": "npm run desktop:build && electron .",
+    "pack": "npm run desktop:build && electron-builder --win --x64 --dir",
+    "dist:win": "npm run dist:zip",
+    "dist:installer": "npm run desktop:build && electron-builder --win nsis --x64",
+    "dist:zip": "npm run pack && node scripts/make-noinstall.cjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.1",
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.25.12",
+    "playwright": "1.64.1",
+    "typescript": "~5.9.3",
+    "vite": "^6.4.1"
+  },
+  "build": {
+    "electronDist": "node_modules/electron/dist",
+    "appId": "com.qiyu.media",
+    "productName": "栖域",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "desktop-build/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Qiyu-Setup-${version}-x64.${ext}",
+      "signAndEditExecutable": true,
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "栖域",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": false,
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ],
+      "language": "2052"
+    }
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}
