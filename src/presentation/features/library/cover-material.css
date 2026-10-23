@@ -1,0 +1,33 @@
+/* Status is always readable; foil is a separate personal-rating treatment. */
+:root[data-theme] :is(.card-game-state,.detail-experience-summary > span)[class*="game-state--"] { color: var(--play-state-color); }
+:root[data-theme] :is(.mark-tab--want,.mark-tab--playing,.mark-tab--cleared,.mark-tab--ongoing,.mark-tab--paused,.mark-tab--abandoned,.game-state-options .status-option) svg { color: var(--play-state-color, currentColor); }
+:root[data-theme] :is(.status-tabs button.is-selected,.status-option.is-selected) svg { color: currentColor; }
+:root[data-theme] .context-states button svg { color: var(--play-state-color); }
+:root[data-theme] .media-card[data-game-state] .card-cover,
+:root[data-theme] .media-card[data-game-state]:hover .card-cover,
+:root[data-theme] .detail-facts-cover[data-game-state] { border: 2px solid var(--play-state-color); box-shadow: 0 0 0 1px color-mix(in srgb,var(--play-state-color) 22%,transparent),0 0 7px color-mix(in srgb,var(--play-state-color) 12%,transparent); }
+:root[data-theme] .media-card--grid[data-game-state] .card-cover[data-depth='active'] { border-color: var(--play-state-color); box-shadow: 0 14px 26px #00000030,0 0 0 1px color-mix(in srgb,var(--play-state-color) 28%,transparent),0 0 12px color-mix(in srgb,var(--play-state-color) 19%,transparent); }
+:root[data-theme] .media-card--grid .card-cover[data-depth='active'] { transform: perspective(850px) rotateX(var(--cover-rx,0deg)) rotateY(var(--cover-ry,0deg)) translateY(-3px) scale(1.015); }
+:root[data-theme] .media-card--grid .card-cover[data-depth='active'] .poster-image { transform: translate(var(--cover-x,0px),var(--cover-y,0px)) scale(1.055); }
+/* Continuous, local colour sheen: no tiled texture or decorative points. */
+.cover-foil { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; mix-blend-mode: hard-light; transition: opacity .22s; background-size: 180% 180%; background-position: var(--cover-light-x,62%) var(--cover-light-y,38%); }
+.media-card--grid .card-cover[data-depth='active'] > .cover-foil { opacity: .38; }
+.media-card--grid .card-cover[data-depth='active'] > .cover-foil--holographic { opacity: .52; }
+.media-card--grid .card-cover[data-depth='active'] > .cover-foil--prismatic { opacity: .58; }
+.cover-foil--silver { background-image: linear-gradient(var(--cover-angle,45deg),transparent 12%,#73859b 36%,#d0dce9 52%,#f3f6fb 62%,#8c9eaf 75%,transparent 92%); }
+.cover-foil--gold { background-image: linear-gradient(var(--cover-angle,45deg),transparent 12%,#9b7942 36%,#e1c58f 52%,#fff1ce 62%,#b79357 75%,transparent 92%); }
+/* SS: broad cool metallic bands. SSS: the first edition's sweeping spectrum. */
+.cover-foil--holographic { background-image: linear-gradient(var(--cover-angle,45deg),#25345f 0%,#526fb4 18%,#9fdff3 32%,#e7f6ff 42%,#5b8dbd 51%,#7053bb 64%,#a2c3ec 78%,#293961 100%); background-size: 250% 250%; }
+.cover-foil--prismatic { background-image: conic-gradient(from var(--cover-angle,45deg) at var(--cover-light-x,62%) var(--cover-light-y,38%),#8d3bc4,#3b78db,#4ac7ac,#e6c165,#e84a8f,#8d3bc4); background-size: 160% 160%; }
+.cover-foil--holographic::after,.cover-foil--prismatic::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(var(--cover-angle,45deg),transparent 30%,#ffffff16 43%,#ffffff80 55%,#ffffff16 65%,transparent 78%); }
+.cover-foil--prismatic::after { background: linear-gradient(var(--cover-angle,45deg),transparent 22%,#fff5dd18 39%,#fff7df8c 53%,#ffffff14 66%,transparent 82%); }
+/* 45deg is the normal: the visible band runs from top-left to bottom-right. */
+:root[data-theme] .media-card--grid .card-cover .card-cover-shine { background: linear-gradient(var(--cover-angle,45deg),transparent 38%,#ffffff12 49%,#ffffff45 60%,#ffffff12 71%,transparent 82%); opacity: 0; }
+:root[data-theme] .media-card--grid .card-cover[data-depth='active'] .card-cover-shine { opacity: 1; }
+:root[data-theme] .media-card--grid .card-cover[data-finish='standard'] .card-cover-shine { display: none; }
+:root[data-theme] .media-card.is-chosen .card-cover { outline: 3px solid var(--accent); outline-offset: 3px; }
+:root[data-theme] .media-card[data-selecting] .card-cover,
+:root[data-theme] .media-card[data-selecting] .poster-image { transform: none !important; }
+:root[data-theme] .media-card[data-selecting] :is(.cover-foil,.card-cover-shine) { display: none; }
+@media(prefers-reduced-motion:reduce) { :root[data-theme] .media-card--grid .card-cover,:root[data-theme] .media-card--grid .card-cover[data-depth='active'],:root[data-theme] .media-card--grid .card-cover .poster-image { transform: none !important; transition: none; }.cover-foil { display: none; } }
+@media(hover:none),(pointer:coarse) { .cover-foil { display: none; } }

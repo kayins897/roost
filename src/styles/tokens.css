@@ -1,0 +1,176 @@
+/* Sole source of application theme tokens. */
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --material-fill: rgb(18 20 26 / .2);
+  --material-ink: #fffffff0;
+  --material-shadow: #00000057;
+  --material-active-fill: #ffffffe0;
+  --material-active-edge: #ffffffe0;
+  --material-active-glow: #ffffff4d;
+  --material-active-ink: #181a1d;
+  --background: #08090b;
+  --panel: #191715;
+  --panel-2: #24211e;
+  --panel-3: #302b24;
+  --field: #141311;
+  --line: #f4d28a26;
+  --muted: #b9b3a8;
+  --text-muted: var(--muted);
+  --text: #f4efe6;
+  --accent: #d7ba7d;
+  --theme-ambient: #ecb513;
+  --accent-ink: #f1e0b8;
+  --accent-soft: #332b1d;
+  --accent-line: #a58b58;
+  --hover: #332c23;
+  --scrim: #08090bba;
+  --shadow: #996a1618;
+  --green: #dcc68e;
+  --blue: #9ac4f0;
+  --purple: #c8b2e9;
+  --amber: #d9a266;
+  --cyan: #9db9d5;
+  --danger: #ff5367;
+  --danger-bg: #3b1b22;
+  --paper: #252a2e;
+  --poster: #29333c;
+  --poster-ink: #e0e8ef;
+  --poster-faint: #e0e8ef17;
+  --control-radius: 999px;
+  --control-fill: #211f1b;
+  --control-hover: #302b23;
+  --control-border: #8b78533d;
+  --control-hover-border: #c6a66580;
+  --control-shadow: 0 2px 6px #00000010;
+  --control-selected: #c5a66d;
+  --control-selected-ink: #211b11;
+  --control-selected-border: #ddc18b;
+  --dock-active-fill: var(--control-selected);
+  --dock-active-ink: var(--control-selected-ink);
+  --dock-active-glow: 0 0 18px #d7ba7d1f, 0 5px 14px #00000038;
+  font-family: Inter, 'Noto Sans SC', 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: var(--background);
+  --glass-fill: #191713c9;
+  --glass-solid: #211e19;
+  --glass-tint: #f4d28a0e;
+  --glass-warm: #f4d28a12;
+  --glass-reflection: #fff0ca07;
+  --glass-specular: #f4d28a32;
+  --glass-edge: #f4d28a28;
+  --glass-edge-light: #ffe9b52b;
+  --glass-shadow: #80571616;
+  --control-ink: #ded7c8;
+  --control-selected-solid: #c5a66d;
+  --liquid-glint: #fff1ce14;
+  --liquid-edge: #f5dfac29;
+  --liquid-floor: #08060230;
+  --liquid-glow: #d7ba7d0c;
+  --liquid-top: #f4dba30a;
+  --liquid-selected-top: #fff2ce18;
+  --liquid-selected-floor: #5b441a12;
+  --game-want: #bf9bf5;
+  --game-playing: #78b5ff;
+  --game-cleared: #6ed59a;
+  --game-ongoing: #56d3df;
+  --game-paused: #efb961;
+  --game-abandoned: #f17d89;
+  --foil-silver: #c4d7ee;
+  --foil-gold: #e8bd62;
+  --foil-holographic: #c8aeff;
+  --surface: #171614;
+  --surface-raised: #211f1b;
+  --surface-shadow: #0000004a;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --material-fill: #fffaf033;
+  --material-ink: #34313b;
+  --material-shadow: #34415c14;
+  --material-active-fill: #6966b6;
+  --material-active-edge: #bbb5ec;
+  --material-active-glow: #6966b64d;
+  --material-active-ink: #ffffff;
+  --background: #fff7e5;
+  --panel: #fffcf5;
+  --panel-2: #f4efe5;
+  --panel-3: #eee2c5;
+  --field: #fffdf7;
+  --line: #7e75952b;
+  --muted: #716a79;
+  --text: #34313b;
+  --accent: #6966b6;
+  --accent-ink: #ffffff;
+  --accent-soft: #ece9f7;
+  --accent-line: #8c85be;
+  --hover: #eeeaf3;
+  --scrim: #253d4055;
+  --shadow: #536d6612;
+  --green: #247385;
+  --blue: #386da5;
+  --purple: #79559a;
+  --amber: #875d21;
+  --cyan: #356f98;
+  --danger: #bb3447;
+  --danger-bg: #f9e1e4;
+  --paper: #f4f0e8;
+  --poster: #dbe1e8;
+  --poster-ink: #344a5b;
+  --poster-faint: #344a5b18;
+  --control-fill: #f5f2ec;
+  --control-hover: #ebe6f2;
+  --control-border: #958aa343;
+  --control-hover-border: #8c85be99;
+  --control-shadow: 0 2px 7px #2738500b;
+  --control-selected: #6966b6;
+  --control-selected-ink: #ffffff;
+  --control-selected-border: #6966b6;
+  --dock-active-fill: #6966b6;
+  --dock-active-ink: #ffffff;
+  --dock-active-glow: 0 0 18px #6966b626, 0 5px 14px #463e6314;
+  --glass-fill: #fffaf0de;
+  --glass-solid: #fffaf0;
+  --glass-tint: #bfb8db0d;
+  --glass-warm: #efd89e14;
+  --glass-reflection: #ffffff20;
+  --glass-specular: #ffffff40;
+  --glass-edge: #8c85be38;
+  --glass-edge-light: #fffef480;
+  --glass-shadow: #6e607112;
+  --control-ink: #514b60;
+  --control-selected-solid: #6966b6;
+  --liquid-glint: #ffffff20;
+  --liquid-edge: #ffffff40;
+  --liquid-floor: #4c426308;
+  --liquid-glow: #6966b60d;
+  --liquid-top: #ffffff0c;
+  --liquid-selected-top: #f2edff12;
+  --liquid-selected-floor: #41365118;
+  --game-want: #8351b6;
+  --game-playing: #2864c5;
+  --game-cleared: #267a45;
+  --game-ongoing: #007e89;
+  --game-paused: #946012;
+  --game-abandoned: #ba3e51;
+  --foil-silver: #526d89;
+  --foil-gold: #926510;
+  --foil-holographic: #7951b6;
+  --surface: #fffcf5;
+  --surface-raised: #f5f1e9;
+  --surface-shadow: #62516f24;
+}
+
+:is(.game-state--want,.mark-tab--want,.game-state-option--want,[data-game-state="want"]) { --play-state-color: var(--game-want); }
+
+:is(.game-state--playing,.mark-tab--playing,.game-state-option--playing,[data-game-state="playing"]) { --play-state-color: var(--game-playing); }
+
+:is(.game-state--cleared,.mark-tab--cleared,.game-state-option--cleared,[data-game-state="cleared"]) { --play-state-color: var(--game-cleared); }
+
+:is(.game-state--ongoing,.mark-tab--ongoing,.game-state-option--ongoing,[data-game-state="ongoing"]) { --play-state-color: var(--game-ongoing); }
+
+:is(.game-state--paused,.mark-tab--paused,.game-state-option--paused,[data-game-state="paused"]) { --play-state-color: var(--game-paused); }
+
+:is(.game-state--abandoned,.mark-tab--abandoned,.game-state-option--abandoned,[data-game-state="abandoned"]) { --play-state-color: var(--game-abandoned); }
+
+:is(.game-state--replaying,.mark-tab--replaying,.game-state-option--replaying,[data-game-state="replaying"]) { --play-state-color: var(--game-ongoing); }

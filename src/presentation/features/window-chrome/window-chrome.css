@@ -1,0 +1,18 @@
+.window-chrome {
+  position: fixed;
+  z-index: 40;
+  top: env(titlebar-area-y, 0px);
+  left: env(titlebar-area-x, 0px);
+  width: env(titlebar-area-width, 0px);
+  height: env(titlebar-area-height, 0px);
+  background: transparent;
+  user-select: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* The native safe area is zero in a browser, non-overlay desktop and fullscreen. */
+.app-shell:has(.window-chrome) .main-panel {
+  margin-top: env(titlebar-area-height, 0px);
+  height: calc(100dvh - env(titlebar-area-height, 0px));
+}

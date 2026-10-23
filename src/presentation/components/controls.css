@@ -1,0 +1,16 @@
+/* Base controls; the optional frosted material is applied by the glass feature. */
+:root[data-theme] :is(.button--primary,.button--secondary,.advanced-toggle,.sort-box,.view-switch,.status-tabs button,.tag-filter,.status-option,.batch-mode button,.batch-existing-tags button) {
+  background: var(--control-fill); color: var(--control-ink); border-color: var(--control-border);
+  box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-theme] :is(.button--primary,.button--secondary,.advanced-toggle,.sort-box,.status-tabs button,.tag-filter,.status-option,.batch-mode button,.batch-existing-tags button):hover:not(:disabled) {
+  background: var(--control-hover); border-color: var(--control-hover-border); box-shadow: none;
+}
+:root[data-theme] :is(.button--primary,.advanced-toggle.is-expanded,.status-tabs button.is-selected,.tag-filter.is-selected,.status-option.is-selected,.batch-mode button.is-selected,.batch-existing-tags button.is-selected,.view-switch button.is-active),
+:root[data-theme] :is(.button--primary,.status-tabs button.is-selected,.tag-filter.is-selected,.status-option.is-selected):hover:not(:disabled) {
+  background: var(--control-selected); color: var(--control-selected-ink); border-color: var(--control-selected-border); box-shadow: none;
+}
+:root[data-theme] :is(.status-tabs button.is-selected,.status-option.is-selected) svg { color: currentColor; }
+:root[data-theme] :is(.modal,.filter-expanded) { background: var(--surface); background-image: none; box-shadow: 0 14px 48px var(--surface-shadow); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-theme] .filter-expanded { box-shadow: none; }
+:root[data-theme] :is(.modal,.filter-expanded)::before { content: none; }

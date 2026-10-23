@@ -1,0 +1,22 @@
+.feature-help { color: var(--text-muted, #8d939f); font-size: 12px; line-height: 1.7; margin: 8px 0 16px; }
+.feature-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.feature-tag-search { max-width: 220px; margin-bottom: 10px; }
+.experience-list { display: grid; gap: 12px; margin-top: 14px; }
+.experience-entry { padding: 12px; border: 1px solid rgba(150,160,180,.16); border-radius: 8px; }
+.experience-entry > div { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.experience-entry time { color: #9aa2af; font-variant-numeric: tabular-nums; }
+.experience-entry p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; font-size: 13px; line-height: 1.7; }
+.experience-timeline { margin: 0 0 30px; padding: 18px; border: 1px solid rgba(150,160,180,.16); border-radius: 12px; }
+.experience-timeline h2 { font-size: 16px; margin: 0 0 14px; }
+.timeline-row { display: grid; grid-template-columns: 90px minmax(90px,180px) 1fr; gap: 12px; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid rgba(150,160,180,.1); }
+.timeline-row time,.timeline-row > span { color: #9aa2af; font-size: 12px; }
+.timeline-row strong { font-size: 13px; }
+.metadata-review-list { display: grid; gap: 10px; padding: 10px 0; }
+.metadata-review-choice { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(150,160,180,.2); border-radius: 8px; }
+.metadata-review-choice input { width: auto; }
+.metadata-review-choice small { display: block; color: #9aa2af; margin-top: 4px; }
+.platform-suggestions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.platform-suggestions button { padding: 4px 8px; border: 1px solid rgba(150,160,180,.2); border-radius: 5px; font-size: 12px; }
+.platform-suggestions button.is-active { color: #b9e8d4; background: rgba(120,200,165,.12); }
+.detail-tags-heading { display: flex; justify-content: space-between; align-items: center; }
+@media (max-width: 700px) { .timeline-row { grid-template-columns: 82px 1fr; } .timeline-row > span { grid-column: 2; } .topbar-actions .metadata-add { padding: 8px; font-size: 12px; } }

@@ -1,0 +1,25 @@
+/* Customizable native pickers retain keyboard/selection semantics without system blue menus. */
+:root[data-theme] select {
+  border: 1px solid var(--control-border); border-radius: 10px;
+  background: var(--field); color: var(--text); padding: 9px 12px;
+  font: inherit; font-size: 12px; box-shadow: none; min-height: 36px;
+}
+:root[data-theme] select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:root[data-theme] .sort-box select { border: 0; background: transparent; border-radius: inherit; padding: 0; min-height: 0; outline-offset: 4px; }
+@supports(appearance:base-select) {
+  :root[data-theme] select,:root[data-theme] select::picker(select) { appearance: base-select; }
+  :root[data-theme] select::picker(select) {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 12px;
+    padding: 5px; box-shadow: 0 12px 36px #00000066; margin-block: 6px;
+    min-width: anchor-size(width); max-width: calc(100vw - 24px); max-height: min(360px,55dvh);
+    overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  :root[data-theme] select::picker-icon { color: var(--muted); transition: rotate .15s; }
+  :root[data-theme] select:open::picker-icon { rotate: 180deg; }
+  :root[data-theme] select option { display: flex; align-items: center; gap: 15px; border-radius: 7px; padding: 9px 11px; min-height: 34px; font-size: 12px; color: var(--text); background: transparent; }
+  :root[data-theme] select option:is(:hover,:focus) { outline: none; background: var(--hover); }
+  :root[data-theme] select option:checked { background: var(--accent-soft); color: var(--accent-ink); font-weight: 650; }
+  :root[data-theme] select option::checkmark { color: var(--accent); order: 1; margin-left: auto; }
+  :root[data-theme] select option:disabled { color: var(--muted); opacity: .55; }
+}
+@media(prefers-reduced-motion:reduce) { :root[data-theme] select::picker-icon { transition: none; } }

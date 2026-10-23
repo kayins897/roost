@@ -1,0 +1,49 @@
+.steam-library-import { max-width: 780px; }
+.steam-import-source { padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-2); }
+.steam-import-source .form-field { margin: 0; }
+.steam-import-options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.steam-import-options select { min-width: 0; width: 100%; }
+.steam-import-source textarea { resize: vertical; min-height: 112px; max-height: 260px; font-size: 13px; line-height: 1.65; }
+.steam-import-source-actions { display: flex; justify-content: flex-end; align-items: center; gap: 9px; margin-top: 12px; }
+.steam-import-file { position: relative; overflow: hidden; cursor: pointer; }
+.steam-import-file input { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; opacity: 0; }
+.steam-import-file:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+.steam-import-hint, .steam-import-help, .steam-import-warnings { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.steam-import-hint { margin: 12px 0 0; }
+.steam-import-help { margin-top: 10px; }
+.steam-import-help summary, .steam-import-warnings summary { cursor: pointer; color: var(--text); }
+.steam-import-help p { margin: 9px 0; }
+.steam-import-help a { color: var(--accent); }
+.steam-import-summary { display: flex; gap: 24px; flex-wrap: wrap; padding: 18px 0 13px; color: var(--muted); font-size: 13px; }
+.steam-import-summary strong { color: var(--text); font-size: 18px; margin-right: 3px; }
+.steam-import-selection { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0; }
+.steam-import-selection > label:first-child { display: flex; align-items: center; gap: 7px; color: var(--text); font-size: 13px; }
+.steam-import-selection > label:first-child span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.steam-import-search input { width: 170px; min-width: 0; height: 34px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); color: var(--text); font: inherit; font-size: 12px; outline: none; }
+.steam-import-search input::placeholder { color: var(--muted); }
+.steam-import-search input:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
+.steam-import-rows { max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.steam-import-row { display: flex; align-items: center; gap: 12px; min-height: 61px; padding: 11px 13px; cursor: pointer; }
+.steam-import-row + .steam-import-row { border-top: 1px solid var(--line); }
+.steam-import-row:hover { background: var(--hover, var(--panel-2)); }
+.steam-import-row input, .steam-import-selection input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex: 0 0 16px; accent-color: var(--accent); }
+.steam-import-game { display: flex; flex-direction: column; min-width: 0; gap: 4px; flex: 1; }
+.steam-import-game strong { color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.steam-import-game small { color: var(--muted); font-size: 11px; }
+.steam-import-row-state { flex-shrink: 0; font-size: 11px; color: var(--accent); }
+.steam-import-row--duplicate { cursor: default; }
+.steam-import-row--duplicate .steam-import-row-state, .steam-import-row--duplicate strong { color: var(--muted); }
+.steam-import-warnings { padding: 10px 12px; background: var(--panel-2); border-radius: 12px; }
+.steam-import-warnings ul { margin: 8px 0 0; padding-left: 20px; }
+.steam-import-discard { padding: 13px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel-2); color: var(--text); }
+.steam-import-discard p { margin: 0 0 10px; font-size: 13px; }
+.steam-import-discard > div { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+@media (max-width: 530px) {
+  .steam-import-options { gap: 9px; }
+  .steam-import-source { padding: 12px; }
+  .steam-import-summary { gap: 12px; }
+  .steam-import-selection { flex-wrap: wrap; }
+  .steam-import-search { flex: 1; min-width: 110px; }
+  .steam-import-search input { width: 100%; }
+  .steam-import-row { gap: 8px; padding: 10px; }
+}

@@ -1,0 +1,62 @@
+/* Material layers ported from the local Mineradio reference; no filter touches content. */
+:root[data-theme] [data-material-glass] {
+  position: relative; isolation: isolate; overflow: visible;
+  background: transparent; border-color: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: 0 10px 32px var(--material-shadow);
+}
+[data-material-glass] > :not(.glass-material__effect):not(.glass-material__highlight) { position: relative; z-index: 2; }
+.glass-material__effect, .glass-material__highlight {
+  display: block; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; font-style: normal;
+}
+.glass-material__effect { z-index: 0; background: var(--material-coating,var(--material-fill)); backdrop-filter: blur(var(--material-blur,3px)) saturate(100%) brightness(1.1); }
+.glass-material__highlight {
+  z-index: 1;
+  background: radial-gradient(200px circle at var(--ngx,50%) var(--ngy,50%),rgb(255 255 255 / calc(.08 * var(--ngs-spec-o,0))),transparent 70%);
+  box-shadow: inset 0 1px 0 #ffffff29,inset 0 -1px 0 #00000038;
+}
+.glass-material__highlight::before, .glass-material__highlight::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  -webkit-mask-image: linear-gradient(#000 0 0),linear-gradient(#000 0 0); mask-image: linear-gradient(#000 0 0),linear-gradient(#000 0 0);
+  -webkit-mask-clip: content-box,border-box; mask-clip: content-box,border-box;
+  -webkit-mask-origin: content-box,border-box; mask-origin: content-box,border-box;
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.glass-material__highlight::before {
+  padding: 1px; opacity: calc(.8 * (1 - .7 * var(--ngs-spec-o,0)));
+  background: linear-gradient(160deg,#ffffff80 0%,#ffffff47 22%,#ffffff0a 45%,#ffffff05 60%,#ffffff47 100%);
+}
+.glass-material__highlight::after {
+  padding: 2px;
+  background: radial-gradient(140px circle at var(--ngx,50%) var(--ngy,50%),rgb(255 255 255 / calc(.65 * var(--ngs-spec-o,0))),rgb(255 255 255 / calc(.18 * var(--ngs-spec-o,0))) 40%,transparent 70%);
+}
+:root[data-theme] [data-material-glass='button'] {
+  color: var(--material-ink); background: transparent; box-shadow: none;
+}
+:root[data-theme] [data-material-glass='button']:hover { color: var(--text); background: transparent; transform: none; }
+:root[data-theme] [data-material-glass='button']:active { transform: scale(.96); }
+:root[data-theme] .sidebar-dock .nav-item--active[data-material-glass] {
+  color: var(--material-active-ink); background: transparent; border-color: transparent;
+  box-shadow: 0 0 18px var(--material-active-glow),0 4px 12px var(--material-shadow);
+}
+.nav-item--active > .glass-material__effect { background: var(--material-active-fill); }
+.nav-item--active > .glass-material__highlight { box-shadow: inset 0 1px 0 #ffffff61,inset 0 0 0 1px var(--material-active-edge); }
+:root[data-theme] .dock-back-top[data-material-glass] { position: absolute; }
+:root[data-theme] .dock-back-top[data-material-glass]:hover { transform: translateX(-50%); color: var(--accent); }
+:root[data-theme] .dock-back-top[data-material-glass]:active { transform: translateX(-50%) scale(.96); }
+:root[data-theme] [data-material-glass][data-glass-effective='solid'] > .glass-material__effect { background: var(--glass-solid); backdrop-filter: none !important; }
+[data-glass-effective='solid'] > .glass-material__highlight { display: none; }
+.glass-material__defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+:root[data-glass-tint='deep-mint'] .glass-material__highlight::before { background: linear-gradient(160deg,#9bf5dca6 0%,#7ad7c259 22%,#7ad7c214 45%,#7ad7c20a 60%,#7ad7c259 100%); }
+:root[data-glass-tint='champagne'] .glass-material__highlight::before { background: linear-gradient(160deg,#ffe5aea6 0%,#f4d28a59 22%,#f4d28a14 45%,#f4d28a0a 60%,#f4d28a59 100%); }
+@media(prefers-reduced-motion:reduce) {
+  [data-material-glass] { translate: none !important; transition: none !important; }
+  .glass-material__highlight { background: none; }
+  .glass-material__highlight::after { display: none; }
+}
+@media(prefers-reduced-transparency:reduce) {
+  .glass-material__effect { background: var(--glass-solid); backdrop-filter: none !important; }
+  .glass-material__highlight { display: none; }
+}
+@supports not (backdrop-filter:blur(1px)) { .glass-material__effect { background: var(--glass-solid); } }
+
+:root[data-theme] .global-search[data-material-glass]:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }

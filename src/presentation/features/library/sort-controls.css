@@ -1,0 +1,7 @@
+.sort-controls { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
+.sort-controls .sort-controls__field { display: flex; align-items: center; gap: 8px; width: 136px; min-width: 136px; max-width: 136px; white-space: nowrap; }
+.sort-controls__field > svg { flex: none; }
+:root[data-theme] .sort-controls__field select { flex: 1; width: auto; min-width: 0; white-space: nowrap; }
+.sort-controls .sort-controls__direction { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 36px; padding: 7px 9px; font-size: 11px; white-space: nowrap; }
+.sort-controls__direction > svg { flex: none; }
+@media(max-width:530px) { .sort-controls .sort-controls__field { width: 124px; min-width: 124px; max-width: 124px; }.sort-controls .sort-controls__direction { padding-inline: 7px; } }

@@ -1,0 +1,22 @@
+.ambient-scene { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: #08090b; contain: strict; }
+.ambient-scene__field { position: absolute; inset: -144px; opacity: var(--ambient-field-opacity, .96); }
+.ambient-scene__field--far { background: radial-gradient(ellipse at 14% 10%, color-mix(in srgb,var(--theme-ambient) 11.5%,transparent), transparent 51%), radial-gradient(ellipse at 80% 98%, color-mix(in srgb,var(--theme-ambient) 7.5%,transparent), transparent 48%); transform: translate3d(calc(var(--scene-x, 0px) * .3), calc(var(--scene-y, 0px) * .3), 0); }
+.ambient-scene__field--near { background: radial-gradient(ellipse at 87% 13%, color-mix(in srgb,var(--theme-ambient) 11%,transparent), transparent 42%), radial-gradient(ellipse at 29% 86%, color-mix(in srgb,var(--theme-ambient) 12.5%,transparent), transparent 40%); transform: translate3d(var(--scene-x, 0px), var(--scene-y, 0px), 0); }
+.ambient-scene__field--ember { background: radial-gradient(ellipse at 78% 82%, color-mix(in srgb,var(--theme-ambient) 5%,transparent), transparent 33%), radial-gradient(ellipse at 40% 6%, color-mix(in srgb,var(--theme-ambient) 7%,transparent), transparent 29%); }
+.ambient-scene__particles, .ambient-scene__fluid, .ambient-scene__vignette { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 50% 50%; }
+.ambient-scene__fluid { opacity: var(--ambient-fluid-opacity, 1); }
+.ambient-scene[data-fluid='on'] .ambient-scene__field { visibility: hidden; }
+.ambient-scene[data-fluid='off'] .ambient-scene__fluid { visibility: hidden; }
+.ambient-scene__particles { opacity: var(--ambient-particle-opacity, 1); }
+.ambient-scene[data-stars='off'] .ambient-scene__particles { visibility: hidden; }
+.ambient-scene__vignette { background: radial-gradient(ellipse at 48% 45%, transparent 45%, #08090b26 100%); }
+.ambient-scene[data-motion='animated'] :is(.ambient-scene__field,.ambient-scene__fluid,.ambient-scene__particles) { will-change: transform; }
+:root[data-theme='light'] .ambient-scene { background: #fff7e5; }
+:root[data-theme='light'] .ambient-scene__vignette { background: radial-gradient(ellipse at 48% 45%, transparent 45%, #97845a13 100%); }
+@media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {
+  .ambient-scene__field, .ambient-scene__particles, .ambient-scene__fluid { transform: none !important; will-change: auto !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ambient-scene__fluid { visibility: hidden; }
+  .ambient-scene__particles { opacity: .45; }
+}

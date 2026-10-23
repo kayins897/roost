@@ -1,0 +1,21 @@
+/* Quiet frosted controls. Navigation alone owns SVG lens/reflection effects. */
+:root[data-action-glass='on'] :is(.button--primary,.button--secondary,.advanced-toggle,.sort-box,.view-switch,.status-tabs button,.tag-filter,.status-option,.batch-mode button,.batch-existing-tags button,.library-views > button,.settings-palettes > button) {
+  background: color-mix(in srgb,var(--control-fill) var(--action-glass-opacity,56%),transparent);
+  -webkit-backdrop-filter: blur(var(--action-glass-blur,8px)); backdrop-filter: blur(var(--action-glass-blur,8px));
+  border-color: var(--control-border); box-shadow: inset 0 1px 0 #ffffff0a;
+}
+:root[data-action-glass='on'] :is(.button--primary,.button--secondary,.advanced-toggle,.sort-box,.status-tabs button,.tag-filter,.status-option,.batch-mode button,.batch-existing-tags button,.library-views > button):hover:not(:disabled) {
+  background: color-mix(in srgb,var(--control-hover) max(68%,var(--action-glass-opacity,56%)),transparent); border-color: var(--control-hover-border);
+}
+:root[data-action-glass='on'] :is(.button--primary,.advanced-toggle.is-expanded,.status-tabs button.is-selected,.tag-filter.is-selected,.status-option.is-selected,.batch-mode button.is-selected,.batch-existing-tags button.is-selected,.view-switch button.is-active,.library-views > button.is-active) {
+  background: color-mix(in srgb,var(--control-selected) max(82%,var(--action-glass-opacity,56%)),transparent); color: var(--control-selected-ink); border-color: var(--control-selected-border);
+}
+:root[data-action-glass='on'] .settings-palettes > button.is-selected { border-color: var(--accent); }
+@media(prefers-reduced-transparency:reduce) {
+  :root[data-action-glass='on'] :is(.button,.advanced-toggle,.sort-box,.view-switch,.status-tabs button,.tag-filter,.status-option,.batch-mode button,.batch-existing-tags button,.library-views > button,.settings-palettes > button) { background: var(--control-fill); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root[data-action-glass='on'] :is(.button--primary,.advanced-toggle.is-expanded,.status-tabs button.is-selected,.tag-filter.is-selected,.status-option.is-selected,.batch-mode button.is-selected,.batch-existing-tags button.is-selected,.view-switch button.is-active,.library-views > button.is-active) { background: var(--control-selected); color: var(--control-selected-ink); border-color: var(--control-selected-border); }
+}
+@supports not(backdrop-filter:blur(1px)) {
+  :root[data-action-glass='on'] :is(.button,.status-tabs button,.tag-filter,.status-option,.library-views > button) { background: var(--control-fill); }
+  :root[data-action-glass='on'] :is(.button--primary,.advanced-toggle.is-expanded,.status-tabs button.is-selected,.tag-filter.is-selected,.status-option.is-selected,.batch-mode button.is-selected,.batch-existing-tags button.is-selected,.view-switch button.is-active,.library-views > button.is-active) { background: var(--control-selected); color: var(--control-selected-ink); }
+}

@@ -1,0 +1,66 @@
+.steam-connect { max-width: 860px; }
+.steam-connect-source { padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-2); }
+.steam-connect-fields { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px; }
+.steam-connect-fields .form-field { margin: 0; min-width: 0; }
+.steam-connect-fields input { min-width: 0; width: 100%; }
+.steam-connect-key-help, .steam-connect-options, .steam-connect-source-actions, .steam-connect-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.steam-connect-key-help { justify-content: space-between; margin: 11px 0 15px; font-size: 12px; color: var(--muted); }
+.steam-connect-key-help a, .steam-connect-key-help > span { display: inline-flex; align-items: center; gap: 5px; }
+.steam-connect-key-help a { color: var(--accent); }
+.steam-connect-options { gap: 12px 20px; font-size: 12px; color: var(--text); }
+.steam-connect-options label, .steam-connect-selection > label { display: flex; align-items: center; gap: 7px; }
+.steam-connect input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex: 0 0 16px; accent-color: var(--accent); }
+.steam-connect-note { margin: 12px 0; color: var(--muted); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.steam-connect-source-actions { justify-content: flex-end; margin-top: 13px; }
+.steam-connect-preview { margin-top: 22px; }
+.steam-connect-result-heading { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
+.steam-connect-result-heading h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.steam-connect-result-heading p { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.steam-connect-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 15px 0; }
+.steam-connect-counts button { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 13px 15px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 13px; color: var(--muted); text-align: left; }
+.steam-connect-counts strong { font-size: 23px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.steam-connect-counts span { font-size: 12px; }
+.steam-connect-counts button:hover, .steam-connect-counts button.is-selected { border-color: var(--accent-line); background: var(--accent-soft); }
+.steam-connect-playtime { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; }
+.steam-connect-playtime > input { margin-top: 2px !important; }
+.steam-connect-playtime > span { display: flex; flex-direction: column; gap: 5px; }
+.steam-connect-playtime small { color: var(--muted); font-size: 11px; line-height: 1.7; }
+.steam-connect-selection { justify-content: space-between; font-size: 12px; margin: 14px 0 10px; }
+.steam-connect-selection > label > span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.steam-connect-search { display: flex; flex: 1; min-width: 160px; max-width: 260px; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: var(--panel-2); }
+.steam-connect-search input { border: 0; min-width: 0; width: 100%; background: transparent; color: var(--text); font: inherit; outline: 0; }
+.steam-connect-search:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.steam-connect-rows { max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; }
+.steam-connect-row { display: flex; align-items: center; gap: 11px; padding: 11px 13px; min-height: 85px; cursor: pointer; }
+.steam-connect-row + .steam-connect-row { border-top: 1px solid var(--line); }
+.steam-connect-row:hover { background: var(--panel-2); }
+.steam-connect-cover { display: grid; place-items: center; width: 37px; height: 55px; flex: 0 0 37px; border-radius: 5px; overflow: hidden; background: var(--panel-3); color: var(--muted); }
+.steam-connect-cover img { height: 100%; width: 100%; object-fit: cover; }
+.steam-connect-game { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.steam-connect-game strong { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.steam-connect-game small { color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.steam-connect-row-state { flex-shrink: 0; color: var(--accent); font-size: 11px; }
+.steam-connect-row--ambiguous, .steam-connect-row--unchanged { cursor: default; }
+.steam-connect-row--unchanged .steam-connect-row-state, .steam-connect-row--ambiguous .steam-connect-row-state { color: var(--muted); }
+.steam-connect-progress { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding: 13px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; }
+.steam-connect-progress > div { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6px; font-size: 12px; }
+.steam-connect-progress > div > span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.steam-connect-progress progress { flex-basis: 100%; width: 100%; height: 6px; accent-color: var(--accent); }
+.steam-connect-confirm { margin: 12px 0; padding: 13px; background: var(--panel-2); border: 1px solid var(--accent-line); border-radius: 12px; }
+.steam-connect-confirm p { margin: 0 0 10px; font-size: 13px; line-height: 1.7; }
+.steam-connect-confirm > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.steam-connect-empty { padding: 15px; color: var(--muted); font-size: 12px; }
+.steam-open-link { display: inline-flex; align-items: center; gap: 5px; margin-left: 12px; white-space: nowrap; }
+@media (max-width: 600px) {
+  .steam-connect-source { padding: 12px; }
+  .steam-connect-fields { grid-template-columns: 1fr; gap: 13px; }
+  .steam-connect-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .steam-connect-counts button { padding: 11px 13px; }
+  .steam-connect-result-heading .button { width: 100%; justify-content: center; }
+  .steam-connect-row { gap: 8px; padding: 10px; }
+  .steam-connect-cover { display: none; }
+  .steam-connect-search { max-width: none; }
+  .steam-connect-selection > label { width: 100%; }
+  .steam-connect .modal-actions { flex-wrap: wrap; }
+  .steam-connect .modal-actions > button { flex: 1; justify-content: center; }
+}
