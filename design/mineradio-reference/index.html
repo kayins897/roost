@@ -1,0 +1,1605 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mineradio 复刻 · 流体板 / 星河 / 液态玻璃 参考实现</title>
+<style>
+  /* Standalone shell: dark theme tokens + the host utilities the fragment
+     expects (form controls, buttons, controls rows). Zero dependencies. */
+  :root {
+    --background: #101014;
+    --foreground: #f4f2ec;
+    --muted-foreground: #a8a39a;
+    --border: #3a3730;
+    --accent-soft: #332b1d;
+    --control-selected-border: #ddc18b;
+    --control-hover-border: #c6a66580;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 26px clamp(14px, 3vw, 40px) 40px;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Inter, 'Noto Sans SC', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .text-muted { color: var(--muted-foreground); }
+  .viz-controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .form-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .form-check-input {
+    appearance: none; position: relative; width: 36px; height: 21px; margin: 0;
+    border-radius: 999px; background: #211f1b; border: 1px solid var(--border);
+    cursor: pointer; transition: background .15s, border-color .15s; flex: none;
+  }
+  .form-check-input::before {
+    content: ''; position: absolute; left: 3px; top: 3px; width: 13px; height: 13px;
+    border-radius: 50%; background: #a8a39a; transition: transform .18s, background .18s;
+  }
+  .form-check-input:checked { background: var(--accent-soft); border-color: #a58b58; }
+  .form-check-input:checked::before { transform: translateX(14px); background: #d7ba7d; }
+  .form-check-label { font-size: 13px; user-select: none; }
+  .form-range {
+    appearance: none; width: 100%; height: 6px; margin: 0; padding: 0;
+    border-radius: 999px; background: linear-gradient(90deg, var(--accent-soft), #211f1b);
+    border: 1px solid var(--border); cursor: pointer;
+  }
+  .form-range::-webkit-slider-thumb {
+    appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: #d7ba7d; border: 1px solid var(--control-selected-border);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+  }
+  .form-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #d7ba7d; border: 1px solid var(--control-selected-border); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px;
+    border-radius: 999px; border: 1px solid var(--border); background: #211f1b;
+    color: var(--foreground); font-size: 13px; font-family: inherit; cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .btn:hover { border-color: var(--control-hover-border); }
+  .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--control-selected-border); }
+  .btn:focus-visible { outline: 2px solid rgb(215 186 125 / 0.7); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<script>
+/* Standalone persistence shim: the fragment talks to the ZCode widget-state
+   host; here the same calls map to localStorage so settings survive reloads. */
+window.zcode = {
+  widgetState: (() => {
+    try { const raw = localStorage.getItem('mr-recreation-state'); return raw ? { modelContent: JSON.parse(raw) } : null; }
+    catch (e) { return null; }
+  })(),
+  setWidgetState(state) {
+    try { localStorage.setItem('mr-recreation-state', JSON.stringify(state && state.modelContent ? state.modelContent : null)); } catch (e) {}
+    return Promise.resolve();
+  },
+};
+</script>
+<div id="mineradio-recreation">
+  <style>
+    #mineradio-recreation { display: flex; flex-direction: column; gap: 12px; }
+    #mineradio-recreation .stage {
+      position: relative;
+      height: clamp(340px, 58vw, 520px);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #05070c;
+      isolation: isolate;
+      touch-action: none;
+    }
+    #mineradio-recreation .ambient-base {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(760px 420px at 50% -8%, rgb(0 245 212 / 0.07), transparent 70%),
+        linear-gradient(180deg, rgb(36 66 255 / 0.08) 0%, rgb(36 66 255 / 0) 46%),
+        radial-gradient(900px 420px at 50% 108%, rgb(244 210 138 / 0.05), transparent 70%);
+    }
+    #mineradio-recreation .stage canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      will-change: transform;
+    }
+    #mineradio-recreation .tag {
+      position: absolute;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: rgb(255 255 255 / 0.55);
+      background: rgb(5 8 14 / 0.45);
+      pointer-events: none;
+    }
+    #mineradio-recreation .tag-far { left: 14px; bottom: 14px; }
+    #mineradio-recreation .tag-near { right: 14px; top: 14px; }
+    #mineradio-recreation .glass-row {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+      top: 58%;
+      width: min(660px, 92%);
+    }
+    #mineradio-recreation .pane-card { flex: 1 1 250px; max-width: 320px; height: 176px; }
+    #mineradio-recreation .pane-caption { display: flex; flex-direction: column; gap: 4px; }
+    #mineradio-recreation .pane-caption b { font-weight: 500; font-size: 15px; }
+    #mineradio-recreation .pane-caption span { font-size: 12px; color: rgb(255 250 240 / 0.52); }
+    #mineradio-recreation .pane-btn { width: 128px; height: 40px; font-size: 13px; }
+    #mineradio-recreation .pane-btn-wrap { display: flex; }
+    /* nico-glass-kit material layers (dark scheme values) */
+    #mineradio-recreation .ngs-surface {
+      box-sizing: border-box;
+      position: relative;
+      display: inline-block;
+      color: rgb(255 255 255 / 0.94);
+      box-shadow: 0 10px 32px rgb(0 0 0 / 0.34);
+    }
+    #mineradio-recreation .ngs-motion {
+      border-radius: inherit;
+      will-change: transform;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #mineradio-recreation .ngs-effect,
+    #mineradio-recreation .ngs-highlight {
+      border-radius: inherit;
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+    }
+    #mineradio-recreation .ngs-effect {
+      z-index: 0;
+      background: rgb(18 20 26 / 0.2);
+    }
+    #mineradio-recreation .ngs-highlight {
+      z-index: 1;
+      background: radial-gradient(200px circle at var(--ngx, 50%) var(--ngy, 50%), rgb(255 255 255 / calc(0.08 * var(--ngs-spec-o, 0) * var(--ngs-hl, 1))), transparent 70%);
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 -1px 0 rgb(0 0 0 / 0.22);
+    }
+    #mineradio-recreation .ngs-highlight::before {
+      content: '';
+      border-radius: inherit;
+      background: linear-gradient(160deg, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0.28) 22%, rgb(255 255 255 / 0.04) 45%, rgb(255 255 255 / 0.02) 60%, rgb(255 255 255 / 0.28) 100%);
+      padding: 1px;
+      position: absolute;
+      inset: 0;
+      opacity: calc(0.8 * var(--ngs-hl, 1) * (1 - 0.7 * var(--ngs-spec-o, 0)));
+      -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+      mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+      -webkit-mask-clip: content-box, border-box;
+      mask-clip: content-box, border-box;
+      -webkit-mask-origin: content-box, border-box;
+      mask-origin: content-box, border-box;
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+    #mineradio-recreation .ngs-highlight::after {
+      content: '';
+      border-radius: inherit;
+      background: radial-gradient(140px circle at var(--ngx, 50%) var(--ngy, 50%), rgb(255 255 255 / calc(0.65 * var(--ngs-spec-o, 0) * var(--ngs-hl, 1))), rgb(255 255 255 / calc(0.18 * var(--ngs-spec-o, 0) * var(--ngs-hl, 1))) 40%, transparent 70%);
+      padding: 2px;
+      position: absolute;
+      inset: 0;
+      -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+      mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+      -webkit-mask-clip: content-box, border-box;
+      mask-clip: content-box, border-box;
+      -webkit-mask-origin: content-box, border-box;
+      mask-origin: content-box, border-box;
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+    #mineradio-recreation .ngs-content {
+      z-index: 2;
+      flex: auto;
+      min-height: 0;
+      position: relative;
+    }
+    #mineradio-recreation .pane-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+      height: 100%;
+      padding: 18px 20px;
+      gap: 12px;
+    }
+    #mineradio-recreation .ngs-btn {
+      font: inherit;
+      cursor: pointer;
+      user-select: none;
+      background: 0 0;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    #mineradio-recreation .ngs-btn:not(:disabled):active { transform: scale(0.96); }
+    #mineradio-recreation .ngs-btn:focus-visible { outline: 2px solid rgb(255 255 255 / 0.7); outline-offset: 2px; }
+    #mineradio-recreation .ngs-btn-content {
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      font-weight: 500;
+      display: inline-flex;
+    }
+    #mineradio-recreation .mr-glass-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+    #mineradio-recreation .hint {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: rgb(255 255 255 / 0.42);
+      pointer-events: none;
+      max-width: 76%;
+      text-align: center;
+    }
+    #mineradio-recreation .ctl-group { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+    #mineradio-recreation .ctl-switches { flex-direction: row; gap: 14px; align-items: center; min-width: 0; }
+    #mineradio-recreation .ctl-label { font-size: 12px; color: var(--muted-foreground); }
+    #mineradio-recreation .swatch-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    #mineradio-recreation .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; background: #d9a412; }
+    #mineradio-recreation details.adv > summary {
+      cursor: pointer;
+      color: var(--muted-foreground);
+      font-size: 13px;
+      width: fit-content;
+      user-select: none;
+    }
+    #mineradio-recreation details.adv > summary:hover { color: var(--foreground); }
+    #mineradio-recreation details.adv[open] > summary { margin-bottom: 6px; }
+  </style>
+
+  <div class="stage" id="mr-stage" role="img" aria-label="Mineradio 主题背景效果还原演示：WebGL 流体板、星河粒子与景深视差">
+    <div class="ambient-base" aria-hidden="true"></div>
+    <canvas id="mr-fluid" aria-hidden="true"></canvas>
+    <canvas id="mr-stars" aria-hidden="true"></canvas>
+    <div class="tag tag-far" aria-hidden="true">远层 · 流体板 ×1</div>
+    <div class="tag tag-near" aria-hidden="true">近层 · 星河 ×2</div>
+    <div class="glass-row" role="group" aria-label="玻璃材质对比：液态玻璃与磨砂玻璃">
+      <div class="pane-card" id="mr-pane-liquid"></div>
+      <div class="pane-card" id="mr-pane-frost"></div>
+    </div>
+    <div class="hint" aria-hidden="true">移动指针 → 景深视差 + 玻璃弹性倾斜 · 点击空白 → 星尘涟漪</div>
+  </div>
+
+  <div class="viz-controls">
+    <div class="ctl-group ctl-switches">
+      <label class="form-check form-switch"><input class="form-check-input" type="checkbox" id="mr-fluid-on" checked><span class="form-check-label">流体板</span></label>
+      <label class="form-check form-switch"><input class="form-check-input" type="checkbox" id="mr-stars-on" checked><span class="form-check-label">星河</span></label>
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">视差幅度 <b class="tabular-nums" id="mr-parallax-val">100%</b></span>
+      <input type="range" class="form-range" id="mr-parallax" min="0" max="150" step="5" value="100" aria-label="视差幅度">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">粒子密度 <b class="tabular-nums" id="mr-density-val">60</b></span>
+      <input type="range" class="form-range" id="mr-density" min="10" max="100" step="5" value="60" aria-label="粒子密度">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">流体色调</span>
+      <div class="swatch-row" role="group" aria-label="流体色调">
+        <button type="button" class="btn" data-hue="44" aria-pressed="true"><span class="dot" data-dot="44"></span>香槟金</button>
+        <button type="button" class="btn" data-hue="210" aria-pressed="false"><span class="dot" data-dot="210"></span>深海蓝</button>
+        <button type="button" class="btn" data-hue="160" aria-pressed="false"><span class="dot" data-dot="160"></span>极光绿</button>
+        <button type="button" class="btn" data-hue="268" aria-pressed="false"><span class="dot" data-dot="268"></span>紫罗兰</button>
+        <button type="button" class="btn" data-hue="355" aria-pressed="false"><span class="dot" data-dot="355"></span>绛红</button>
+      </div>
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">初始状态</span>
+      <button type="button" class="btn" id="mr-reset" data-tooltip="恢复全部默认值（香槟金 · 深度22 · 密度60 · 视差100%）">重置默认</button>
+    </div>
+  </div>
+
+  <details class="adv">
+  <summary>流体板高级选项</summary>
+<div class="viz-controls">
+    <div class="ctl-group">
+      <span class="ctl-label">色深 <b class="tabular-nums" id="mr-depth-val">22</b></span>
+      <input type="range" class="form-range" id="mr-depth" min="0" max="100" step="1" value="22" aria-label="流体色深">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">流速 <b class="tabular-nums" id="mr-speed-val">14</b></span>
+      <input type="range" class="form-range" id="mr-speed" min="2" max="40" step="1" value="14" aria-label="流体流速">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">涡旋 <b class="tabular-nums" id="mr-swirl-val">12</b></span>
+      <input type="range" class="form-range" id="mr-swirl" min="0" max="30" step="1" value="12" aria-label="涡旋强度">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">扭曲 <b class="tabular-nums" id="mr-distort-val">20</b></span>
+      <input type="range" class="form-range" id="mr-distort" min="0" max="60" step="1" value="20" aria-label="扭曲强度">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">笔刷力度 <b class="tabular-nums" id="mr-strength-val">0</b></span>
+      <input type="range" class="form-range" id="mr-strength" min="0" max="2.5" step="0.1" value="0" aria-label="鼠标笔刷力度">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">笔刷半径 <b class="tabular-nums" id="mr-radius-val">0.22</b></span>
+      <input type="range" class="form-range" id="mr-radius" min="0.05" max="0.5" step="0.01" value="0.22" aria-label="鼠标笔刷半径">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">Logo 回响 <b class="tabular-nums" id="mr-logecho-val">70</b></span>
+      <input type="range" class="form-range" id="mr-logecho" min="0" max="100" step="5" value="70" aria-label="Logo 在流体中的涡旋回响强度">
+    </div>
+  </div>
+
+  </details>
+
+  <details class="adv">
+  <summary>玻璃材质高级选项</summary>
+<div class="viz-controls">
+    <div class="ctl-group">
+      <span class="ctl-label">玻璃模糊 <b class="tabular-nums" id="mr-gblur-val">3</b></span>
+      <input type="range" class="form-range" id="mr-gblur" min="0" max="12" step="1" value="3" aria-label="玻璃模糊">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">折射 <span class="text-muted">(液态)</span> <b class="tabular-nums" id="mr-grefraction-val">100%</b></span>
+      <input type="range" class="form-range" id="mr-grefraction" min="0" max="100" step="5" value="100" aria-label="液态玻璃折射强度">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">色散 <span class="text-muted">(液态)</span> <b class="tabular-nums" id="mr-gdispersion-val">10%</b></span>
+      <input type="range" class="form-range" id="mr-gdispersion" min="0" max="100" step="5" value="10" aria-label="液态玻璃色散">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">透镜深度 <span class="text-muted">(液态)</span> <b class="tabular-nums" id="mr-gdepth-val">8</b></span>
+      <input type="range" class="form-range" id="mr-gdepth" min="2" max="20" step="1" value="8" aria-label="液态玻璃透镜深度">
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">弹性 <b class="tabular-nums" id="mr-gelasticity-val">25%</b></span>
+      <input type="range" class="form-range" id="mr-gelasticity" min="0" max="50" step="5" value="25" aria-label="玻璃弹性">
+    </div>
+  </div>
+  </details>
+
+  <script>
+  (() => {
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const stage = $('mr-stage');
+    const fluidCv = $('mr-fluid');
+    const starCv = $('mr-stars');
+    const fluidToggle = $('mr-fluid-on');
+    const starsToggle = $('mr-stars-on');
+    const parallaxInput = $('mr-parallax');
+    const densityInput = $('mr-density');
+    const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fluidOn = () => fluidToggle.checked;
+    const starsOn = () => starsToggle.checked;
+    const fract = (n) => n - Math.floor(n);
+    const hash = (n) => fract(Math.sin(n) * 43758.5453123);
+
+    /* ---------- palette: port of fluid-tones.ts (dark scheme, depth 50) ---------- */
+    function hsl(h, s, l) {
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+      const m = l - c / 2;
+      let r = 0, g = 0, b = 0;
+      if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+      else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+      else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+      const hex = (v) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+      return '#' + hex(r) + hex(g) + hex(b);
+    }
+    const toneColors = (hue, depth) => {
+      // port of fluidToneColors (dark scheme): piecewise depth ramp,
+      // 0 = near-black deep stop, 100 = pale wash; theme default depth = 22
+      const d = Math.min(1, Math.max(0, (depth === undefined ? 22 : depth) / 100));
+      const ramp = (deep, mid, pale) => (d < 0.5 ? deep + ((mid - deep) * d) / 0.5 : mid + ((pale - mid) * (d - 0.5)) / 0.5);
+      return {
+        color1: hsl(hue, 0.85, ramp(0, 0.46, 0.62)),
+        color2: hsl(hue, 0.9, ramp(0, 0.305, 0.45)),
+        color3: hsl(hue, 0.5, ramp(0, 0.075, 0.10)),
+      };
+    };
+
+    /* ================= fluid board: two-pass WebGL2 flow-map sim ================= */
+    const VERT = `#version 300 es
+in vec4 a_position;
+out vec2 vUv;
+void main() {
+  vUv = a_position.xy * 0.5 + 0.5;
+  gl_Position = a_position;
+}`;
+
+    const FLOW_FRAG = `#version 300 es
+precision mediump float;
+in vec2 vUv;
+uniform sampler2D u_prev;
+uniform vec2 u_mouse;
+uniform vec2 u_velocity;
+uniform float u_brushRadius;
+uniform float u_brushStrength;
+uniform float u_decay;
+out vec4 fragColor;
+void main() {
+  vec4 prev = texture(u_prev, vUv);
+  prev.r *= u_decay;
+  prev.gb = mix(vec2(0.5), prev.gb, u_decay);
+  float dist = distance(vUv, u_mouse);
+  float influence = exp(-dist * dist / (u_brushRadius * u_brushRadius * 0.5));
+  influence = max(0.0, influence - 0.01);
+  float speed = length(u_velocity);
+  float presenceStrength = u_brushStrength * 0.3;
+  float velBonus = min(speed * 3.0, 0.7) * u_brushStrength;
+  float totalStrength = presenceStrength + velBonus;
+  prev.r = max(prev.r, influence * totalStrength);
+  float blendAmt = influence * min(totalStrength, 0.4) * 0.3;
+  prev.g = mix(prev.g, clamp(u_velocity.x * 2.0 + 0.5, 0.0, 1.0), blendAmt);
+  prev.b = mix(prev.b, clamp(u_velocity.y * 2.0 + 0.5, 0.0, 1.0), blendAmt);
+  fragColor = prev;
+}`;
+
+    const DISPLAY_FRAG = `#version 300 es
+precision mediump float;
+in vec2 vUv;
+uniform float u_time;
+uniform float u_pixelRatio;
+uniform vec2 u_resolution;
+uniform float u_scale;
+uniform float u_rotation;
+uniform vec4 u_color1, u_color2, u_color3;
+uniform float u_colorCount;
+uniform float u_proportion;
+uniform float u_softness;
+uniform float u_shape;
+uniform float u_shapeScale;
+uniform float u_distortion;
+uniform float u_swirl;
+uniform float u_swirlIterations;
+uniform vec2 u_offset;
+uniform sampler2D u_flowmap;
+uniform float u_distortBoost;
+uniform float u_noiseBoost;
+uniform float u_swirlBoost;
+uniform sampler2D u_logo;
+uniform float u_logoEcho;
+out vec4 fragColor;
+#define TWO_PI 6.28318530718
+vec2 rotate(vec2 uv, float th) { return mat2(cos(th), sin(th), -sin(th), cos(th)) * uv; }
+float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123); }
+float noise(vec2 st) {
+  vec2 i = floor(st); vec2 f = fract(st);
+  float a = random(i), b = random(i + vec2(1,0)), c = random(i + vec2(0,1)), d = random(i + vec2(1,1));
+  vec2 u = f*f*(3.0-2.0*f);
+  return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+}
+vec3 blend_multi(float mixer, float softness) {
+  float edge = 1.0 - softness;
+  vec3 col = u_color1.rgb;
+  if (u_colorCount > 1.5) { col = mix(col, u_color2.rgb, smoothstep(0.0 + 0.35*edge, 0.7 - 0.35*edge, mixer)); }
+  if (u_colorCount > 2.5) { col = mix(col, u_color3.rgb, smoothstep(0.3 + 0.35*edge, 1.0 - 0.35*edge, mixer)); }
+  return col;
+}
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+  float t = .5 * u_time;
+  float ns = .0005 + .006 * u_scale;
+  uv -= .5; uv *= (ns * u_resolution); uv = rotate(uv, u_rotation * .5 * 3.141592653589793);
+  uv /= u_pixelRatio; uv += .5; uv += u_offset;
+  vec2 fragUV = gl_FragCoord.xy / u_resolution.xy;
+  vec4 flow = texture(u_flowmap, fragUV);
+  float influence = flow.r;
+  vec2 flowDir = (flow.gb - 0.5) * 2.0;
+  vec4 logo = texture(u_logo, fragUV);
+  float band = clamp(logo.g * (1.0 - logo.r), 0.0, 1.0);
+  vec2 lgrad = vec2(
+    texture(u_logo, fragUV + vec2(0.008, 0.0)).g - texture(u_logo, fragUV - vec2(0.008, 0.0)).g,
+    texture(u_logo, fragUV + vec2(0.0, 0.008)).g - texture(u_logo, fragUV - vec2(0.0, 0.008)).g);
+  uv += (lgrad / (length(lgrad) + 1e-4)) * band * u_logoEcho * 0.045;
+  float n1 = noise(uv + t), n2 = noise(uv*2. - t);
+  float angle = n1 * TWO_PI;
+  float totalDistortion = u_distortion + influence * u_distortBoost;
+  uv.x += 4. * totalDistortion * n2 * cos(angle);
+  uv.y += 4. * totalDistortion * n2 * sin(angle);
+  uv += flowDir * influence * 0.15;
+  if (influence > 0.001) {
+    float localNoise = noise(uv * 2.0 + t * 1.5);
+    uv += influence * u_noiseBoost * vec2(cos(localNoise * TWO_PI), sin(localNoise * TWO_PI));
+  }
+  float iters = ceil(clamp(u_swirlIterations, 1., 30.));
+  float swirlAmt = clamp(u_swirl, 0., 2.) + influence * u_swirlBoost + band * u_logoEcho * 1.2;
+  for (float i = 1.; i <= 30.0; i++) {
+    if (i > iters) break;
+    uv.x += swirlAmt / i * cos(t + i*1.5*uv.y);
+    uv.y += swirlAmt / i * cos(t + i*1.*uv.x);
+  }
+  float proportion = clamp(u_proportion, 0., 1.);
+  vec2 cuv = uv * (.5 + 3.5 * u_shapeScale);
+  float shape = .5 + .5 * sin(cuv.x) * cos(cuv.y);
+  float mixer = shape + .48 * sign(proportion - .5) * pow(abs(proportion - .5), .5);
+  vec3 col = blend_multi(mixer, clamp(u_softness, 0., 1.));
+  col *= 1.0 - logo.g * u_logoEcho * 0.2;
+  col += u_color1.rgb * band * u_logoEcho * 0.05;
+  fragColor = vec4(col, 1.0);
+}`;
+
+    const fluid = { ok: false, raf: 0, frame: null, startLoop: null, stopLoop: null, setColors: null };
+
+    function initFluid() {
+      const gl = fluidCv.getContext('webgl2', { alpha: true, premultipliedAlpha: false, powerPreference: 'low-power' });
+      if (gl === null) { fluidCv.style.visibility = 'hidden'; return; }
+      const compile = (type, src) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error('fluid shader:', gl.getShaderInfoLog(s)); return null; }
+        return s;
+      };
+      const link = (frag) => {
+        const v = compile(gl.VERTEX_SHADER, VERT);
+        const f = compile(gl.FRAGMENT_SHADER, frag);
+        if (v === null || f === null) return null;
+        const p = gl.createProgram();
+        gl.attachShader(p, v);
+        gl.attachShader(p, f);
+        gl.linkProgram(p);
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.error('fluid link:', gl.getProgramInfoLog(p)); return null; }
+        return p;
+      };
+      const flowProg = link(FLOW_FRAG);
+      const dispProg = link(DISPLAY_FRAG);
+      if (flowProg === null || dispProg === null) { fluidCv.style.visibility = 'hidden'; return; }
+      const U = (p, n) => gl.getUniformLocation(p, n);
+      const fu = {
+        prev: U(flowProg, 'u_prev'), mouse: U(flowProg, 'u_mouse'), velocity: U(flowProg, 'u_velocity'),
+        brushRadius: U(flowProg, 'u_brushRadius'), brushStrength: U(flowProg, 'u_brushStrength'), decay: U(flowProg, 'u_decay'),
+      };
+      const du = {
+        time: U(dispProg, 'u_time'), pixelRatio: U(dispProg, 'u_pixelRatio'), resolution: U(dispProg, 'u_resolution'),
+        scale: U(dispProg, 'u_scale'), rotation: U(dispProg, 'u_rotation'), offset: U(dispProg, 'u_offset'),
+        color1: U(dispProg, 'u_color1'), color2: U(dispProg, 'u_color2'), color3: U(dispProg, 'u_color3'),
+        colorCount: U(dispProg, 'u_colorCount'), proportion: U(dispProg, 'u_proportion'), softness: U(dispProg, 'u_softness'),
+        shape: U(dispProg, 'u_shape'), shapeScale: U(dispProg, 'u_shapeScale'), distortion: U(dispProg, 'u_distortion'),
+        swirl: U(dispProg, 'u_swirl'), swirlIterations: U(dispProg, 'u_swirlIterations'), flowmap: U(dispProg, 'u_flowmap'),
+        distortBoost: U(dispProg, 'u_distortBoost'), noiseBoost: U(dispProg, 'u_noiseBoost'), swirlBoost: U(dispProg, 'u_swirlBoost'),
+        logo: U(dispProg, 'u_logo'), logoEcho: U(dispProg, 'u_logoEcho'),
+      };
+      const quad = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      const bindQuad = (p) => {
+        const loc = gl.getAttribLocation(p, 'a_position');
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      };
+      const makeTarget = (w, h, init) => {
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, init);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        const fbo = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return { fbo, tex };
+      };
+      const dprCap = Math.min(window.devicePixelRatio || 1, 1.5);
+      const w0 = Math.max(2, Math.round(stage.clientWidth * dprCap));
+      const h0 = Math.max(2, Math.round(stage.clientHeight * dprCap));
+      fluidCv.width = w0;
+      fluidCv.height = h0;
+      const fw = Math.max(2, Math.round(w0 / 4));
+      const fh = Math.max(2, Math.round(h0 / 4));
+      const initial = new Uint8Array(fw * fh * 4);
+      for (let i = 0; i < fw * fh; i++) { initial[4 * i] = 0; initial[4 * i + 1] = 128; initial[4 * i + 2] = 128; initial[4 * i + 3] = 255; }
+      let targetA = makeTarget(fw, fh, initial);
+      let targetB = makeTarget(fw, fh, initial);
+      let flip = false;
+      let cWidth = w0, cHeight = h0;
+      const fptr = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, svx: 0, svy: 0 };
+      const params = {
+        mouseRadius: 0.22, mouseStrength: 0, decay: 0.96, distortBoost: 1.35, noiseBoost: 0, swirlBoost: 0.45,
+        speed: 14, distortion: 20, swirl: 12, swirlIterations: 8, scale: 0.5, rotation: -5, proportion: 50,
+        softness: 100, shapeScale: 10, offsetX: 0, offsetY: 65,
+        color1: toneColors(44).color1, color2: toneColors(44).color2, color3: toneColors(44).color3,
+      };
+      const hexToRgb = (v) => [parseInt(v.slice(1, 3), 16) / 255, parseInt(v.slice(3, 5), 16) / 255, parseInt(v.slice(5, 7), 16) / 255];
+      const start = performance.now();
+      let previous = 0;
+      const step = 1000 / 30;
+      const frame = (now) => {
+        fluid.raf = requestAnimationFrame(frame);
+        if (now - previous < step) return;
+        previous = now - ((now - previous) % step);
+        const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+        const nw = Math.round(fluidCv.clientWidth * ratio);
+        const nh = Math.round(fluidCv.clientHeight * ratio);
+        if (nw > 0 && nh > 0 && (nw !== cWidth || nh !== cHeight)) {
+          cWidth = nw; cHeight = nh;
+          fluidCv.width = cWidth; fluidCv.height = cHeight;
+        }
+        fptr.svx *= 0.94; fptr.svy *= 0.94;
+        fptr.smoothX += (fptr.x - fptr.smoothX) * 0.12;
+        fptr.smoothY += (fptr.y - fptr.smoothY) * 0.12;
+        fptr.svx += ((fptr.x - fptr.smoothX) * 0.5 - fptr.svx) * 0.15;
+        fptr.svy += ((fptr.y - fptr.smoothY) * 0.5 - fptr.svy) * 0.15;
+        const read = flip ? targetA : targetB;
+        const write = flip ? targetB : targetA;
+        flip = !flip;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, write.fbo);
+        gl.viewport(0, 0, fw, fh);
+        gl.useProgram(flowProg);
+        bindQuad(flowProg);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, read.tex);
+        gl.uniform1i(fu.prev, 0);
+        gl.uniform2f(fu.mouse, fptr.smoothX, fptr.smoothY);
+        gl.uniform2f(fu.velocity, fptr.svx, fptr.svy);
+        gl.uniform1f(fu.brushRadius, params.mouseRadius);
+        gl.uniform1f(fu.brushStrength, params.mouseStrength);
+        gl.uniform1f(fu.decay, params.decay);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, cWidth, cHeight);
+        gl.useProgram(dispProg);
+        bindQuad(dispProg);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, write.tex);
+        gl.uniform1i(du.flowmap, 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, logoTex);
+        gl.uniform1i(du.logo, 1);
+        gl.uniform1f(du.logoEcho, logoEcho / 100);
+        gl.uniform1f(du.time, (performance.now() - start) * 0.001 * (params.speed / 100));
+        gl.uniform1f(du.pixelRatio, window.devicePixelRatio || 1);
+        gl.uniform2f(du.resolution, cWidth, cHeight);
+        gl.uniform1f(du.scale, params.scale);
+        gl.uniform1f(du.rotation, params.rotation / 90);
+        gl.uniform2f(du.offset, params.offsetX / 100, params.offsetY / 100);
+        const c1 = hexToRgb(params.color1), c2 = hexToRgb(params.color2), c3 = hexToRgb(params.color3);
+        gl.uniform4f(du.color1, c1[0], c1[1], c1[2], 1);
+        gl.uniform4f(du.color2, c2[0], c2[1], c2[2], 1);
+        gl.uniform4f(du.color3, c3[0], c3[1], c3[2], 1);
+        gl.uniform1f(du.colorCount, 3);
+        gl.uniform1f(du.proportion, params.proportion / 100);
+        gl.uniform1f(du.softness, params.softness / 100);
+        gl.uniform1f(du.shape, 0);
+        gl.uniform1f(du.shapeScale, params.shapeScale / 100);
+        gl.uniform1f(du.distortion, params.distortion / 100);
+        gl.uniform1f(du.swirl, params.swirl / 50);
+        gl.uniform1f(du.swirlIterations, params.swirlIterations);
+        gl.uniform1f(du.distortBoost, params.distortBoost);
+        gl.uniform1f(du.noiseBoost, params.noiseBoost);
+        gl.uniform1f(du.swirlBoost, params.swirlBoost);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      };
+      fluid.ok = true;
+      fluid.frame = frame;
+      fluid.startLoop = () => { if (fluid.raf === 0) { previous = 0; fluid.raf = requestAnimationFrame(frame); } };
+      fluid.stopLoop = () => { if (fluid.raf !== 0) { cancelAnimationFrame(fluid.raf); fluid.raf = 0; } };
+      fluid.setColors = (cols) => { params.color1 = cols.color1; params.color2 = cols.color2; params.color3 = cols.color3; };
+      fluid.setParams = (patch) => { Object.assign(params, patch); };
+      fluid.pointer = fptr;
+      let logoTex = null;
+      fluid.setLogoMask = (canvas) => {
+        if (logoTex === null) {
+          logoTex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, logoTex);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+        }
+        gl.bindTexture(gl.TEXTURE_2D, logoTex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      };
+    }
+
+    function fluidOnce() {
+      if (!fluid.ok) return;
+      fluid.frame(performance.now());
+      fluid.stopLoop();
+    }
+
+    /* ================= star river: banded Canvas 2D particle stage ================= */
+    const BANDS = 6, MAX_P = 1400, R_LIFE = 2, R_CAP = 8, P_RAD = 130, D_RAD = 190;
+    const list = [];
+    const ripples = [];
+    const spointer = { x: -9999, y: -9999, vx: 0, vy: 0, active: false, dragging: false };
+    let sw = 0, sh = 0, sdpr = 1;
+    const sctx = starCv.getContext('2d');
+    let starsDensity = 60;
+
+    function bakeSprite(cr, cg, cb) {
+      const size = 32;
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const cx = c.getContext('2d');
+      if (cx === null) return c;
+      const half = size / 2;
+      const g = cx.createRadialGradient(half, half, 0, half, half, half);
+      g.addColorStop(0, `rgba(${cr}, ${cg}, ${cb}, 0.95)`);
+      g.addColorStop(0.4, `rgba(${cr}, ${cg}, ${cb}, 0.55)`);
+      g.addColorStop(0.75, `rgba(${cr}, ${cg}, ${cb}, 0.14)`);
+      g.addColorStop(1, `rgba(${cr}, ${cg}, ${cb}, 0)`);
+      cx.fillStyle = g;
+      cx.fillRect(0, 0, size, size);
+      return c;
+    }
+    const sprites = [bakeSprite(150, 205, 255), bakeSprite(168, 140, 255), bakeSprite(244, 210, 138), bakeSprite(238, 246, 255)];
+
+    function resizeStars() {
+      sw = stage.clientWidth || window.innerWidth;
+      sh = stage.clientHeight || window.innerHeight;
+      sdpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      starCv.width = Math.round(sw * sdpr);
+      starCv.height = Math.round(sh * sdpr);
+    }
+    function buildStars() {
+      list.length = 0;
+      const area = sw * sh || window.innerWidth * window.innerHeight;
+      const m = starsDensity / 50;
+      const count = Math.round(Math.max(30, Math.min(MAX_P, (area / 3400) * m)));
+      for (let i = 0; i < count; i++) {
+        const band = i % BANDS;
+        const seed = i * 0.618;
+        const bandN = (band + 0.5) / BANDS;
+        const pick = hash(seed * 17.7);
+        list.push({
+          band,
+          local: hash(seed * 3.7),
+          flow: hash(seed * 5.1),
+          pace: 0.6 + hash(seed * 11.3) * 0.8,
+          twinkleSeed: seed * 9.0,
+          depth: hash(seed * 9.13),
+          kind: pick > 0.86 ? 2 : (pick > 0.7 ? 3 : (bandN < 0.5 ? 0 : 1)),
+          x: 0, y: 0, ox: 0, oy: 0,
+        });
+      }
+    }
+    function rippleAt(x, y) {
+      let push = 0, glow = 0;
+      for (const r of ripples) {
+        const dx = x - r.x, dy = y - r.y;
+        const dist = Math.hypot(dx, dy);
+        const lifeN = r.age / R_LIFE;
+        if (lifeN >= 1) continue;
+        const waveR = r.age * 260 * (0.7 + r.strength * 0.3);
+        const ringW = 46 + r.age * 30;
+        const ring = Math.exp(-(((dist - waveR) / ringW) ** 2));
+        const bulge = Math.exp(-((dist / (70 + r.age * 90)) ** 2)) * (1 - lifeN);
+        const env = Math.min(1, r.age / 0.12) * (1 - lifeN * lifeN);
+        push += (ring + bulge * 0.7) * env * r.strength;
+        glow += (ring * 0.9 + bulge * 0.5) * env * r.strength;
+      }
+      return { push, glow };
+    }
+    function renderStars(t) {
+      if (sctx === null || !starsOn()) return;
+      sctx.setTransform(sdpr, 0, 0, sdpr, 0, 0);
+      sctx.clearRect(0, 0, sw, sh);
+      const master = 0.9;
+      sctx.globalCompositeOperation = 'lighter';
+      for (const s of list) {
+        const bandN = (s.band + 0.5) / BANDS;
+        const speed = (0.008 + bandN * 0.012) * s.pace;
+        s.flow = (s.flow + speed * 0.016) % 1;
+        s.ox *= 0.93; s.oy *= 0.93;
+        const sweep = sw * (0.55 + bandN * 0.4);
+        let bx = (s.flow * 2 - 0.5) * sweep + sw / 2;
+        if (bx < -30) bx += sw + 60;
+        else if (bx > sw + 30) bx -= sw + 60;
+        const wavePhase = s.flow * Math.PI * 2 * (1.1 + bandN * 0.5) + s.twinkleSeed;
+        const laneY = sh * (0.06 + bandN * 0.88);
+        const ridge = Math.exp(-(((s.local - 0.45) / 0.26) ** 2));
+        const by = laneY + Math.sin(wavePhase) * (14 + bandN * 22) * (0.5 + s.depth) + (s.local - 0.5) * 26;
+        if (spointer.active) {
+          const pd = Math.hypot(bx - spointer.x, by - spointer.y);
+          if (pd < D_RAD) {
+            const near = 1 - pd / D_RAD;
+            const pull = near * near * (spointer.dragging ? 1.9 : 0.35);
+            s.ox += spointer.vx * pull * 0.15;
+            s.oy += spointer.vy * pull * 0.15;
+          }
+        }
+        s.x = bx + s.ox;
+        s.y = by + s.oy;
+        const twinklePhase = t * (0.5 + fract(s.twinkleSeed * 0.37) * 0.9) + s.twinkleSeed;
+        const twinkle = (0.5 + 0.5 * Math.sin(twinklePhase)) ** 3;
+        let alpha = (0.10 + ridge * 0.42 + twinkle * 0.30) * (0.45 + s.depth * 0.55) * master;
+        let radius = 0.9 + ridge * 1.9 + twinkle * 1.6 + s.depth * 0.8;
+        if (spointer.active) {
+          const pd = Math.hypot(s.x - spointer.x, s.y - spointer.y);
+          if (pd < P_RAD) {
+            const lift = (1 - pd / P_RAD) ** 2;
+            alpha += lift * 0.5 * master;
+            radius += lift * 2.2;
+          }
+        }
+        const rp = rippleAt(s.x, s.y);
+        if (rp.push > 0.001) {
+          for (const r of ripples) {
+            const rdx = s.x - r.x, rdy = s.y - r.y;
+            const rd = Math.hypot(rdx, rdy) || 1;
+            const lifeN = r.age / R_LIFE;
+            if (lifeN >= 1) continue;
+            const waveR = r.age * 260 * (0.7 + r.strength * 0.3);
+            const ringW = 46 + r.age * 30;
+            const ring = Math.exp(-(((rd - waveR) / ringW) ** 2));
+            const env = Math.min(1, r.age / 0.12) * (1 - lifeN * lifeN);
+            const move = ring * env * r.strength * 26;
+            s.x += (rdx / rd) * move;
+            s.y += (rdy / rd) * move;
+          }
+          alpha += rp.glow * 0.6 * master;
+          radius += rp.glow * 2.0;
+        }
+        if (alpha <= 0.012) continue;
+        sctx.globalAlpha = Math.min(alpha, 0.95);
+        sctx.drawImage(sprites[s.kind], s.x - radius, s.y - radius, radius * 2, radius * 2);
+      }
+      sctx.globalAlpha = 1;
+      sctx.globalCompositeOperation = 'source-over';
+    }
+
+    /* ================= brand logo: one drawing, two consumers ================= */
+    // The logo drives BOTH the particle assembly and the fluid echo, so both
+    // sample the same drawLogo() shape. Gamepad icon drawn in a 24-unit space,
+    // centered into a w x 0.72w box at (x0, y0).
+    let logoEcho = 70;
+    const GAMEPAD_BODY = new Path2D('M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z');
+    function roundRectPath(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+    function drawLogo(ctx, x0, y0, w) {
+      const s = w / 24;
+      ctx.save();
+      ctx.translate(x0 + w / 2, y0 + w * 0.36);
+      ctx.scale(s, s);
+      ctx.translate(-12, -12.5);
+      // solid silhouette: the whole body fills with particles ...
+      ctx.fillStyle = '#fff';
+      ctx.fill(GAMEPAD_BODY);
+      // ... except the d-pad cross and the four action dots, which stay empty
+      ctx.globalCompositeOperation = 'destination-out';
+      roundRectPath(ctx, 5.45, 11.05, 3.5, 1.9, 0.9);
+      ctx.fill();
+      roundRectPath(ctx, 6.25, 10.25, 1.9, 3.5, 0.9);
+      ctx.fill();
+      for (const [dx, dy] of [[0, -2.5], [-2, 0], [2, 0], [0, 2.5]]) {
+        ctx.beginPath();
+        ctx.arc(15.9 + dx, 10.8 + dy, 0.95, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    // Where the logo sits on the stage (particles holder + fluid mask share it).
+    function logoGeometry(W, H) {
+      const side = Math.min(W, H) * 0.58;
+      return { cx: W / 2, cy: H * 0.34, w: side };
+    }
+    // R=sharp alpha, G=blurred alpha -> shader derives the halo band + normals.
+    function buildLogoMask() {
+      const W = stage.clientWidth || window.innerWidth;
+      const H = stage.clientHeight || window.innerHeight;
+      const mw = 256;
+      const mh = Math.max(2, Math.round(mw * H / W));
+      const sharp = document.createElement('canvas');
+      sharp.width = mw; sharp.height = mh;
+      const sctx = sharp.getContext('2d');
+      const soft = document.createElement('canvas');
+      soft.width = mw; soft.height = mh;
+      const bctx = soft.getContext('2d');
+      if (sctx === null || bctx === null) return null;
+      const geo = logoGeometry(W, H);
+      const lx = geo.cx - geo.w / 2;
+      const ly = geo.cy - geo.w * 0.36;
+      drawLogo(sctx, lx, ly, geo.w);
+      bctx.filter = 'blur(12px)';
+      drawLogo(bctx, lx, ly, geo.w);
+      bctx.filter = 'none';
+      const sd = sctx.getImageData(0, 0, mw, mh).data;
+      const bd = bctx.getImageData(0, 0, mw, mh).data;
+      const out = new Uint8ClampedArray(mw * mh * 4);
+      for (let i = 0; i < mw * mh; i++) {
+        out[4 * i] = sd[4 * i + 3];
+        out[4 * i + 1] = bd[4 * i + 3];
+        out[4 * i + 2] = 0;
+        out[4 * i + 3] = 255;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = mw; canvas.height = mh;
+      const octx = canvas.getContext('2d');
+      if (octx === null) return null;
+      octx.putImageData(new ImageData(out, mw, mh), 0, 0);
+      return canvas;
+    }
+
+    /* ================= cinema drift: cursor parallax + idle breathe ================= */
+    const drift = { mx: 0, my: 0, smx: 0, smy: 0, amp: 1 };
+    function applyDrift(t) {
+      const a = drift.amp;
+      const idleX = Math.sin(t * 0.08);
+      const idleY = Math.sin(t * 0.06 + 1.0);
+      const roll = Math.sin(t * 0.05 + 2.0);
+      const fx = (-drift.smx * 20 + idleX * 10) * a;
+      const fy = (-drift.smy * 13 + idleY * 6) * a;
+      const fRotY = drift.smx * 0.8 * a;
+      const fRotX = -drift.smy * 0.8 * a;
+      const fRoll = (-drift.smx * 0.6 + roll * 0.2) * a;
+      const nx = (-drift.smx * 40 + idleX * 20) * a;
+      const ny = (-drift.smy * 26 + idleY * 12) * a;
+      const nRotY = drift.smx * 1.5 * a;
+      const nRotX = -drift.smy * 1.5 * a;
+      const nRoll = (-drift.smx * 1.2 + roll * 0.35) * a;
+      if (fluidOn()) {
+        fluidCv.style.transform = `perspective(1200px) translate3d(${fx.toFixed(2)}px, ${fy.toFixed(2)}px, 0) rotateX(${fRotX.toFixed(3)}deg) rotateY(${fRotY.toFixed(3)}deg) rotate(${fRoll.toFixed(3)}deg) scale(1.08)`;
+      }
+      if (starsOn()) {
+        starCv.style.transform = `perspective(1200px) translate3d(${nx.toFixed(2)}px, ${ny.toFixed(2)}px, 0) rotateX(${nRotX.toFixed(3)}deg) rotateY(${nRotY.toFixed(3)}deg) rotate(${nRoll.toFixed(3)}deg)`;
+      }
+    }
+
+    let masterRaf = 0;
+    let lastT = performance.now();
+    const startTime = lastT;
+    function masterTick(now) {
+      masterRaf = requestAnimationFrame(masterTick);
+      const dt = Math.min((now - lastT) / 1000, 0.1);
+      lastT = now;
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        ripples[i].age += dt;
+        if (ripples[i].age >= R_LIFE) ripples.splice(i, 1);
+      }
+      const k = 1 - Math.exp(-10 * dt);
+      drift.smx += (drift.mx - drift.smx) * k;
+      drift.smy += (drift.my - drift.smy) * k;
+      applyDrift((now - startTime) / 1000);
+      renderStars(now / 1000);
+    }
+    function startMaster() {
+      if (masterRaf === 0 && !document.hidden) {
+        lastT = performance.now();
+        masterRaf = requestAnimationFrame(masterTick);
+      }
+    }
+    function stopMaster() {
+      if (masterRaf !== 0) { cancelAnimationFrame(masterRaf); masterRaf = 0; }
+    }
+    function syncFluidRun() {
+      if (!fluid.ok) return;
+      if (fluidOn() && !REDUCED && !document.hidden) fluid.startLoop();
+      else fluid.stopLoop();
+    }
+
+    /* ================= glass panes: nico-glass-kit material recipe ================= */
+    const GLASS = { blur: 3, brightness: 1.1, refraction: 1, depth: 8, curvature: 0.2, dispersion: 0.1, elasticity: 0.25, highlight: 1 };
+    const glassFilterSupported = (() => {
+      const el = document.createElement('div');
+      el.style.backdropFilter = 'url(#mr-glass-support-test)';
+      return /url\(/.test(el.style.backdropFilter);
+    })();
+    const panes = [];
+    let glassFilterSeq = 0;
+    let glassDefs = null;
+
+    const clampByte = (v) => Math.max(1, Math.min(255, v));
+    const encodeDisp = (v) => clampByte(128 + Math.round(v * 127));
+    // Sn(): falloff from the edge inward, shape adjustable by curvature
+    function lensFalloff(t, curvature) {
+      const n = 1 - t;
+      const r = n * n;
+      if (curvature === 0) return r;
+      const s = n * n * n * n;
+      return r + (1 - Math.sqrt(Math.sqrt(Math.max(0, 1 - s))) - r) * curvature;
+    }
+    // Lens map: rounded-rect SDF -> per-pixel inward normal * falloff, encoded
+    // R/G around 128 (feDisplacementMap x/y channels), 4-way mirrored, rasterized
+    // small and stretched by feImage like the kit (rasterScale 0.2).
+    function buildLensMap(cssW, cssH, radius, depth, curvature) {
+      const raster = 0.2;
+      const w = Math.max(1, Math.round(cssW * raster));
+      const h = Math.max(1, Math.round(cssH * raster));
+      const data = new Uint8ClampedArray(w * h * 4);
+      for (let i = 0; i < w * h; i++) {
+        data[4 * i] = 128; data[4 * i + 1] = 128; data[4 * i + 2] = 128; data[4 * i + 3] = 255;
+      }
+      const rPx = Math.max(1, Math.min(radius * raster, Math.min(w, h) / 2));
+      const edge = Math.max(0.5, depth * raster);
+      const cx = w / 2, cy = h / 2;
+      const hw = w / 2 - rPx, hh = h / 2 - rPx;
+      const halfW = Math.ceil(w / 2), halfH = Math.ceil(h / 2);
+      const put = (x, y, dx, dy) => {
+        const R = (y * w + x) * 4;
+        data[R] = dx; data[R + 1] = dy;
+      };
+      for (let y = 0; y < halfH; y++) {
+        const xMax = (y + 0.5 >= edge) ? Math.min(halfW, Math.ceil(Math.max(rPx, edge))) : halfW;
+        for (let x = 0; x < xMax; x++) {
+          const px = x + 0.5, py = y + 0.5;
+          const S = Math.abs(px - cx) - hw;
+          const C = Math.abs(py - cy) - hh;
+          const k = Math.max(S, 0), P = Math.max(C, 0);
+          const E = Math.hypot(k, P);
+          const sdf = E + Math.min(Math.max(S, C), 0) - rPx;
+          if (sdf <= -edge) continue;
+          let nx = 0, ny = 0;
+          if (k > 0 || P > 0) {
+            nx = (px < cx ? -k : k) / E;
+            ny = (py < cy ? -P : P) / E;
+          } else if (S > C) {
+            nx = px < cx ? -1 : 1;
+          } else {
+            ny = py < cy ? -1 : 1;
+          }
+          const mag = lensFalloff(Math.max(0, Math.min(1, -sdf / edge)), curvature);
+          const dx = encodeDisp(-nx * mag);
+          const dy = encodeDisp(-ny * mag);
+          put(x, y, dx, dy);
+          const mx = w - 1 - x, my = h - 1 - y;
+          if (mx !== x) put(mx, y, 256 - dx, dy);
+          if (my !== y) put(x, my, dx, 256 - dy);
+          if (mx !== x && my !== y) put(mx, my, 256 - dx, 256 - dy);
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const cctx = canvas.getContext('2d');
+      if (cctx === null) return '';
+      cctx.putImageData(new ImageData(data, w, h), 0, 0);
+      return canvas.toDataURL('image/png');
+    }
+    // SVG filter chain: feImage(map) -> blur -> saturate -> brightness ->
+    // displacement (x3 with RGB split + screen blend when dispersion > 0)
+    function buildGlassFilter(cssW, cssH, radius) {
+      const id = 'mr-glass-f' + (++glassFilterSeq);
+      const mapUrl = buildLensMap(cssW, cssH, radius, GLASS.depth, GLASS.curvature);
+      const baseScale = Math.min(1, Math.max(0, GLASS.refraction)) * 24 * (255 / 127);
+      const disp = Math.min(1, Math.max(0, GLASS.dispersion));
+      const pad = Math.ceil(Math.max(GLASS.blur * 1.5, 4) + 2);
+      const fx = (-pad / cssW * 100).toFixed(4);
+      const fy = (-pad / cssH * 100).toFixed(4);
+      const fw = ((1 + 2 * pad / cssW) * 100).toFixed(4);
+      const fh = ((1 + 2 * pad / cssH) * 100).toFixed(4);
+      const ratios = [];
+      let inner = `<feImage href="${mapUrl}" x="0" y="0" width="${cssW}" height="${cssH}" preserveAspectRatio="none" result="ngs_map"/>`;
+      let l = 'SourceGraphic';
+      if (GLASS.blur > 0) {
+        inner += `<feGaussianBlur in="${l}" stdDeviation="${(GLASS.blur / 2).toFixed(3)}" result="ngs_blur"/>`;
+        l = 'ngs_blur';
+      }
+      if (GLASS.brightness !== 1) {
+        inner += `<feComponentTransfer in="${l}" result="ngs_bright"><feFuncR type="linear" slope="${GLASS.brightness}"/><feFuncG type="linear" slope="${GLASS.brightness}"/><feFuncB type="linear" slope="${GLASS.brightness}"/></feComponentTransfer>`;
+        l = 'ngs_bright';
+      }
+      if (disp <= 0) {
+        inner += `<feDisplacementMap in="${l}" in2="ngs_map" scale="${baseScale.toFixed(3)}" xChannelSelector="R" yChannelSelector="G"/>`;
+        ratios.push(1);
+      } else {
+        const f = baseScale * disp * 0.2;
+        const specs = [
+          { s: baseScale + f, r: 'ngs_disp_r' },
+          { s: baseScale, r: 'ngs_disp_g' },
+          { s: Math.max(0, baseScale - f), r: 'ngs_disp_b' },
+        ];
+        for (const sp of specs) {
+          inner += `<feDisplacementMap in="${l}" in2="ngs_map" scale="${sp.s.toFixed(3)}" xChannelSelector="R" yChannelSelector="G" result="${sp.r}"/>`;
+          ratios.push(sp.s / baseScale);
+        }
+        const chan = (input, out) => {
+          const m = out === 'r' ? '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'
+            : out === 'g' ? '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0'
+              : '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0';
+          return `<feColorMatrix in="${input}" type="matrix" values="${m}" result="ngs_ch_${out}"/>`;
+        };
+        inner += chan('ngs_disp_r', 'r') + chan('ngs_disp_g', 'g') + chan('ngs_disp_b', 'b');
+        inner += `<feBlend in="ngs_ch_r" in2="ngs_ch_g" mode="screen" result="ngs_ch_rg"/>`;
+        inner += `<feBlend in="ngs_ch_rg" in2="ngs_ch_b" mode="screen"/>`;
+      }
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'mr-glass-defs');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.innerHTML = `<filter id="${id}" x="${fx}%" y="${fy}%" width="${fw}%" height="${fh}%" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">${inner}</filter>`;
+      return { id, svg, baseScale, ratios };
+    }
+    // One pane: ngs-surface > ngs-motion > (effect, highlight, content),
+    // elastic spring on translate + displacement scale, pointer glint.
+    function createGlassPane(host, opts) {
+      host.classList.add('mr-glass-host');
+      host.style.borderRadius = opts.radius + 'px';
+      host.innerHTML = '<div class="ngs-motion"><div class="ngs-effect"></div><div class="ngs-highlight"></div><div class="ngs-content">' + opts.content + '</div></div>';
+      host.style.setProperty('--ngs-hl', String(opts.highlight ?? GLASS.highlight));
+      const effect = host.querySelector('.ngs-effect');
+      const motion = host.querySelector('.ngs-motion');
+      const highlight = host.querySelector('.ngs-highlight');
+      const pane = { host, opts, filterSvg: null, dispNodes: [], ratios: [1], baseScale: 0, brightNodes: null, brightness: GLASS.brightness };
+      pane.rebuild = () => {
+        const w = host.offsetWidth, h = host.offsetHeight;
+        if (w < 2 || h < 2) return;
+        if (opts.liquid && glassFilterSupported) {
+          const built = buildGlassFilter(w, h, opts.radius);
+          if (pane.filterSvg !== null) pane.filterSvg.remove();
+          glassDefs.appendChild(built.svg);
+          pane.filterSvg = built.svg;
+          pane.dispNodes = [...built.svg.querySelectorAll('feDisplacementMap')];
+          pane.ratios = built.ratios;
+          pane.baseScale = built.baseScale;
+          pane.brightNodes = [...built.svg.querySelectorAll('feComponentTransfer')];
+          pane.applyBackdrop();
+          cur.s = built.baseScale;
+          vel.s = 0;
+          pane.applyScale(built.baseScale);
+        } else {
+          if (pane.filterSvg !== null) { pane.filterSvg.remove(); pane.filterSvg = null; }
+          pane.dispNodes = [];
+          pane.brightNodes = null;
+          cur.s = 0;
+          pane.applyBackdrop();
+        }
+      };
+      pane.applyBackdrop = () => {
+        const liquidActive = opts.liquid && glassFilterSupported && pane.filterSvg !== null;
+        if (liquidActive) {
+          effect.style.backdropFilter = 'url(#' + pane.filterSvg.querySelector('filter').getAttribute('id') + ')';
+          effect.style.webkitBackdropFilter = '';
+        } else {
+          const s = `blur(${GLASS.blur}px) saturate(100%) brightness(${pane.brightness})`;
+          effect.style.backdropFilter = s;
+          effect.style.webkitBackdropFilter = s;
+        }
+      };
+      pane.applyScale = (s) => {
+        pane.lastScale = s;
+        for (let i = 0; i < pane.dispNodes.length; i++) {
+          pane.dispNodes[i].setAttribute('scale', String(Math.max(0, pane.ratios[i] * s)));
+        }
+      };
+      pane.setBrightness = (b) => {
+        pane.brightness = b;
+        if (pane.brightNodes !== null && pane.brightNodes.length > 0) {
+          for (const node of pane.brightNodes) {
+            for (const fn of node.querySelectorAll('feFuncR, feFuncG, feFuncB')) fn.setAttribute('slope', String(b));
+          }
+        } else {
+          pane.applyBackdrop();
+        }
+      };
+      // elastic spring (kit: stiffness 180, damping 20, fixed 1/60 step)
+      let cur = { s: 0, tx: 0, ty: 0 };
+      let vel = { s: 0, tx: 0, ty: 0 };
+      let tgt = { s: 0, tx: 0, ty: 0 };
+      let springRaf = 0;
+      let spec = 0;
+      let specTarget = 0;
+      let specRaf = 0;
+      const springStep = () => {
+        springRaf = 0;
+        let active = false;
+        const step = (ft, v, z) => {
+          const acc = 180 * (z - ft) - 20 * v;
+          v += acc / 60;
+          ft += v / 60;
+          if (Math.abs(z - ft) > 0.01 || Math.abs(v) > 0.01) active = true;
+          return [ft, v];
+        };
+        [cur.s, vel.s] = step(cur.s, vel.s, tgt.s);
+        [cur.tx, vel.tx] = step(cur.tx, vel.tx, tgt.tx);
+        [cur.ty, vel.ty] = step(cur.ty, vel.ty, tgt.ty);
+        motion.style.transform = `translate3d(${cur.tx.toFixed(2)}px, ${cur.ty.toFixed(2)}px, 0)`;
+        pane.applyScale(cur.s);
+        if (active) springRaf = requestAnimationFrame(springStep);
+      };
+      const wake = () => { if (springRaf === 0) springRaf = requestAnimationFrame(springStep); };
+      const specStep = () => {
+        specRaf = 0;
+        spec += (specTarget - spec) * 0.18;
+        if (Math.abs(specTarget - spec) < 0.005) spec = specTarget;
+        highlight.style.setProperty('--ngs-spec-o', spec.toFixed(3));
+        if (spec !== specTarget) specRaf = requestAnimationFrame(specStep);
+      };
+      pane.feed = (clientX, clientY, onPane) => {
+        if (!onPane) {
+          tgt = { s: pane.baseScale || 0, tx: 0, ty: 0 };
+          specTarget = 0;
+          highlight.style.removeProperty('--ngx');
+          highlight.style.removeProperty('--ngy');
+        } else {
+          const rect = host.getBoundingClientRect();
+          const nx = (clientX - rect.left) / rect.width - 0.5;
+          const ny = (clientY - rect.top) / rect.height - 0.5;
+          const distance = Math.min(1, Math.hypot(nx, ny) * 2);
+          const e = (opts.elasticityScale ?? 1) * GLASS.elasticity;
+          tgt.tx = nx * e * 24;
+          tgt.ty = ny * e * 24;
+          tgt.s = pane.baseScale * (1 + e * 0.5 * (1 - distance * 0.6));
+          specTarget = 1;
+          highlight.style.setProperty('--ngx', ((clientX - rect.left) / rect.width * 100).toFixed(2) + '%');
+          highlight.style.setProperty('--ngy', ((clientY - rect.top) / rect.height * 100).toFixed(2) + '%');
+        }
+        wake();
+        if (specRaf === 0) specRaf = requestAnimationFrame(specStep);
+      };
+      pane.resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => pane.rebuild()) : null;
+      if (pane.resizeObserver !== null) pane.resizeObserver.observe(host);
+      pane.rebuild();
+      panes.push(pane);
+      return pane;
+    }
+    function glassPointerMove(clientX, clientY) {
+      for (const pane of panes) {
+        const rect = pane.host.getBoundingClientRect();
+        const on = clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+        pane.feed(clientX, clientY, on);
+      }
+    }
+    function glassPointerLeave() {
+      for (const pane of panes) pane.feed(0, 0, false);
+    }
+    function rebuildAllPanes() {
+      for (const pane of panes) pane.rebuild();
+    }
+    const glassCardContent = (title, sub) =>
+      `<div class="pane-content"><div class="pane-caption"><b>${title}</b><span>${sub}</span></div><div class="pane-btn-wrap"><button type="button" class="pane-btn ngs-btn"></button></div></div>`;
+
+    /* ================= stage pointer wiring (drift + stars + fluid) ================= */
+    stage.addEventListener('pointermove', (e) => {
+      const rect = stage.getBoundingClientRect();
+      const nx = e.clientX - rect.left;
+      const ny = e.clientY - rect.top;
+      if (spointer.x < -9000) { spointer.vx = 0; spointer.vy = 0; }
+      else {
+        spointer.vx += (nx - spointer.x - spointer.vx) * 0.5;
+        spointer.vy += (ny - spointer.y - spointer.vy) * 0.5;
+      }
+      spointer.x = nx; spointer.y = ny; spointer.active = true;
+      drift.mx = (nx / rect.width) * 2 - 1;
+      drift.my = (ny / rect.height) * 2 - 1;
+      if (fluid.ok) {
+        fluid.pointer.x = nx / rect.width;
+        fluid.pointer.y = 1 - ny / rect.height;
+        fluid.pointer.active = true;
+      }
+      glassPointerMove(e.clientX, e.clientY);
+    }, { passive: true });
+    stage.addEventListener('pointerleave', () => {
+      spointer.active = false;
+      spointer.dragging = false;
+      spointer.x = -9999; spointer.y = -9999;
+      spointer.vx = 0; spointer.vy = 0;
+      drift.mx = 0; drift.my = 0;
+      if (fluid.ok) fluid.pointer.active = false;
+      glassPointerLeave();
+    });
+    stage.addEventListener('pointerdown', (e) => {
+      if (e.target instanceof Element && e.target.closest('.mr-glass-host')) return;
+      spointer.dragging = true;
+      const rect = stage.getBoundingClientRect();
+      if (ripples.length >= R_CAP) ripples.shift();
+      ripples.push({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        age: 0,
+        strength: 0.8 + Math.random() * 0.5,
+      });
+    }, { passive: true });
+    window.addEventListener('pointerup', () => { spointer.dragging = false; }, { passive: true });
+
+    /* ================= controls ================= */
+    let currentHue = 44;
+    let currentDepth = 22;
+    const swatches = Array.from(document.querySelectorAll('#mineradio-recreation .swatch-row .btn'));
+    function paintDots() {
+      for (const el of document.querySelectorAll('#mineradio-recreation [data-dot]')) {
+        el.style.background = hsl(Number(el.dataset.dot), 0.85, 0.55);
+      }
+    }
+    function selectHue(hue, save) {
+      currentHue = hue;
+      for (const b of swatches) b.setAttribute('aria-pressed', String(Number(b.dataset.hue) === hue));
+      if (fluid.ok) fluid.setColors(toneColors(hue, currentDepth));
+      if (REDUCED) fluidOnce();
+      if (save !== false) saveState();
+    }
+    for (const b of swatches) b.addEventListener('click', () => selectHue(Number(b.dataset.hue)));
+
+    parallaxInput.addEventListener('input', () => {
+      drift.amp = Number(parallaxInput.value) / 100;
+      $('mr-parallax-val').textContent = parallaxInput.value + '%';
+      if (REDUCED) applyDrift(0);
+      saveState();
+    });
+    densityInput.addEventListener('input', () => {
+      starsDensity = Number(densityInput.value);
+      $('mr-density-val').textContent = densityInput.value;
+      buildStars();
+      if (REDUCED) renderStars(0);
+      saveState();
+    });
+
+    const depthInput = $('mr-depth');
+    const speedInput = $('mr-speed');
+    const swirlInput = $('mr-swirl');
+    const distortInput = $('mr-distort');
+    const strengthInput = $('mr-strength');
+    const radiusInput = $('mr-radius');
+    const applyFluidParams = () => {
+      if (!fluid.ok) return;
+      fluid.setParams({
+        speed: Number(speedInput.value),
+        swirl: Number(swirlInput.value),
+        distortion: Number(distortInput.value),
+        mouseStrength: Number(strengthInput.value),
+        mouseRadius: Number(radiusInput.value),
+      });
+    };
+    const bindFluidSlider = (input, valId, onChange) => {
+      input.addEventListener('input', () => {
+        $(valId).textContent = input.value;
+        onChange();
+        if (REDUCED) fluidOnce();
+        saveState();
+      });
+    };
+    bindFluidSlider(depthInput, 'mr-depth-val', () => {
+      currentDepth = Number(depthInput.value);
+      if (fluid.ok) fluid.setColors(toneColors(currentHue, currentDepth));
+    });
+    bindFluidSlider(speedInput, 'mr-speed-val', applyFluidParams);
+    bindFluidSlider(swirlInput, 'mr-swirl-val', applyFluidParams);
+    bindFluidSlider(distortInput, 'mr-distort-val', applyFluidParams);
+    bindFluidSlider(strengthInput, 'mr-strength-val', applyFluidParams);
+    bindFluidSlider(radiusInput, 'mr-radius-val', applyFluidParams);
+    const logechoInput = $('mr-logecho');
+    bindFluidSlider(logechoInput, 'mr-logecho-val', (v) => v, (v) => { logoEcho = v; });
+
+    const gblurInput = $('mr-gblur');
+    const grefractionInput = $('mr-grefraction');
+    const gdispersionInput = $('mr-gdispersion');
+    const gdepthInput = $('mr-gdepth');
+    const gelasticityInput = $('mr-gelasticity');
+    const bindGlassSlider = (input, valId, fmt, apply) => {
+      input.addEventListener('input', () => {
+        $(valId).textContent = fmt(input.value);
+        apply(Number(input.value));
+        saveState();
+      });
+    };
+    bindGlassSlider(gblurInput, 'mr-gblur-val', (v) => v, (v) => { GLASS.blur = v; rebuildAllPanes(); });
+    bindGlassSlider(grefractionInput, 'mr-grefraction-val', (v) => v + '%', (v) => { GLASS.refraction = v / 100; rebuildAllPanes(); });
+    bindGlassSlider(gdispersionInput, 'mr-gdispersion-val', (v) => v + '%', (v) => { GLASS.dispersion = v / 100; rebuildAllPanes(); });
+    bindGlassSlider(gdepthInput, 'mr-gdepth-val', (v) => v, (v) => { GLASS.depth = v; rebuildAllPanes(); });
+    bindGlassSlider(gelasticityInput, 'mr-gelasticity-val', (v) => v + '%', (v) => { GLASS.elasticity = v / 100; });
+
+    $('mr-reset').addEventListener('click', () => {
+      const defaults = { parallax: '100', density: '60', depth: '22', speed: '14', swirl: '12', distort: '20', strength: '0', radius: '0.22' };
+      parallaxInput.value = defaults.parallax;
+      drift.amp = Number(defaults.parallax) / 100;
+      $('mr-parallax-val').textContent = defaults.parallax + '%';
+      densityInput.value = defaults.density;
+      starsDensity = Number(defaults.density);
+      $('mr-density-val').textContent = defaults.density;
+      buildStars();
+      depthInput.value = defaults.depth;
+      currentDepth = Number(defaults.depth);
+      $('mr-depth-val').textContent = defaults.depth;
+      speedInput.value = defaults.speed;
+      swirlInput.value = defaults.swirl;
+      distortInput.value = defaults.distort;
+      strengthInput.value = '0';
+      radiusInput.value = defaults.radius;
+      $('mr-speed-val').textContent = defaults.speed;
+      $('mr-swirl-val').textContent = defaults.swirl;
+      $('mr-distort-val').textContent = defaults.distort;
+      $('mr-strength-val').textContent = '0';
+      $('mr-radius-val').textContent = defaults.radius;
+      fluidToggle.checked = true;
+      starsToggle.checked = true;
+      fluidCv.style.visibility = 'visible';
+      starCv.style.visibility = 'visible';
+      selectHue(44, false);
+      if (fluid.ok) applyFluidParams();
+      syncFluidRun();
+      gblurInput.value = '3';
+      GLASS.blur = 3;
+      $('mr-gblur-val').textContent = '3';
+      grefractionInput.value = '100';
+      GLASS.refraction = 1;
+      $('mr-grefraction-val').textContent = '100%';
+      gdispersionInput.value = '10';
+      GLASS.dispersion = 0.1;
+      $('mr-gdispersion-val').textContent = '10%';
+      gdepthInput.value = '8';
+      GLASS.depth = 8;
+      $('mr-gdepth-val').textContent = '8';
+      gelasticityInput.value = '25';
+      GLASS.elasticity = 0.25;
+      $('mr-gelasticity-val').textContent = '25%';
+      logechoInput.value = '70';
+      logoEcho = 70;
+      $('mr-logecho-val').textContent = '70';
+      rebuildAllPanes();
+      if (REDUCED) { renderStars(0); fluidOnce(); applyDrift(0); }
+      try {
+        if (window.zcode && window.zcode.setWidgetState) window.zcode.setWidgetState({ modelContent: null }).catch(() => {});
+      } catch (e) { /* host state unavailable */ }
+    });
+    fluidToggle.addEventListener('change', () => {
+      fluidCv.style.visibility = fluidOn() ? 'visible' : 'hidden';
+      syncFluidRun();
+      if (REDUCED) fluidOnce();
+      saveState();
+    });
+    starsToggle.addEventListener('change', () => {
+      starCv.style.visibility = starsOn() ? 'visible' : 'hidden';
+      if (REDUCED && starsOn()) renderStars(0);
+      saveState();
+    });
+
+    function saveState() {
+      try {
+        if (window.zcode && window.zcode.setWidgetState) {
+          window.zcode.setWidgetState({
+            modelContent: {
+              parallax: parallaxInput.value,
+              density: densityInput.value,
+              hue: currentHue,
+              depth: currentDepth,
+              speed: speedInput.value,
+              swirl: swirlInput.value,
+              distort: distortInput.value,
+              strength: strengthInput.value,
+              radius: radiusInput.value,
+              gblur: gblurInput.value,
+              grefraction: grefractionInput.value,
+              gdispersion: gdispersionInput.value,
+              gdepth: gdepthInput.value,
+              gelasticity: gelasticityInput.value,
+              logecho: logechoInput.value,
+              fluid: fluidOn(),
+              stars: starsOn(),
+            },
+          }).catch(() => {});
+        }
+      } catch (e) { /* host state unavailable */ }
+    }
+    function applyState(mc) {
+      if (!mc || typeof mc !== 'object') return;
+      if (mc.parallax !== undefined) {
+        parallaxInput.value = String(mc.parallax);
+        drift.amp = Number(mc.parallax) / 100;
+        $('mr-parallax-val').textContent = mc.parallax + '%';
+      }
+      if (mc.density !== undefined) {
+        densityInput.value = String(mc.density);
+        starsDensity = Number(mc.density);
+        $('mr-density-val').textContent = mc.density;
+        buildStars();
+      }
+      if (mc.depth !== undefined) {
+        depthInput.value = String(mc.depth);
+        currentDepth = Number(mc.depth);
+        $('mr-depth-val').textContent = mc.depth;
+      }
+      const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+      if (num(mc.speed) !== null) { speedInput.value = String(mc.speed); $('mr-speed-val').textContent = mc.speed; }
+      if (num(mc.swirl) !== null) { swirlInput.value = String(mc.swirl); $('mr-swirl-val').textContent = mc.swirl; }
+      if (num(mc.distort) !== null) { distortInput.value = String(mc.distort); $('mr-distort-val').textContent = mc.distort; }
+      if (num(mc.strength) !== null) { strengthInput.value = String(mc.strength); $('mr-strength-val').textContent = mc.strength; }
+      if (num(mc.radius) !== null) { radiusInput.value = String(mc.radius); $('mr-radius-val').textContent = mc.radius; }
+      if (num(mc.gblur) !== null) { gblurInput.value = String(mc.gblur); GLASS.blur = Number(mc.gblur); $('mr-gblur-val').textContent = mc.gblur; }
+      if (num(mc.grefraction) !== null) { grefractionInput.value = String(mc.grefraction); GLASS.refraction = Number(mc.grefraction) / 100; $('mr-grefraction-val').textContent = mc.grefraction + '%'; }
+      if (num(mc.gdispersion) !== null) { gdispersionInput.value = String(mc.gdispersion); GLASS.dispersion = Number(mc.gdispersion) / 100; $('mr-gdispersion-val').textContent = mc.gdispersion + '%'; }
+      if (num(mc.gdepth) !== null) { gdepthInput.value = String(mc.gdepth); GLASS.depth = Number(mc.gdepth); $('mr-gdepth-val').textContent = mc.gdepth; }
+      if (num(mc.gelasticity) !== null) { gelasticityInput.value = String(mc.gelasticity); GLASS.elasticity = Number(mc.gelasticity) / 100; $('mr-gelasticity-val').textContent = mc.gelasticity + '%'; }
+      if (num(mc.logecho) !== null) { logechoInput.value = String(mc.logecho); logoEcho = Number(mc.logecho); $('mr-logecho-val').textContent = mc.logecho; }
+      rebuildAllPanes();
+      if (mc.hue !== undefined) selectHue(Number(mc.hue), false);
+      if (fluid.ok) {
+        fluid.setColors(toneColors(currentHue, currentDepth));
+        applyFluidParams();
+      }
+      if (typeof mc.fluid === 'boolean') fluidToggle.checked = mc.fluid;
+      if (typeof mc.stars === 'boolean') starsToggle.checked = mc.stars;
+      fluidCv.style.visibility = fluidOn() ? 'visible' : 'hidden';
+      starCv.style.visibility = starsOn() ? 'visible' : 'hidden';
+      syncFluidRun();
+    }
+
+    /* ================= boot ================= */
+    let resizeTimer = 0;
+    window.addEventListener('resize', () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        resizeStars();
+        buildStars();
+        if (fluid.ok) fluid.setLogoMask(buildLogoMask());
+        if (REDUCED) { renderStars(0); fluidOnce(); }
+      }, 120);
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopMaster();
+        if (fluid.ok) fluid.stopLoop();
+      } else if (!REDUCED) {
+        startMaster();
+        syncFluidRun();
+      }
+    });
+
+    initFluid();
+    resizeStars();
+    buildStars();
+    paintDots();
+    if (fluid.ok) fluid.setLogoMask(buildLogoMask());
+    glassDefs = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    glassDefs.setAttribute('class', 'mr-glass-defs');
+    glassDefs.setAttribute('aria-hidden', 'true');
+    stage.appendChild(glassDefs);
+    const liquidCard = createGlassPane($('mr-pane-liquid'), {
+      radius: 24, liquid: true, elasticityScale: 1,
+      content: glassCardContent('液态玻璃', 'SDF 透镜折射 · RGB 色散 · 弹性倾斜'),
+    });
+    const frostCard = createGlassPane($('mr-pane-frost'), {
+      radius: 24, liquid: false, elasticityScale: 1,
+      content: glassCardContent('磨砂玻璃', '均匀模糊 · 环形高光 · 无折射'),
+    });
+    const liquidBtn = createGlassPane(liquidCard.host.querySelector('.pane-btn'), {
+      radius: 999, liquid: true, elasticityScale: 0.6, hoverBoost: 0.5,
+      content: '<span class="ngs-btn-content">液态按钮</span>',
+    });
+    const frostBtn = createGlassPane(frostCard.host.querySelector('.pane-btn'), {
+      radius: 999, liquid: false, elasticityScale: 0.6, hoverBoost: 0.5,
+      content: '<span class="ngs-btn-content">磨砂按钮</span>',
+    });
+    for (const [btnHost, btnPane] of [[liquidBtn.host, liquidBtn], [frostBtn.host, frostBtn]]) {
+      btnHost.addEventListener('pointerenter', () => btnPane.setBrightness(GLASS.brightness + (btnPane.opts.hoverBoost ?? 0)));
+      btnHost.addEventListener('pointerleave', () => btnPane.setBrightness(GLASS.brightness));
+    }
+    let saved = null;
+    try {
+      saved = window.zcode && window.zcode.widgetState ? window.zcode.widgetState.modelContent : null;
+    } catch (e) { saved = null; }
+    if (saved) applyState(saved);
+    window.addEventListener('zcode:set_globals', (e) => {
+      try {
+        const mc = e.detail && e.detail.globals && e.detail.globals.widgetState ? e.detail.globals.widgetState.modelContent : null;
+        if (mc) applyState(mc);
+      } catch (err) { /* ignore */ }
+    });
+    if (REDUCED) {
+      fluidOnce();
+      applyDrift(0);
+      renderStars(0);
+    } else {
+      startMaster();
+      syncFluidRun();
+    }
+  })();
+  </script>
+</div>
+
+</body>
+</html>
