@@ -1,6 +1,6 @@
 # 栖域架构说明
 
-> 2026-10-23。本文是**约束文件**，不是愿望清单。新增代码若违反这里的规则，应在评审中被打回。
+> 架构约束沿用；2026-10-25 已校对事实入口。第 2 节是 2026-10-23 历史采样，不表示当前欠账全部未做。当前实现与证据见 [能力基线](product/CAPABILITY_BASELINE.md)，协作归属见 [ADR-011](DECISIONS.md) 和 [AGENTS](../AGENTS.md)。
 
 ## 1. 分层与依赖方向
 
@@ -16,7 +16,7 @@ infrastructure ──────────────┘      desktop (Elect
 | 领域 | `src/domain/` | 仅 TS 标准库、同层模块 | React、Electron、DOM、I/O、`window` |
 | 基础设施 | `src/infrastructure/` | `domain`、`window.qiyuDesktop` 契约 | React 组件、业务规则 |
 | 表现 | `src/presentation/` | `domain`、`infrastructure` 的工厂/契约 | 直接 `fs`、`ipcRenderer`、硬编码路径 |
-| 桌面 | `desktop/` | `domain`、Electron | 引入 React 或表现层代码 |
+| 桌面 | `desktop/` | `domain`、`shared` 契约、Electron | 引入 React 或表现层代码 |
 
 规则落地方式：`domain` 里出现 `import ... from 'react'` 或 `electron` 即为违规；`presentation` 里出现 `ipcRenderer` 即为违规。
 
@@ -31,7 +31,7 @@ infrastructure ──────────────┘      desktop (Elect
 | 样式 | `styles.css` 38.8KB + `theme.css` 49.6KB + `cinema.css` 12KB + features 等，打包后 114KB | **第二技术债：多层覆盖** |
 | IPC 契约 | `desktop/preload.ts` 用 `unknown` 转发；契约类型写在 `infrastructure/repository.ts` 内 | 需收紧 |
 
-结论：**领域与存储分层是好的，不要动**；风险集中在表现层与样式层。后续所有结构性工作优先解决这两处。
+历史结论：保留领域与存储分层，避免无关重写。当前已有共享类型化 IPC、feature/controller 提取及 token 文件；显式业务 action reducer 与多层样式覆盖收敛仍未全部完成。不得根据本表旧数字重复立项。增量业务规则按已批准任务修改，不能把“保持分层”误读为禁止领域功能开发。
 
 ## 3. 目标目录结构（渐进迁移，不要求一次到位）
 
@@ -84,7 +84,7 @@ src/
 
 ## 7. 重构纪律
 
-1. **行为不变**：重构提交不新增功能、不改文案、不改视觉；测试结果必须与重构前一致（当前 122 项）。
+1. **行为不变**：重构提交不新增功能、不改文案、不改视觉；测试结果必须与该任务的已测基线一致，实际数量以最新能力基线为准，不沿用历史 122 项。
 2. **小步提交**：一次只搬一个 feature，提交后可单独回退。
 3. **先测后搬**：被搬动的逻辑若没有测试，先补测试再搬。
 4. **不重写领域层**：`src/domain` 只做增量修改，不做「顺手重构」。

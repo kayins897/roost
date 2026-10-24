@@ -2,13 +2,15 @@
 
 **0.4.23 Windows 桌面免安装版**。本地优先的游戏、书籍、影视、音乐收藏与体验管理器；默认进入游戏的待体验计划，当前重点是游戏整理。
 
+开发与接手请先读 [项目阅读指南](docs/process/README.md)、[产品基线](docs/product/PRD.md)、[任务表](docs/tasks/README.md)。当前协作采用 ADR-011；历史版本段落不是当前任务授权。源码公开，许可证仍待所有者决定。
+
 本版以游戏收藏和待体验规划为主：
 
-- 待体验优先级与通关评级分别记录，都支持SSS／SS／S／A／B／C；对应视图按等级分组，可折叠。同档支持拖动、上移／下移并记住顺序，也能切换名称、年份或时长排序。
+- 待体验优先级与通关评级分别记录，都支持SSS／SS／S／A／B／C；对应视图按等级分组，可折叠。同档支持拖动、上移／下移并记住顺序；优先级／评级、收录时间、名称、年份和时长支持升降序，同档手动顺序不随等级方向翻转。
 - 详情默认收起作品资料和封面，80字单行印象与长文测评分开；长文参与搜索。旧版长文字完整保留，只在明确编辑感受后拆分存储。
 - 普通按钮随五色背景与自定义色相变化，背景与控件以约380ms平滑过渡；游戏六状态语义色保留。星河与流体以60Hz为目标，系统降级和窗口隐藏仍停帧。
 - 设置使用悬浮图标Dock，悬停或键盘聚焦展开分类。导航液态玻璃与普通按钮毛玻璃独立，深薄荷、香槟、透明烟晶预设沿用；多选保留单一底部工具栏与统一下拉菜单。
-- 背景与玻璃继续采用本地Mineradio示例算法，来源与保留范围见 [材质接入说明](./design/mineradio-reference/INTEGRATION.md)。评级封面沿用连续反光，无网格、网点。
+- 背景与玻璃继续采用本地Mineradio示例算法，来源与保留范围见 [材质接入说明](./design/mineradio-reference/INTEGRATION.md)。评级封面无网格、网点；SS为冷色银蓝镭射，SSS为多彩光谱，反光沿对角方向。
 
 收藏保持 `schemaVersion: 1`；本版仅增可选测评、优先级和分档顺序字段，启动不迁移或补写旧库。原子保存、备份与修订检查沿用；回退前保留新版完整导出，见 [数据兼容](./DATA_COMPATIBILITY.md)。测试只用隔离收藏，实际范围见 [工作流](./WORKFLOW.md)。
 
@@ -119,11 +121,11 @@ Windows 的“检索与导入”支持游戏名称搜索 Steam、Steam 商店 `/
 
 ## 开发、工作流与验收
 
-React19、TypeScript、Vite、Electron45、NSIS；开发环境为 Windows x64、Node.js22.12+（推荐24）及 npm。
+React19、TypeScript、Vite、Electron45；开发与验收基线为 Windows x64、Node.js24 及 npm。安装器入口仅保留为未来显式选项，默认发行免安装 ZIP。
 
 ```powershell
-npm install
-node node_modules/electron/install.js
+npm ci
+npm run setup:desktop
 npm run desktop
 ```
 
@@ -134,21 +136,20 @@ npm test
 npm run desktop:build
 npm run test:desktop
 npm run test:features
-node scripts/verify-cinema.cjs
 node scripts/verify-ambient-desktop.cjs
-node scripts/verify-batch-edit.cjs
-node scripts/verify-abandoned.cjs
 node scripts/verify-steam-batch.cjs
 node scripts/verify-batch-desktop.cjs
 node scripts/verify-steam-connect.cjs
 npm run test:workflow
 ```
 
-`test:workflow` 按顺序运行单元、构建、桌面基础、功能、已放弃状态、当前界面、原生背景、游戏批量编辑、浏览器批量、桌面批量及Steam连接十一阶段。每次使用隔离库，阶段失败就停止，日志与进度保存在对应版本目录 `evidence/workflow-v<版本号>/`。0.4.13／0.4.14 仅做了定向验证，未产出完整工作流目录；0.4.15 起恢复完整运行。不循环、不安装或替换已运行应用。发行目录生成后，也可验收其中已有程序：
+`setup:desktop` 调用锁定依赖的 Electron 官方运行文件安装器，不启动应用；首次需要网络或官方校验的本机缓存，安装说明见 [WORKFLOW](WORKFLOW.md)。`test:workflow` 顺序运行当前15阶段：单元、构建、收藏工作区、双向排序、封面材质、分级排序、等级入口、设置、主题动效、原生桌面、透明标题区、原生背景、浏览器批量、桌面批量和Steam连接。使用 `npm run test:workflow -- --list` 可只读列阶段。每阶段使用隔离数据，失败即停；日志与进度在本机 `evidence/workflow-v<版本号>/`。`verify-features`、`verify-cinema`、`verify-batch-edit`、`verify-abandoned` 属于旧界面定向套件，不是当前日常入口，不据它们的旧控件断言重做现有功能。不会替换已运行应用。发行目录生成后，也可验其中已有程序：
 
 ```powershell
-node scripts/verify-workflow.cjs --packaged "release/0.4.15/win-unpacked/栖域.exe"
+node scripts/verify-workflow.cjs --packaged "release/0.4.23/win-unpacked/栖域.exe"
 ```
+
+上面的 EXE 必须已存在。该模式仅将原生阶段指向指定程序，网页阶段仍验当前源码的 `dist`，不等于整个 ZIP 已验收。完整评级交互专项为 `node scripts/verify-cover-grades.cjs`，未纳入默认15阶段，修改此专项时单独运行。
 
 按版本独立打包，避免与运行中的旧程序争用目录：
 
