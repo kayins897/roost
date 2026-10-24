@@ -27,7 +27,7 @@
 | 游戏状态 | 六个可选状态：待体验、游玩中、已通关、持续游玩、暂时搁置、已放弃 | `replaying` 是兼容旧值，不是第七个独立选项；无全成就/白金 | [状态规则](../../src/domain/library.ts)、[类型](../../src/domain/types.ts) |
 | 优先级/评级 | 独立六档 SSS/SS/S/A/B/C、分档折叠、同级拖动持久化；优先级/收录时间/名称/年份/时长正反序 | 持续游玩保留原评级但不能直接编辑；特殊评级箔面只用于当前已通关 | [计划排序](../../src/domain/gamePlanning.ts)、[通用排序](../../src/domain/librarySort.ts)、[评级入口](../../src/presentation/features/detail/GameRating.tsx) |
 | 时长与详情 | 卡片与详情先时长后状态；未知与零区分；中央详情、客观资料折叠 | 当前活动与曾通关尚未独立建模 | [卡片](../../src/presentation/features/library/MediaCard.tsx)、[详情](../../src/presentation/features/detail/DetailPanel.tsx) |
-| 快捷编辑 | 右键状态、时长、标签、资料、喜欢、隐藏/回收等 | 设置待体验/已通关仍会再弹等级窗，尚无菜单内联等级条 | [右键菜单](../../src/presentation/features/library/ContextMenu.tsx)、[组合入口](../../src/presentation/App.tsx) |
+| 快捷编辑 | 右键状态、时长、标签、资料、喜欢、隐藏/回收等；待体验/已通关在菜单内联设等级（ZD-01 候选，含 N0 修复，采样 2026-10-25 夜间分支 zcode/nightly-20261025，未进 main） | 持续游玩等状态无菜单等级入口（与详情资格一致） | [右键菜单](../../src/presentation/features/library/ContextMenu.tsx)、[组合入口](../../src/presentation/App.tsx) |
 | 短长文 | 80 码点单行短印象、独立长测评；旧长文只读派生且保留原文 | 打开详情不自动拆写旧文，未输入不补新字段 | [写作规则](../../src/domain/personalWriting.ts) |
 | 标签 | 玩法/题材/游玩场景/其他；去重、改名合并、删除关联、批量增删、筛选 | **组内 AND、跨组 AND**；无 OR 开关、转组、独立空标签目录/同义词；创建需选择作品分配 | [筛选规则](../../src/domain/library.ts)、[标签管理](../../src/presentation/features/tags/TagManager.tsx)、[批改](../../src/domain/batchEdit.ts) |
 | 生命周期 | 多选操作、隐藏、回收、恢复、回收站确认永久删除、来源排除避免重导 | 放弃状态不自动删除；隐藏与回收不是体验状态 | [生命周期](../../src/domain/lifecycle.ts)、[排除编号](../../src/domain/importExclusions.ts) |

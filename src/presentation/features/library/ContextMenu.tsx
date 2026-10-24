@@ -1,7 +1,7 @@
 import { Bookmark, Clock3, EyeOff, Heart, Pencil, Star, Tag, Trash2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { GAME_GRADES } from '../../../domain/gameRating.ts';
-import { GAME_PLAY_LABELS, GAME_PLAY_STATES, gamePlayStateFor } from '../../../domain/library.ts';
+import { GAME_PLAY_LABELS, GAME_PLAY_STATES, gamePlayStateFor, legacyStatusForGameState } from '../../../domain/library.ts';
 import type { GamePlayState, MediaItem, PersonalGrade } from '../../../domain/types.ts';
 import { GameStateIcon } from '../../components/MediaPrimitives.tsx';
 import './library.css';
@@ -9,8 +9,8 @@ import './library.css';
 export interface ItemMenu { id: string; x: number; y: number }
 interface Props { menu: ItemMenu; item: MediaItem; onClose: () => void; onState: (value: GamePlayState) => boolean; onGrade: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean; onQuick: (mode: 'time' | 'tags') => void; onEdit: () => void; onFavorite: () => void; onHide: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void }
 
-// 待体验/已通关在菜单内附等级行：状态或等级保存失败时菜单留在原位供重试，
-// 只有等级保存成功或选择其他状态才关闭，避免"菜单已关、误以为已保存"。
+// 待体验/已通关在菜单内附等级行。保存失败时菜单留在原位供重试，成功按约定关闭或就地展示等级行，
+// 避免"菜单已关、误以为已保存"。
 export function ContextMenu(props: Props) {
   const panel = useRef<HTMLDivElement>(null);
   const { item, onClose } = props;
@@ -19,14 +19,28 @@ export function ContextMenu(props: Props) {
     const oldFocus = document.activeElement as HTMLElement | null;
     panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
     const dismiss = (event: PointerEvent) => { if (!panel.current?.contains(event.target as Node)) closeRef.current(); };
-    const scroll = () => closeRef.current();
-    document.addEventListener('pointerdown', dismiss); window.addEventListener('resize', scroll); document.querySelector('.main-scroll')?.addEventListener('scroll', scroll);
-    return () => { document.removeEventListener('pointerdown', dismiss); window.removeEventListener('resize', scroll); document.querySelector('.main-scroll')?.removeEventListener('scroll', scroll); if (oldFocus?.isConnected) oldFocus.focus(); };
+    const host = document.querySelector('.main-scroll');
+    // 菜单打开期间保存可能让作品移出当前列表（如待体验改已通关），内容高度缩短使 scrollTop
+    // 被钳制并触发 scroll——这类自身写入引起的布局调整不应中断内联设置。以内容高度为基准区分：
+    // 高度变化视为布局调整（更新基准、保持菜单）；高度不变的滚动才是用户主动离开。
+    let baseline = host?.scrollHeight ?? 0;
+    const scroll = () => {
+      const height = host?.scrollHeight ?? 0;
+      if (height !== baseline) { baseline = height; return; }
+      closeRef.current();
+    };
+    const resize = () => closeRef.current();
+    document.addEventListener('pointerdown', dismiss); window.addEventListener('resize', resize); host?.addEventListener('scroll', scroll);
+    return () => { document.removeEventListener('pointerdown', dismiss); window.removeEventListener('resize', resize); host?.removeEventListener('scroll', scroll); if (oldFocus?.isConnected) oldFocus.focus(); };
   }, []);
   const run = (action: () => void) => { onClose(); action(); };
-  // 待体验/已通关保存后菜单保持打开（item 随快照更新，等级行随之出现）；
-  // 保存失败同样保持打开，由 toast 反馈错误，可在原位重试。
-  const pickState = (value: GamePlayState) => { if (value === 'want' || value === 'cleared') { props.onState(value); return; } run(() => props.onState(value)); };
+  // 统一按保存结果处理：失败留在原位可重试；成功后 want/cleared 保持打开并就地展示等级行，其他状态关闭。
+  // 同值幂等只在原始存储值与映射 status 完全一致时跳过写库；不比较归一显示值，避免顺手改写旧别名。
+  const pickState = (value: GamePlayState) => {
+    const unchanged = item.gamePlayState === value && item.status === legacyStatusForGameState(value);
+    if (!unchanged && !props.onState(value)) return;
+    if (value !== 'want' && value !== 'cleared') onClose();
+  };
   const pickGrade = (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => { if (props.onGrade(mode, value)) onClose(); };
   const state = item.category === 'game' ? gamePlayStateFor(item) : null;
   const planned = state === 'want', completed = state === 'cleared';

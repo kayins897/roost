@@ -62,6 +62,14 @@ async function suite(currentMode) {
   const quiet = await raw(), quietAttempts = await saves();
   let m = await menu('可见 Alpha'); await page.keyboard.press('Escape'); await m.waitFor({ state:'hidden' });
   await unchanged('右键浏览与Escape不写入', quiet, quietAttempts);
+  // 同值幂等：再次点击当前状态（已通关）不重复写库。
+  const idle = await raw(), idleAttempts = await saves();
+  m = await menu('可见 Alpha');
+  await m.getByRole('menuitem', { name:'已通关', exact:true }).click();
+  await page.waitForTimeout(120);
+  assert.equal(await m.getByRole('group', { name:'通关评级', exact:true }).count(), 1);
+  await unchanged('同状态重复点击幂等不写入', idle, idleAttempts);
+  await page.keyboard.press('Escape'); await m.waitFor({ state:'hidden' });
   // 已通关作品右键直接出现通关评级行，当前选择高亮；选择评级只动评级维度。
   m = await menu('可见 Alpha');
   assert.equal(await m.getByRole('group', { name:'通关评级', exact:true }).count(), 1);
@@ -134,7 +142,50 @@ async function suite(currentMode) {
  });
  await context.close();
 }
+// N0 回归：默认待体验计划视图（不切全部游戏）。61 件同级 want 合成作品，滚到底把末件改已通关：
+// 作品移出列表使内容缩短、scrollTop 被钳制触发 scroll——菜单必须保持并就地出现通关评级行；
+// 失败的非 want/cleared 状态保存同样留在原位，成功后关闭。
+async function planSuite(currentMode) {
+ const items = Array.from({ length: 61 }, (_, index) => work('p' + String(index).padStart(2, '0'), '计划作品 ' + String(index).padStart(2, '0'), { playPriority: 'A' }));
+ baseline = JSON.stringify({ schemaVersion: 1, futureRoot: { untouched: ['原文'] }, items });
+ await prepare(currentMode);
+ await check('规划视图保存致列表缩短不关菜单，末件改通关后仍可就地评级', async () => {
+  await page.evaluate(() => { document.querySelector('.main-scroll')?.scrollTo(0, 1e6); });
+  await page.waitForTimeout(120);
+  const label = await page.locator('.media-card').last().getAttribute('aria-label') ?? '';
+  const id = 'p' + label.replace(/^查看计划作品 /, '').replace(/详情$/, '');
+  await page.getByRole('button', { name: label, exact: true }).click({ button: 'right' });
+  const m = page.getByRole('menu', { name: `计划作品 ${id.slice(1)}快捷编辑`, exact: true });
+  await m.waitFor();
+  await m.getByRole('menuitem', { name: '已通关', exact: true }).click();
+  await page.waitForTimeout(200);
+  assert.equal(await m.isVisible(), true, '保存导致列表缩短后菜单不应关闭');
+  assert.equal((await item(id)).gamePlayState, 'cleared');
+  assert.equal(await m.getByRole('group', { name: '通关评级', exact: true }).count(), 1);
+  await capture('plan-inline-grade');
+  await m.getByRole('menuitemradio', { name: 'S', exact: true }).click();
+  await m.waitFor({ state: 'hidden' });
+  assert.equal((await item(id)).personalGrade, 'S'); assert.equal((await item(id)).playPriority, 'A');
+ });
+ await check('规划视图失败状态保存留原位可重试，成功后关闭', async () => {
+  const before = await raw(); await page.evaluate(() => { window.__rankFail = true; });
+  const label = await page.locator('.media-card').last().getAttribute('aria-label') ?? '';
+  const id = 'p' + label.replace(/^查看计划作品 /, '').replace(/详情$/, '');
+  await page.getByRole('button', { name: label, exact: true }).click({ button: 'right' });
+  const m = page.getByRole('menu', { name: `计划作品 ${id.slice(1)}快捷编辑`, exact: true });
+  await m.waitFor();
+  await m.getByRole('menuitem', { name: '游玩中', exact: true }).click();
+  await page.waitForTimeout(120);
+  assert.equal(await m.isVisible(), true, '状态保存失败菜单应留在原位');
+  await unchanged('规划视图失败状态保存原文不变', before);
+  await page.evaluate(() => { window.__rankFail = false; });
+  await m.getByRole('menuitem', { name: '游玩中', exact: true }).click();
+  await m.waitFor({ state: 'hidden' });
+  assert.equal((await item(id)).gamePlayState, 'playing');
+ });
+ await context.close();
+}
 (async () => { try {
- base = await serve(); browser = await chromium.launch({channel:'msedge',headless:true}); await suite('browser'); await suite('bridge'); assert.deepEqual(report.errors, []); report.passed=true;
+ base = await serve(); browser = await chromium.launch({channel:'msedge',headless:true}); await suite('browser'); await suite('bridge'); await planSuite('browser'); await planSuite('bridge'); assert.deepEqual(report.errors, []); report.passed=true;
 } catch(error) { report.failure={stage,message:error.message,stack:error.stack}; process.exitCode=1; console.error(error.stack);
 } finally { if(browser) await browser.close(); if(server) await new Promise(resolve=>server.close(resolve)); report.timestamp=new Date().toISOString(); fs.writeFileSync(path.join(output,'validation.json'),JSON.stringify(report,null,2)); console.log(JSON.stringify({passed:report.passed,checks:report.checks.length,failure:report.failure})); } })();
