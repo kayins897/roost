@@ -42,6 +42,7 @@ export function useWorkspaceController() {
     selecting: false,
     selectionIds: ((() => new Set())()) as Set<string>,
     batchEditOpen: false,
+    enrichOpen: false,
     status: ('all') as ProgressStatus | 'all',
     gameFilter: ('plan') as GamePlayState | 'all' | 'plan',
     libraryView: 'library' as LibraryView,
@@ -78,6 +79,7 @@ export function useWorkspaceController() {
   const [selecting, setSelecting] = fields('selecting');
   const [selectionIds, setSelectionIds] = fields('selectionIds');
   const [batchEditOpen, setBatchEditOpen] = fields('batchEditOpen');
+  const [enrichOpen, setEnrichOpen] = fields('enrichOpen');
   useEffect(() => { setSelecting(false); setSelectionIds(new Set()); setBatchEditOpen(false); }, [section]);
   const [status, setStatus] = fields('status');
   const [gameFilter, setGameFilter] = fields('gameFilter');
@@ -161,6 +163,14 @@ export function useWorkspaceController() {
     if (!commit({ ...current, items: next.items }, `已更新 ${next.changedCount} 款游戏`)) return false;
     setSelecting(false); setSelectionIds(new Set());
     return true;
+  }
+  // 多选补齐 Steam 资料：复用现有同步链但固定 updatePlaytime:false——只补缺失元数据，
+  // 不读库存、不更新时长、不新增作品；保存前以最新快照重建补丁（applySteamSync 内部校验）。
+  function applyEnrichSync(games: SteamLibraryGame[], appIds: ReadonlySet<string>) {
+    const current = snapshotRef.current;
+    const result = applySteamSync(games, current.items, appIds, { updatePlaytime: false, exclusions: current.importExclusions });
+    if (!result.updated) { setToast('所选游戏没有需要补齐的资料。'); return false; }
+    return commit({ ...current, items: result.items }, `已补齐 ${result.updated} 款游戏的资料`);
   }
   // 多选快捷定级：只传等级输入（不带状态）的纯等级补丁，不重写状态、不规范化旧别名；
   // 仅作用于当前状态与维度匹配（want→优先级 / cleared→评级）的所选游戏。成功后保持多选便于连续整理。
@@ -297,5 +307,5 @@ export function useWorkspaceController() {
   }
 
   
-  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
+  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, enrichOpen, setEnrichOpen, applyEnrichSync, status, setStatus, gameFilter, setGameFilter, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
 }
