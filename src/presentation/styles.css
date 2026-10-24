@@ -248,3 +248,4 @@ a{color:inherit;text-decoration:none}
   .feature-game-meta .feature-game-state{font-size:10px;padding:3px 6px}
   .media-card--list .card-game-meta{justify-content:flex-end}
 }
+.tag-move-control{gap:3px;font-size:11px}.tag-move-control select{background:transparent;border:0;color:inherit;font-size:11px;padding:2px 0;cursor:pointer}.tag-move-control select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

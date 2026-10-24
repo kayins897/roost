@@ -180,6 +180,25 @@ export function deleteTag(items: MediaItem[], name: string, scope?: TagScope): M
   });
 }
 
+/** 把游戏标签从一组移动到另一组：来源组移除、目标组按既有去重规则合并同名，
+ * 其他分组（含跨组同名）保持不变；一次构造完整结果。仅改动来源组含该标签的作品。 */
+export function moveGameTag(items: MediaItem[], name: string, from: GameTagGroupKey, to: GameTagGroupKey): MediaItem[] {
+  const source = name.trim();
+  const target = source.toLocaleLowerCase();
+  if (!target || from === to) return items;
+  return items.map(item => {
+    if (item.category !== 'game') return item;
+    const before = gameTagsFor(item);
+    if (!before[from].some(tag => tag.toLocaleLowerCase() === target)) return item;
+    const gameTags = Object.fromEntries(GAME_TAG_KEYS.map(key => {
+      if (key === from) return [key, before[from].filter(tag => tag.toLocaleLowerCase() !== target)];
+      if (key === to) return [key, normalizeTags([...before[to], source])];
+      return [key, before[key]];
+    })) as GameTagGroups;
+    return { ...item, tags: flattenGameTags(gameTags), gameTags: { ...item.gameTags, ...gameTags } };
+  });
+}
+
 function isSafeSourceLink(value: string): boolean {
   try { const url = new URL(value); return url.protocol === 'https:' || url.protocol === 'http:'; }
   catch { return false; }

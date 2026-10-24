@@ -6,7 +6,7 @@ import type { MetadataCandidate } from '../../domain/catalog.ts';
 import { isImportExcluded } from '../../domain/importExclusions.ts';
 import { moveGameWithinRank, type RankMode } from '../../domain/gamePlanning.ts';
 import { defaultSortDirection, sortLibraryItems, type LibrarySort, type SortDirection } from '../../domain/librarySort.ts';
-import { deleteTag,emptyGameTags,filterLibrary,GAME_TAG_KEYS,gamePlayStateFor,isValidSnapshot,normalizeTags,platformsFor,renameTag } from '../../domain/library.ts';
+import { deleteTag,emptyGameTags,filterLibrary,GAME_TAG_KEYS,GAME_TAG_LABELS,gamePlayStateFor,gameTagsFor,isValidSnapshot,moveGameTag,normalizeTags,platformsFor,renameTag } from '../../domain/library.ts';
 import { permanentlyDeleteItems,restoreItems,setItemsHidden,trashItems,visibleLibraryItems,type LibraryView } from '../../domain/lifecycle.ts';
 import { previewSteamImport } from '../../domain/steamImport.ts';
 import type { SteamLibraryGame,SteamSyncOptions } from '../../domain/steamSync.ts';
@@ -218,6 +218,27 @@ export function useWorkspaceController() {
   function assignTag(group: GameTagGroupKey, name: string) {
     setTagManager(false); changeLibraryView('library'); startSelection(); setAssignment({ group, name }); setToast('请选择需要添加「' + name + '」的作品，再点底部「添加标签」');
   }
+  // 标签跨组移动：确认前展示来源/目标/影响数/合并情况；取消、零关联、同组不写库；
+  // 一次构造完整结果一次提交；成功后正在使用该标签的筛选转到目标组，其他筛选保留。
+  function moveTagAction(name: string, from: GameTagGroupKey, to: GameTagGroupKey) {
+    const label = name.trim(), lower = label.toLocaleLowerCase();
+    if (!label || from === to) return false;
+    const active = snapshotRef.current.items.filter(item => !item.hiddenAt && !item.removedAt);
+    const affected = active.filter(item => item.category === 'game' && gameTagsFor(item)[from].some(tag => tag.toLocaleLowerCase() === lower));
+    if (!affected.length) { setToast('该标签当前没有关联作品，无需移动。'); return false; }
+    const merges = affected.some(item => gameTagsFor(item)[to].some(tag => tag.toLocaleLowerCase() === lower));
+    if (!window.confirm(`将「${label}」从「${GAME_TAG_LABELS[from]}」移动到「${GAME_TAG_LABELS[to]}」？\n${affected.length} 件作品的该标签将移入新分组${merges ? '；部分作品的目标组已有同名标签，将按既有规则合并' : ''}。其他分组的同名标签保持不变。`)) return false;
+    const saved = updateItems(items => {
+      const scope = items.filter(item => !item.hiddenAt && !item.removedAt);
+      const edited = new Map(moveGameTag(scope, label, from, to).map(item => [item.id, item]));
+      return items.map(item => edited.get(item.id) ?? item);
+    }, `已将「${label}」移动到${GAME_TAG_LABELS[to]}`);
+    if (!saved) return false;
+    setSelectedGameTags(current => current[from].some(tag => tag.toLocaleLowerCase() === lower)
+      ? { ...current, [from]: current[from].filter(tag => tag.toLocaleLowerCase() !== lower), [to]: normalizeTags([...current[to], label]) }
+      : current);
+    return true;
+  }
   function manageTag(oldName: string, newName: string | undefined, tagScope: TagScope) {
     const saved = updateItems(current => {
       const active = current.filter(item => !item.hiddenAt && !item.removedAt);
@@ -265,5 +286,5 @@ export function useWorkspaceController() {
   }
 
   
-  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
+  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
 }

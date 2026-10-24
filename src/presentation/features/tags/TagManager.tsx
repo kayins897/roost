@@ -1,4 +1,5 @@
 import {
+ArrowRightLeft,
 Check,
 Pencil,
 Tag,Trash2,
@@ -10,7 +11,7 @@ import type { GameTagGroupKey,MediaItem,MediaType } from '../../../domain/types.
 
 import { Modal } from '../../components/MediaPrimitives.tsx';
 export type TagScope = { category?: MediaType; group?: GameTagGroupKey };
-export function TagManager({ items, section, onClose, onRename, onDelete, onAssign }: { items: MediaItem[]; section: MediaType; onClose: () => void; onRename: (oldName: string, newName: string, scope: TagScope) => boolean; onDelete: (name: string, scope: TagScope) => boolean; onAssign: (group: GameTagGroupKey, name: string) => void }) {
+export function TagManager({ items, section, onClose, onRename, onDelete, onAssign, onMove }: { items: MediaItem[]; section: MediaType; onClose: () => void; onRename: (oldName: string, newName: string, scope: TagScope) => boolean; onDelete: (name: string, scope: TagScope) => boolean; onAssign: (group: GameTagGroupKey, name: string) => void; onMove: (name: string, from: GameTagGroupKey, to: GameTagGroupKey) => boolean }) {
   const scopedItems = items.filter(item => item.category === section);
   const tags = availableTags(scopedItems);
   const grouped = gameTagCounts(scopedItems);
@@ -26,7 +27,7 @@ export function TagManager({ items, section, onClose, onRename, onDelete, onAssi
     const operationScope = { ...categoryScope, group };
     const affected = `${scopeLabel}${group ? ` / ${GAME_TAG_LABELS[group]}` : ''}的 ${tag.count} 件作品`;
     return <div className="manage-tag-row" key={rowKey}>
-      {editing === rowKey ? <form className="tag-rename" onSubmit={e => { e.preventDefault(); if (draft.trim() && window.confirm(`将${affected}中的「${tag.name}」重命名为「${draft.trim()}」？同名标签将合并。`) && onRename(tag.name, draft, operationScope)) setEditing(''); }}><input aria-label="标签新名称" autoFocus value={draft} onChange={e => setDraft(e.target.value)} /><button className="icon-button icon-button--positive" type="submit" aria-label="确认"><Check size={16} /></button><button type="button" className="icon-button" onClick={() => setEditing('')} aria-label="取消"><X size={16} /></button></form> : <><div className="tag-info"><Tag size={14} /><span>{tag.name}</span><small>{tag.count} 件作品</small></div>{group && <button className="text-button" onClick={() => onAssign(group, tag.name)}>分配作品</button>}<button className="icon-button" onClick={() => { setEditing(rowKey); setDraft(tag.name); }} aria-label={`重命名${tag.name}`}><Pencil size={15} /></button><button className="icon-button icon-button--danger" onClick={() => { if (window.confirm(`从${affected}中删除「${tag.name}」标签？作品本身不会被删除。`)) onDelete(tag.name, operationScope); }} aria-label={`删除${tag.name}`}><Trash2 size={15} /></button></>}
+      {editing === rowKey ? <form className="tag-rename" onSubmit={e => { e.preventDefault(); if (draft.trim() && window.confirm(`将${affected}中的「${tag.name}」重命名为「${draft.trim()}」？同名标签将合并。`) && onRename(tag.name, draft, operationScope)) setEditing(''); }}><input aria-label="标签新名称" autoFocus value={draft} onChange={e => setDraft(e.target.value)} /><button className="icon-button icon-button--positive" type="submit" aria-label="确认"><Check size={16} /></button><button type="button" className="icon-button" onClick={() => setEditing('')} aria-label="取消"><X size={16} /></button></form> : <><div className="tag-info"><Tag size={14} /><span>{tag.name}</span><small>{tag.count} 件作品</small></div>{group && <label className="text-button tag-move-control"><ArrowRightLeft size={13} /><span>移动到</span><select aria-label={`移动${tag.name}到分组`} value="" onChange={event => { const to = event.target.value as GameTagGroupKey; if (to) onMove(tag.name, group, to); }}><option value="">选择分组…</option>{GAME_TAG_KEYS.filter(key => key !== group).map(key => <option key={key} value={key}>{GAME_TAG_LABELS[key]}</option>)}</select></label>}{group && <button className="text-button" onClick={() => onAssign(group, tag.name)}>分配作品</button>}<button className="icon-button" onClick={() => { setEditing(rowKey); setDraft(tag.name); }} aria-label={`重命名${tag.name}`}><Pencil size={15} /></button><button className="icon-button icon-button--danger" onClick={() => { if (window.confirm(`从${affected}中删除「${tag.name}」标签？作品本身不会被删除。`)) onDelete(tag.name, operationScope); }} aria-label={`删除${tag.name}`}><Trash2 size={15} /></button></>}
     </div>;
   }
   return <Modal title="管理标签" description={`操作范围：${scopeLabel}。${section === 'game' ? '游戏仅修改当前标签分组，同名的其他分组保持原样。' : '每次操作会确认受影响的作品数量。'}`} onClose={onClose}>
