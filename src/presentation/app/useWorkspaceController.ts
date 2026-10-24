@@ -48,7 +48,7 @@ export function useWorkspaceController() {
     batchAction: 'state' as BatchAction,
     assignment: null as TagAssignment | null,
     contextMenu: null as ItemMenu | null,
-    quickItem: null as { id: string; mode: 'time' | 'tags' | 'priority' | 'rating' } | null,
+    quickItem: null as { id: string; mode: 'time' | 'tags' } | null,
     subtypeFilter: 'all',
     query: '',
     selectedTags: ([]) as string[],

@@ -57,15 +57,43 @@ async function suite(currentMode) {
   await capture('detail-grade-inputs'); await button('关闭详情', detail).click();
   assert.equal((await item('a')).impression, '状态更新仍保留我的草稿');
  });
- await check('右键状态顺带等级，取消保留状态，保存失败保留选择并重试', async () => {
-  await (await menu('可见 Alpha')).getByRole('menuitem', { name:'待体验', exact:true }).click(); let quick = dialog('待体验优先级');
-  assert.equal((await item('a')).gamePlayState, 'want'); await button('暂不设置', quick).click(); assert.equal((await item('a')).playPriority, 'SSS');
-  await (await menu('可见 Alpha')).getByRole('menuitem', { name:'已通关', exact:true }).click(); quick = dialog('通关评级');
-  await quick.getByRole('combobox', { name:'通关评级', exact:true }).selectOption('S'); const before = await raw();
-  await page.evaluate(() => { window.__rankFail = true; }); await button('保存', quick).click(); await quick.getByRole('alert').waitFor();
-  assert.equal(await quick.getByRole('combobox', { name:'通关评级', exact:true }).inputValue(), 'S'); await unchanged('快捷等级保存失败', before);
-  await page.evaluate(() => { window.__rankFail = false; }); await button('保存', quick).click(); await quick.waitFor({state:'hidden'});
-  assert.equal((await item('a')).personalGrade, 'S'); assert.equal((await item('a')).playPriority, 'SSS');
+ await check('右键菜单内直接设置等级，浏览与Escape不写入，失败留在原位可重试', async () => {
+  // 浏览与 Escape 关闭不产生写入（承接上一检查：已通关、优先级 SSS、评级 SS）。
+  const quiet = await raw(), quietAttempts = await saves();
+  let m = await menu('可见 Alpha'); await page.keyboard.press('Escape'); await m.waitFor({ state:'hidden' });
+  await unchanged('右键浏览与Escape不写入', quiet, quietAttempts);
+  // 已通关作品右键直接出现通关评级行，当前选择高亮；选择评级只动评级维度。
+  m = await menu('可见 Alpha');
+  assert.equal(await m.getByRole('group', { name:'通关评级', exact:true }).count(), 1);
+  assert.equal(await m.getByRole('menuitemradio', { name:'SS', exact:true }).getAttribute('aria-checked'), 'true');
+  await m.getByRole('menuitemradio', { name:'S', exact:true }).click(); await m.waitFor({ state:'hidden' });
+  assert.equal((await item('a')).personalGrade, 'S'); assert.equal((await item('a')).ratingOrder, undefined); assert.equal((await item('a')).playPriority, 'SSS');
+  // 选择待体验后菜单不关闭，同一菜单内出现优先级行，评级不受影响。
+  m = await menu('可见 Alpha');
+  await m.getByRole('menuitem', { name:'待体验', exact:true }).click();
+  assert.equal((await item('a')).gamePlayState, 'want');
+  assert.equal(await m.getByRole('group', { name:'待体验优先级', exact:true }).count(), 1);
+  assert.equal(await m.getByRole('menuitemradio', { name:'SSS', exact:true }).getAttribute('aria-checked'), 'true');
+  assert.equal((await item('a')).personalGrade, 'S');
+  // 未设置只清除优先级；再设 S 清空同维度手动顺序。
+  await m.getByRole('menuitemradio', { name:'未设置', exact:true }).click(); await m.waitFor({ state:'hidden' });
+  assert.equal((await item('a')).playPriority, undefined); assert.equal((await item('a')).personalGrade, 'S');
+  m = await menu('可见 Alpha');
+  await m.getByRole('menuitemradio', { name:'S', exact:true }).click(); await m.waitFor({ state:'hidden' });
+  assert.equal((await item('a')).playPriority, 'S'); assert.equal((await item('a')).priorityOrder, undefined);
+  // 等级保存失败：菜单留在原位、数据不变；重试成功后关闭。
+  const before = await raw(); await page.evaluate(() => { window.__rankFail = true; });
+  m = await menu('可见 Alpha');
+  await m.getByRole('menuitemradio', { name:'SS', exact:true }).click();
+  assert.equal(await m.isVisible(), true); await unchanged('右键等级保存失败留在原位', before);
+  await page.evaluate(() => { window.__rankFail = false; });
+  await m.getByRole('menuitemradio', { name:'SS', exact:true }).click(); await m.waitFor({ state:'hidden' });
+  assert.equal((await item('a')).playPriority, 'SS'); assert.equal((await item('a')).personalGrade, 'S');
+  // 页面重新打开后菜单读回与已保存内容一致（reload 默认回到规划视图，先切回全部游戏）。
+  await page.reload(); await button('全部游戏', page.locator('.library-views')).click();
+  m = await menu('可见 Alpha');
+  assert.equal(await m.getByRole('menuitemradio', { name:'SS', exact:true }).getAttribute('aria-checked'), 'true');
+  await capture('context-inline-grades'); await page.keyboard.press('Escape');
  });
  await check('资料表单按状态展示等级，保存保留另一评级和感受', async () => {
   await (await menu('可见 Alpha')).getByRole('menuitem', { name:'编辑作品资料', exact:true }).click(); const editor = dialog('编辑作品');
