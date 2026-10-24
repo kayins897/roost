@@ -22,15 +22,25 @@ export function SteamLibraryImport({ items, exclusions, onClose, onImport }: {
   const [discard, setDiscard] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'new' | 'existing' | 'within' | 'excluded'>('all');
   const [category, setCategory] = useState<MediaType>('game');
   const [initialStatus, setInitialStatus] = useState<ProgressStatus>('want');
   const dialog = useRef<HTMLElement>(null);
   const source = useRef<HTMLTextAreaElement>(null);
+  const currentToggle = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
   const previews = useMemo(() => parsed ? previewSteamImport(parsed.games, items, exclusions) : [], [parsed, items, exclusions]);
   const eligible = previews.filter(row => !row.duplicate);
   const chosen = eligible.filter(row => selection.has(row.key));
-  const shown = previews.filter(row => row.game.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  // 预览分类：利用既有去重原因区分库中重复、清单内重复与已移除跳过；搜索与分类只影响显示，不改变选择。
+  const filterOf = (row: typeof previews[number]) => row.duplicate === null ? 'new' : row.duplicate === 'existing-id' || row.duplicate === 'existing-name' ? 'existing' : row.duplicate === 'excluded' ? 'excluded' : 'within';
+  const counts = useMemo(() => { const value = { all: previews.length, new: 0, existing: 0, within: 0, excluded: 0 }; for (const row of previews) value[filterOf(row)]++; return value; }, [previews]);
+  const shown = previews.filter(row => (filter === 'all' || filterOf(row) === filter) && row.game.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+  const shownEligible = shown.filter(row => !row.duplicate);
+  const shownSelected = shownEligible.filter(row => selection.has(row.key)).length;
+  const hiddenSelected = chosen.length - shownEligible.filter(row => selection.has(row.key)).length;
+  const allShownSelected = shownEligible.length > 0 && shownEligible.every(row => selection.has(row.key));
+  useEffect(() => { if (currentToggle.current) currentToggle.current.indeterminate = shownSelected > 0 && !allShownSelected; }, [shownSelected, allShownSelected, filter, search]);
   function requestClose() { if (text.trim()) setDiscard(true); else onClose(); }
   // 选择器沿用原 trapFocus 实现（排除文件输入），键盘行为统一由 useDialogKeyboard 提供。
   useDialogKeyboard(dialog, requestClose, {
@@ -42,7 +52,7 @@ export function SteamLibraryImport({ items, exclusions, onClose, onImport }: {
     return () => { alive.current = false; };
   }, []);
   function parse(value: string) {
-    setError(''); setSubmitted(false); setSearch('');
+    setError(''); setSubmitted(false); setSearch(''); setFilter('all');
     try {
       const result = parseSteamImport(value, category);
       setParsed(result);
@@ -96,7 +106,8 @@ export function SteamLibraryImport({ items, exclusions, onClose, onImport }: {
       {parsed && <div className="steam-import-preview">
         <div className="steam-import-summary" role="status" aria-live="polite"><span><strong>{eligible.length}</strong> 件可新增</span><span><strong>{previews.length - eligible.length}</strong> 件重复</span><span><strong>{parsed.skipped.length}</strong> 行未识别</span></div>
         {parsed.skipped.length > 0 && <details className="steam-import-warnings"><summary>查看未识别的行</summary><ul>{parsed.skipped.slice(0, 20).map(warning => <li key={warning.row}>第 {warning.row} 行：{warning.reason}</li>)}</ul>{parsed.skipped.length > 20 && <p>另有 {parsed.skipped.length - 20} 行，可修正清单后重新生成预览。</p>}</details>}
-        {previews.length > 0 ? <><div className="steam-import-selection"><label><input type="checkbox" aria-label="选择全部新作品" checked={eligible.length > 0 && chosen.length === eligible.length} disabled={!eligible.length || submitted} onChange={event => setSelection(event.target.checked ? new Set(eligible.map(row => row.key)) : new Set())} />全选新增 <span>{chosen.length} / {eligible.length}</span></label><label className="steam-import-search"><input aria-label="查找清单中的作品" placeholder="查找清单" value={search} onChange={event => setSearch(event.target.value)} /></label></div>
+        {previews.length > 0 ? <><div className="steam-import-filters" role="group" aria-label="预览分类筛选">{([['all','全部'],['new','可新增'],['existing','库中重复'],['within','清单内重复'],['excluded','已移除跳过']] as const).map(([value,label]) => <button type="button" key={value} className={`steam-import-filter${filter === value ? ' is-active' : ''}`} aria-pressed={filter === value} disabled={submitted} onClick={() => setFilter(value)}>{label} {counts[value]}</button>)}</div>
+        <div className="steam-import-selection"><label><input type="checkbox" aria-label="选择全部新作品" checked={eligible.length > 0 && chosen.length === eligible.length} disabled={!eligible.length || submitted} onChange={event => setSelection(event.target.checked ? new Set(eligible.map(row => row.key)) : new Set())} />全选新增 <span>{chosen.length} / {eligible.length}</span></label><label><input ref={currentToggle} type="checkbox" aria-label="全选当前结果" checked={allShownSelected} disabled={!shownEligible.length || submitted} onChange={event => setSelection(currentSet => { const next = new Set(currentSet); for (const row of shownEligible) event.target.checked ? next.add(row.key) : next.delete(row.key); return next; })} />当前结果 <span>{shownSelected} / {shownEligible.length}</span></label>{hiddenSelected > 0 && <small className="steam-import-hidden" role="status">另有 {hiddenSelected} 件已选作品被搜索或分类隐藏</small>}<label className="steam-import-search"><input aria-label="查找清单中的作品" placeholder="查找清单" value={search} onChange={event => setSearch(event.target.value)} /></label></div>
           <div className="steam-import-rows" aria-label="作品导入预览">{shown.map(row => <label key={row.key} className={`steam-import-row${row.duplicate ? ' steam-import-row--duplicate' : ''}`}><input type="checkbox" aria-label={`导入 ${row.game.title}`} disabled={!!row.duplicate || submitted} checked={!row.duplicate && selection.has(row.key)} onChange={event => setSelection(current => { const next = new Set(current); if (event.target.checked) next.add(row.key); else next.delete(row.key); return next; })} /><span className="steam-import-game"><strong>{row.game.title}</strong><small>{[MEDIA_LABELS[row.game.category ?? 'game'], row.game.subcategory, row.game.year, row.game.appId ? `Steam ${row.game.appId}` : undefined, row.game.playtimeMinutes !== undefined ? formatPlaytime(row.game.playtimeMinutes) : undefined].filter(Boolean).join(' · ')}</small></span><span className="steam-import-row-state">{row.duplicate === 'excluded' ? '已移除，跳过' : row.duplicate === 'existing-id' ? '已收藏' : row.duplicate === 'existing-name' ? '收藏中同名' : row.duplicate ? '清单内重复' : '新增'}</span></label>)}{!shown.length && <p className="steam-import-hint">清单中没有匹配名称。</p>}</div>
           <p className="steam-import-hint">重复项会跳过；同名但确为不同作品，可通过单件收录确认。已有印象、状态、时长和记录均不会改变；不根据收录清单推测观看经历。</p></> : <p className="steam-import-hint">没有可识别的作品，请检查未识别的行或重新提供带名称的清单。</p>}
       </div>}

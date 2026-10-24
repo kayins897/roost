@@ -47,3 +47,7 @@
   .steam-import-search input { width: 100%; }
   .steam-import-row { gap: 8px; padding: 10px; }
 }
+.steam-import-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.steam-import-filter{padding:5px 10px;font-size:11px;border-radius:999px;border:1px solid var(--control-border);background:var(--control-fill);color:var(--muted)}
+.steam-import-filter.is-active{background:var(--control-selected);color:var(--control-selected-ink);border-color:var(--control-selected-border)}
+.steam-import-hidden{font-size:11px;color:var(--muted)}
