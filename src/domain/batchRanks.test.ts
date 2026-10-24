@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createGameBatchEditPlan } from './batchEdit.ts';
+import { createBulkGradePatch, createGameBatchEditPlan } from './batchEdit.ts';
 import { isValidSnapshot } from './library.ts';
 import type { MediaItem } from './types.ts';
 const item = (extra: Partial<MediaItem> = {}): MediaItem => ({ id: 'a', title: '游戏', category: 'game', subcategory: 'Steam', creator: '', year: '', status: 'want', gamePlayState: 'want', tags: [], impression: '自己的印象', review: '自己的测评', playPriority: 'S', personalGrade: 'A', priorityOrder: 3, ratingOrder: 2, favorite: false, artwork: 'default', createdAt: '', updatedAt: '', ...extra });
@@ -22,4 +22,26 @@ test('批量通关可顺带评分或显式清除，默认不覆盖原评级或�
   const cleared = createGameBatchEditPlan([after], ['a'], { gamePlayState: 'cleared', personalGrade: null }).items[0]; assert.equal(cleared.personalGrade, undefined);
   const preserved = createGameBatchEditPlan([before], ['a'], { gamePlayState: 'cleared' }).items[0]; assert.equal(preserved.personalGrade, before.personalGrade); assert.equal(preserved.ratingOrder, before.ratingOrder);
   assert.throws(() => createGameBatchEditPlan([before], ['a'], { gamePlayState: 'paused', playPriority: 'S' }), /不匹配/);
+});
+
+test('纯等级补丁只对状态匹配的所选游戏生效，不重写状态或旧别名', () => {
+  const want = item({ id: 'w', playPriority: 'A', priorityOrder: 7, personalGrade: 'S', ratingOrder: 9 });
+  const paused = item({ id: 'p', gamePlayState: 'paused', status: 'paused', playPriority: 'A', priorityOrder: 7 });
+  const legacy = item({ id: 'l', gamePlayState: 'replaying', status: 'active', playPriority: 'B' });
+  const patch = createBulkGradePatch([want, paused, legacy], ['w', 'p', 'l'], 'priority', 'SSS', '2026-10-25T00:00:00Z');
+  assert.equal(patch.changedCount, 1, '仅 want 作品变化');
+  assert.equal(patch.items[0].playPriority, 'SSS'); assert.equal(patch.items[0].priorityOrder, undefined);
+  assert.equal(patch.items[0].personalGrade, 'S'); assert.equal(patch.items[0].ratingOrder, 9);
+  assert.equal(patch.items[0].gamePlayState, 'want'); assert.equal(patch.items[0].status, 'want');
+  assert.equal(patch.items[1], paused, '非匹配状态引用不变');
+  assert.equal(patch.items[2], legacy, '旧别名 replaying 不被规范化');
+});
+test('纯等级补丁同值零变化、清除、另一维度与非选中作品保留', () => {
+  const a = item({ id: 'a', playPriority: 'S', priorityOrder: 2, personalGrade: 'A', ratingOrder: 4 });
+  const b = item({ id: 'b', playPriority: 'S' });
+  assert.equal(createBulkGradePatch([a, b], ['a'], 'priority', 'S').changedCount, 0);
+  const cleared = createBulkGradePatch([a, b], ['a'], 'priority', undefined);
+  assert.equal(cleared.changedCount, 1); assert.equal(cleared.items[0].playPriority, undefined);
+  assert.equal(cleared.items[0].personalGrade, 'A', '另一维度保留');
+  assert.equal(cleared.items[1], b, '未选中作品引用不变');
 });

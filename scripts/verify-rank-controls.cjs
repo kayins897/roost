@@ -140,6 +140,51 @@ async function suite(currentMode) {
   for (const old of before.items) if (!['a','b'].includes(old.id)) assert.deepEqual(await item(old.id),old);
   if (await button('退出多选').count()) await button('退出多选').click();
  });
+ await check('多选工具栏快捷定级：预览计数、失败重试、混合禁用与清除', async () => {
+  const before = await data();
+  await button('批量编辑游戏').click(); await button('选择最高优先级').click(); await button('选择低优先级').click();
+  const bar = page.locator('.selection-actionbar');
+  // 全部 want：统一待体验优先级；候选只预览不写入。
+  const selector = bar.getByRole('combobox', { name: '统一待体验优先级', exact: true });
+  await selector.selectOption('SS');
+  await bar.getByText('将更新 2 款（共 2 款）').waitFor();
+  const failing = await raw();
+  await page.evaluate(() => { window.__rankFail = true; });
+  await bar.getByRole('button', { name: '应用等级', exact: true }).click();
+  await page.getByRole('status').getByText(/保存失败/).waitFor();
+  await unchanged('快捷定级保存失败', failing);
+  await page.evaluate(() => { window.__rankFail = false; });
+  await bar.getByRole('button', { name: '应用等级', exact: true }).click();
+  await page.getByRole('status').getByText(/已更新 2 款/).waitFor();
+  assert.equal((await item('top')).playPriority, 'SS'); assert.equal((await item('low')).playPriority, 'SS');
+  // 同值：提示已是该等级且应用禁用。
+  await selector.selectOption('SS');
+  await bar.getByText('已是该等级').waitFor();
+  assert.equal(await bar.getByRole('button', { name: '应用', exact: true }).isDisabled(), true);
+  // 混合状态（want 的 top/low + 已通关的可见 Alpha）：提示不可用、入口消失。
+  await button('退出多选').click();
+  await button('批量编辑游戏').click(); await button('选择最高优先级').click(); await button('选择可见 Alpha').click();
+  await bar.getByText('状态不一致').waitFor();
+  assert.equal(await bar.getByRole('combobox', { name: '统一待体验优先级', exact: true }).count(), 0);
+  await button('退出多选').click();
+  // 全部已通关：统一通关评级与清除。
+  await button('批量编辑游戏').click(); await button('选择可见 Alpha').click(); await button('选择后台 Beta').click();
+  const ratingSelector = bar.getByRole('combobox', { name: '统一通关评级', exact: true });
+  await ratingSelector.selectOption('S');
+  await bar.getByText('将更新 2 款（共 2 款）').waitFor();
+  await bar.getByRole('button', { name: '应用等级', exact: true }).click();
+  await page.getByRole('status').getByText(/已更新 2 款/).waitFor();
+  assert.equal((await item('a')).personalGrade, 'S'); assert.equal((await item('b')).personalGrade, 'S');
+  await ratingSelector.selectOption('clear');
+  await bar.getByText('将更新 2 款（共 2 款）').waitFor();
+  await bar.getByRole('button', { name: '应用等级', exact: true }).click();
+  await page.getByRole('status').getByText(/已更新 2 款/).waitFor();
+  assert.equal((await item('a')).personalGrade, undefined); assert.equal((await item('b')).personalGrade, undefined);
+  assert.equal((await item('a')).playPriority, 'SS', '优先级不受评级操作影响');
+  await capture('bulk-grade-bar');
+  await button('退出多选').click();
+  preserve(before, await data(), ['top', 'low', 'a', 'b'], ['playPriority', 'personalGrade', 'priorityOrder', 'ratingOrder', 'updatedAt']);
+ });
  await context.close();
 }
 // N0 回归：默认待体验计划视图（不切全部游戏）。61 件同级 want 合成作品，滚到底把末件改已通关：

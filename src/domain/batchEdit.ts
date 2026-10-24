@@ -34,6 +34,27 @@ export interface GameBatchEditPlan {
 
 const keyFor = (tag: string) => tag.toLocaleLowerCase();
 
+/** 纯等级批量补丁：不改状态、时长、标签或旧别名，仅对当前状态与维度匹配
+ * （待体验→优先级 / 已通关→评级）的所选游戏生效；同等级零变化（引用与字段
+ * 原样），变档时清除对应手动顺序。与 createGameBatchEditPlan 的"等级随状态"
+ * 路径隔离，供多选工具栏快捷定级复用。 */
+export function createBulkGradePatch(items: MediaItem[], selectedIds: readonly string[], mode: 'priority' | 'rating', grade: PersonalGrade | undefined, timestamp = new Date().toISOString()): { changedCount: number; items: MediaItem[] } {
+  if (grade !== undefined && !isValidPersonalGrade(grade)) throw new Error('不支持的等级。');
+  const ids = new Set(selectedIds);
+  let changedCount = 0;
+  const result = items.map(item => {
+    if (!ids.has(item.id) || item.category !== 'game' || item.removedAt) return item;
+    const matches = mode === 'priority' ? gamePlayStateFor(item) === 'want' : gamePlayStateFor(item) === 'cleared';
+    if (!matches) return item;
+    if ((mode === 'priority' ? item.playPriority : item.personalGrade) === grade) return item;
+    changedCount++;
+    return mode === 'priority'
+      ? { ...item, playPriority: grade, priorityOrder: undefined, updatedAt: timestamp }
+      : { ...item, personalGrade: grade, ratingOrder: undefined, updatedAt: timestamp };
+  });
+  return { changedCount, items: changedCount ? result : items };
+}
+
 function normalizedInput(input: GameBatchEditInput): GameBatchEditInput {
   if (input.gamePlayState !== undefined && !GAME_PLAY_STATES.includes(input.gamePlayState)) throw new Error('不支持的游戏状态。');
   for (const [key,state] of [['playPriority','want'],['personalGrade','cleared']] as const) if (input[key] !== undefined && (input.gamePlayState !== state || (input[key] !== null && !isValidPersonalGrade(input[key])))) throw new Error('等级与目标状态不匹配。');
