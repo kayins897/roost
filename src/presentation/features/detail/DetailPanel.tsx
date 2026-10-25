@@ -1,6 +1,8 @@
 import { ChevronDown,Clock3,EyeOff,Heart,Pencil,Trash2,X } from 'lucide-react';
 import { useId,useRef,useState,type RefObject } from 'react';
-import { formatPlaytime,GAME_PLAY_LABELS,GAME_TAG_KEYS,GAME_TAG_LABELS,gamePlayStateFor,gameTagsFor,platformsFor } from '../../../domain/library.ts';
+import { formatPlaytime,GAME_TAG_KEYS,GAME_TAG_LABELS,gameTagsFor,platformsFor } from '../../../domain/library.ts';
+import { completionFor, engagementFor, ENGAGEMENT_SHORT } from '../../../domain/gameProgress.ts';
+import { engagementIcon, gameVisualState } from '../library/gameVisualState.ts';
 import type { ExperienceEntry,GameTagGroupKey,MediaItem,ProgressStatus } from '../../../domain/types.ts';
 import { ExperienceEditor,ExperienceList,QuickEditor } from '../../RecordEditors.tsx';
 import { GameStateIcon,Poster,StatusMark } from '../../components/MediaPrimitives.tsx';
@@ -29,7 +31,7 @@ export function DetailPanel({ item, onClose, onEdit, onPatch, onDelete, onHide, 
   useDialogKeyboard(panel, onClose, { filterVisible: true, initialFocus: element => element.querySelector('.detail-close') });
   function openQuick(mode: 'time' | 'tags') { if (writing.save()) setQuickEdit(mode); }
   function openExperience(entry: ExperienceEntry | 'new') { if (writing.save()) setExperienceEdit(entry); }
-  const state = gamePlayStateFor(item);
+  const state = gameVisualState(item), engagement = engagementFor(item), completion = completionFor(item);
   const locked = Boolean(item.removedAt);
   return <div className="detail-shell detail-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section ref={panel} className={`detail-panel detail-dialog ${factsOpen ? 'detail-dialog--facts-open' : ''}`} data-category={item.category} role="dialog" aria-modal="true" aria-label={`${item.title}详情`}>
@@ -37,7 +39,7 @@ export function DetailPanel({ item, onClose, onEdit, onPatch, onDelete, onHide, 
       <div className="detail-columns">
         <main className="detail-personal" aria-label="个人体验">
           <div className="detail-personal-heading"><h3>我的体验</h3>{!locked && <button className="icon-button" onClick={() => onPatch({ favorite: !item.favorite })} aria-label={item.favorite ? '取消喜欢' : '标为喜欢'}><Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} /></button>}</div>
-          {item.category === 'game' ? <><div className="detail-experience-summary"><div className="detail-hours"><Clock3 size={20} /><strong>{item.playtimeMinutes === undefined ? '时长未记录' : formatPlaytime(item.playtimeMinutes)}</strong>{!locked && <button className="text-button" onClick={() => openQuick('time')} aria-label="修改时长"><Pencil size={14} /></button>}</div><span className={`game-state--${state}`}><GameStateIcon state={state} size={14} />{GAME_PLAY_LABELS[state]}</span></div>
+          {item.category === 'game' ? <><div className="detail-experience-summary"><div className="detail-hours"><Clock3 size={20} /><strong>{item.playtimeMinutes === undefined ? '时长未记录' : formatPlaytime(item.playtimeMinutes)}</strong>{!locked && <button className="text-button" onClick={() => openQuick('time')} aria-label="修改时长"><Pencil size={14} /></button>}</div><span className="detail-progress-summary">{engagement !== 'unrecorded' && <span className={`game-state--${engagement === 'inactive' ? 'inactive' : engagementIcon[engagement]}`}><GameStateIcon state={engagementIcon[engagement]} size={14} />{ENGAGEMENT_SHORT[engagement]}</span>}{completion === 'cleared' && <span className="game-state--cleared"><GameStateIcon state="cleared" size={14} />已通关</span>}</span></div>
             <GameProgressPanel item={item} onPatch={onPatch} /></> : <><StatusMark status={item.status} />{!locked && <div className="detail-statuses">{statuses.slice(1).map(value => <button key={value.id} className={`status-option ${item.status === value.id ? 'is-selected' : ''}`} onClick={() => onPatch({ status: value.id as ProgressStatus })}>{value.label}</button>)}</div>}</>}
           {item.category === 'game' && <GameRating item={item} locked={locked} onPatch={onPatch} />}
           <PersonalWritingFields writing={writing} locked={locked} />

@@ -4,7 +4,7 @@ Upload
 } from 'lucide-react';
 import type { ChangeEvent,FormEvent } from 'react';
 import { emptyGameTags,flattenGameTags,GAME_TAG_KEYS,GAME_TAG_LABELS,gameTagsFor,MEDIA_LABELS,normalizePlatforms,normalizeTags,platformsFor,STATUS_LABELS } from '../../../domain/library.ts';
-import { completionFor, COMPLETION_LABELS, COMPLETION_STATUSES, engagementFor, ENGAGEMENT_LABELS, gradeEditable, newGameProjection, PLAY_ENGAGEMENTS } from '../../../domain/gameProgress.ts';
+import { completionFor, COMPLETION_LABELS, COMPLETION_STATUSES, engagementFor, ENGAGEMENT_LABELS, newGameProjection, PLAY_ENGAGEMENTS } from '../../../domain/gameProgress.ts';
 import type { CompletionStatus,GameTagGroupKey,GameTagGroups,MediaItem,MediaType,PlayEngagement,ProgressStatus } from '../../../domain/types.ts';
 import { GAME_GRADES } from '../../../domain/gameRating.ts';
 import { impressionError, IMPRESSION_MAX_LENGTH, personalWritingFor, personalWritingPatch, writingLength } from '../../../domain/personalWriting.ts';
@@ -148,11 +148,11 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
             <div className="two-fields game-time-mark-fields">
               <label className="form-field">累计游玩时长 <span className="field-note">小时 · 可留空</span><div className="time-field"><input type="number" min="0" max="100000" step="any" inputMode="decimal" placeholder="例如 42.5" value={playtimeHours} onChange={e => setPlaytimeHours(e.target.value)} /><span>h</span></div></label>
               <label className="form-field">当前游玩关系<select aria-label="当前游玩关系" value={engagement === 'unrecorded' ? '' : engagement} onChange={e => { setEngagement(e.target.value as PlayEngagement); setEngagementTouched(true); }}><option value="" disabled={initial !== undefined}>未记录</option>{PLAY_ENGAGEMENTS.map(id => <option key={id} value={id}>{ENGAGEMENT_LABELS[id]}</option>)}</select></label>
-              <label className="form-field">通关进度<select aria-label="通关进度" value={completion} onChange={e => { setCompletion(e.target.value as CompletionStatus); setCompletionTouched(true); }}>{COMPLETION_STATUSES.map(id => <option key={id} value={id}>{COMPLETION_LABELS[id]}</option>)}</select></label>
+              <label className="form-field">通关进度<select aria-label="通关进度" value={completion} onChange={e => { const next = e.target.value as CompletionStatus; setCompletion(next); setCompletionTouched(true); if (next !== 'cleared' && next !== 'not-applicable' && initial?.personalGrade === undefined) setPersonalGrade(''); }}>{COMPLETION_STATUSES.map(id => <option key={id} value={id}>{COMPLETION_LABELS[id]}</option>)}</select></label>
             </div>
             {(type !== 'game' ? false : engagement === 'planned' || engagement === 'paused' || (initial?.playPriority !== undefined && initial?.category === 'game')) && <label className="form-field">待体验优先级<select aria-label="待体验优先级" value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
-            {(type !== 'game' ? false : initial?.category === 'game' && (gradeEditable(initial) || (completionTouched && (completion === 'cleared' || completion === 'not-applicable')))) && <label className="form-field">通关评级<select aria-label="通关评级" value={personalGrade} onChange={event => setPersonalGrade(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
-            <p className="game-state-help">持续游玩适合多周目重玩、肉鸽反复刷和网游等长期投入。暂时搁置表示以后可能继续，已放弃表示不再计划游玩。时长和记录都会保留。</p>
+            {(completion === 'cleared' || completion === 'not-applicable' || initial?.personalGrade !== undefined) && <label className="form-field">通关评级<select aria-label="通关评级" value={personalGrade} onChange={event => setPersonalGrade(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
+            <p className="game-state-help">当前关系与通关进度独立，通关后也可以计划重玩或继续游玩。暂时搁置表示以后可能继续，已放弃表示不再计划游玩。时长和记录都会保留。</p>
             <div className="game-tag-editor"><div className="game-tag-editor-title">游戏标签 <span>四个维度，按需填写即可</span></div>
               {GAME_TAG_KEYS.map(key => <div className={`game-tag-edit-group tag-type--${key}`} key={key}>
                 <label className="form-field">{GAME_TAG_LABELS[key]}<input placeholder={key === 'scenario' ? '例如：刚需联机、需要沉浸、放松解压' : `用顿号分隔${GAME_TAG_LABELS[key]}标签`} value={gameTagInputs[key]} onChange={e => setGameTagInputs(current => ({ ...current, [key]: e.target.value }))} /></label>
