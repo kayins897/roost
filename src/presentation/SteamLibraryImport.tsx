@@ -90,7 +90,7 @@ export function SteamLibraryImport({ items, exclusions, onClose, onImport }: {
     setError(''); setSubmitted(true);
     try {
       // Re-evaluate against the latest props before creating records; duplicates never enter a save.
-      const additions = createSteamImportItems(chosen.map(row => row.game), initialStatus, undefined, category === 'game' ? initialCompletion : undefined);
+      const additions = createSteamImportItems(chosen.map(row => row.game), initialStatus, category === 'game' ? 'planned' : undefined, category === 'game' ? initialCompletion : undefined);
       const classified = additions.map(item => item.category === 'game' && initialClassification !== 'auto' ? { ...item, ...experienceClassificationPatch(initialClassification) } : item);
       if (onImport(classified)) onClose();
       else { setSubmitted(false); setError('保存未完成，预览和选择已保留。请处理收藏库保存提示后重试'); }
