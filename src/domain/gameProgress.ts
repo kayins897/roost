@@ -65,16 +65,16 @@ export function gradeEditable(item: MediaItem): boolean {
   return completion === 'cleared' || completion === 'not-applicable' || isValidPersonalGrade(item.personalGrade);
 }
 
-/** 待体验优先级编辑资格：计划游玩/搁置可设；其他关系但已有历史优先级的保留编辑。 */
+/** 待体验优先级编辑资格：只用于计划游玩/搁置，其他关系保留旧值但不提供规划入口。 */
 export function priorityEditable(item: MediaItem): boolean {
   if (item.category !== 'game') return false;
   const engagement = engagementFor(item);
-  return engagement === 'planned' || engagement === 'paused' || item.playPriority !== undefined;
+  return engagement === 'planned' || engagement === 'paused';
 }
 
 /** 完成事件实际日期：YYYY / YYYY-MM / YYYY-MM-DD，日历合法（含闰年），不补精度。 */
 export function isCompletionDate(value: string): boolean {
-  if (/^\d{4}$/.test(value)) return true;
+  if (/^\d{4}$/.test(value)) return Number(value) >= 1;
   const match = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(value);
   if (!match) return false;
   const year = Number(match[1]), month = Number(match[2]);
@@ -90,9 +90,17 @@ export function isValidCompletionEvent(value: unknown): value is CompletionEvent
   const event = value as Record<string, unknown>;
   return typeof event.id === 'string' && event.id.trim().length > 0
     && (event.occurredAt === undefined || (typeof event.occurredAt === 'string' && isCompletionDate(event.occurredAt)))
-    && typeof event.recordedAt === 'string' && event.recordedAt.length > 0
+    && typeof event.recordedAt === 'string' && isRecordedTimestamp(event.recordedAt)
     && (event.note === undefined || typeof event.note === 'string');
 }
+
+function isRecordedTimestamp(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return false;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === (value.includes('.') ? value : value.replace('Z', '.000Z'));
+}
+
+const validCount = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 
 /** 保存当前关系：只写新维度，不改通关进度/等级/时长/旧轴（旧轴冻结）。 */
 export function engagementPatch(value: PlayEngagement): Partial<MediaItem> {
@@ -121,7 +129,9 @@ export interface CompletionRecordInput {
   occurredAt?: string;
   note?: string;
   /** 次数选择：keep-unknown 保持未记录；start-at-one 从本次计为 1；increment 已知值+1；keep 保持现值（默认）。 */
-  countChoice: 'keep-unknown' | 'start-at-one' | 'increment' | 'keep';
+  countChoice: 'keep-unknown' | 'start-at-one' | 'increment' | 'keep' | 'set';
+  /** 仅 countChoice=set 时使用，明确包含本次在内的累计值。 */
+  countValue?: number;
   /** 是否同时把通关进度标记为已通关（不适用进度默认保留，由调用方决定初始勾选）。 */
   markCleared: boolean;
 }
@@ -134,9 +144,19 @@ export interface CompletionRecordPreview {
   note?: string;
 }
 
+/** 仅存于本次会话的撤销凭据；保存实际写入字段的精确前值，而不是由后值猜算。 */
+export interface CompletionRecordUndo {
+  itemId: string;
+  event: CompletionEvent;
+  fields: {
+    completionCount?: { before: number | undefined; after: number | undefined };
+    completion?: { before: CompletionStatus | undefined; after: CompletionStatus | undefined };
+  };
+}
+
 /** 记录一次明确完成：事件、次数选择与进度标记一笔提交；幂等（同 eventId 已存在时返回 null）。 */
-export function recordCompletion(item: MediaItem, input: CompletionRecordInput, now: string): { patch: Partial<MediaItem>; preview: CompletionRecordPreview } | null {
-  if (input.eventId.trim().length === 0) return null;
+export function recordCompletion(item: MediaItem, input: CompletionRecordInput, now: string): { patch: Partial<MediaItem>; preview: CompletionRecordPreview; undo: CompletionRecordUndo } | null {
+  if (item.category !== 'game' || item.removedAt || input.eventId.trim().length === 0 || !isRecordedTimestamp(now)) return null;
   if (item.completionEvents?.some(event => event.id === input.eventId)) return null;
   if (input.occurredAt !== undefined && !isCompletionDate(input.occurredAt)) return null;
   const countBefore = completionCountFor(item);
@@ -144,7 +164,12 @@ export function recordCompletion(item: MediaItem, input: CompletionRecordInput, 
   if (input.countChoice === 'increment') {
     if (countBefore === undefined) return null; // 未知累计不得隐式 +1
     countAfter = countBefore + 1;
+    if (!validCount(countAfter)) return null;
   } else if (input.countChoice === 'start-at-one') countAfter = 1;
+  else if (input.countChoice === 'set') {
+    if (!validCount(input.countValue)) return null;
+    countAfter = input.countValue;
+  }
   const completionBefore = completionFor(item);
   const completionAfter = input.markCleared ? 'cleared' as const : completionBefore;
   const event: CompletionEvent = {
@@ -155,10 +180,16 @@ export function recordCompletion(item: MediaItem, input: CompletionRecordInput, 
   };
   const patch: Partial<MediaItem> = {
     completionEvents: [...(item.completionEvents ?? []), event],
-    ...(countAfter !== countBefore || input.countChoice === 'start-at-one' ? { completionCount: countAfter } : {}),
+    ...(countAfter !== countBefore ? { completionCount: countAfter } : {}),
     ...(completionAfter !== completionBefore ? { completion: completionAfter } : {}),
   };
-  return { patch, preview: { countBefore, countAfter, completionBefore, completionAfter, ...(event.note ? { note: event.note } : {}) } };
+  const undo: CompletionRecordUndo = {
+    itemId: item.id, event: { ...event }, fields: {
+      ...(countAfter !== countBefore ? { completionCount: { before: countBefore, after: countAfter } } : {}),
+      ...(completionAfter !== completionBefore ? { completion: { before: item.completion, after: completionAfter } } : {}),
+    },
+  };
+  return { patch, preview: { countBefore, countAfter, completionBefore, completionAfter, ...(event.note ? { note: event.note } : {}) }, undo };
 }
 
 /** 编辑事件的日期/备注：不重新计数、不改进度。 */
@@ -166,15 +197,26 @@ export function editCompletionEvent(item: MediaItem, eventId: string, change: { 
   if (!item.completionEvents?.some(event => event.id === eventId)) return null;
   if (change.occurredAt !== undefined && change.occurredAt !== '' && !isCompletionDate(change.occurredAt)) return null;
   return {
-    completionEvents: item.completionEvents.map(event => event.id === eventId
-      ? { ...event, ...(change.occurredAt !== undefined ? (change.occurredAt === '' ? {} : { occurredAt: change.occurredAt }) : {}), ...(change.note !== undefined ? (change.note.trim() ? { note: change.note.trim() } : {}) : {}) }
-      : event),
+    completionEvents: item.completionEvents.map(event => {
+      if (event.id !== eventId) return event;
+      const edited = { ...event };
+      if (change.occurredAt !== undefined) {
+        if (change.occurredAt === '') delete edited.occurredAt;
+        else edited.occurredAt = change.occurredAt;
+      }
+      if (change.note !== undefined) {
+        if (change.note.trim() === '') delete edited.note;
+        else edited.note = change.note.trim();
+      }
+      return edited;
+    }),
   };
 }
 
 /** 删除完成事件：只删记录；countCorrection 显式给出时同笔修正累计数，否则独立保留。 */
 export function removeCompletionEvent(item: MediaItem, eventId: string, countCorrection?: number): Partial<MediaItem> | null {
   if (!item.completionEvents?.some(event => event.id === eventId)) return null;
+  if (countCorrection !== undefined && !validCount(countCorrection)) return null;
   const patch: Partial<MediaItem> = { completionEvents: item.completionEvents.filter(event => event.id !== eventId) };
   if (countCorrection !== undefined) patch.completionCount = countCorrection;
   return patch;
@@ -182,16 +224,17 @@ export function removeCompletionEvent(item: MediaItem, eventId: string, countCor
 
 /** 撤销一次记录：还原该事件及本次造成的次数/进度变化。仅当相关字段仍是本次写入的
  * 值时有效；已被后续修改时返回 null（禁止旧值覆盖新决定）。 */
-export function undoCompletionRecord(item: MediaItem, eventId: string, caused: { countAfter?: number; completionAfter?: CompletionStatus }): Partial<MediaItem> | null {
-  const event = item.completionEvents?.find(entry => entry.id === eventId);
-  if (!event) return null;
-  if (caused.countAfter !== undefined && item.completionCount !== caused.countAfter) return null;
-  if (caused.completionAfter !== undefined && item.completion !== undefined && item.completion !== caused.completionAfter) return null;
-  const patch: Partial<MediaItem> = { completionEvents: (item.completionEvents ?? []).filter(entry => entry.id !== eventId) };
-  // 次数还原：本次 start-at-one（写入 1）回到未记录；increment（写入 N+1）回到 N；keep 未变不还原。
-  if (caused.countAfter === 1) patch.completionCount = undefined;
-  else if (caused.countAfter !== undefined && caused.countAfter > 1) patch.completionCount = caused.countAfter - 1;
-  if (caused.completionAfter !== undefined && item.completion === caused.completionAfter) patch.completion = 'unknown';
+export function undoCompletionRecord(item: MediaItem, receipt: CompletionRecordUndo): Partial<MediaItem> | null {
+  if (item.id !== receipt.itemId || item.category !== 'game' || item.removedAt) return null;
+  const event = item.completionEvents?.find(entry => entry.id === receipt.event.id);
+  if (!event || JSON.stringify(event) !== JSON.stringify(receipt.event)) return null;
+  const count = receipt.fields.completionCount;
+  const completion = receipt.fields.completion;
+  if (count && item.completionCount !== count.after) return null;
+  if (completion && item.completion !== completion.after) return null;
+  const patch: Partial<MediaItem> = { completionEvents: (item.completionEvents ?? []).filter(entry => entry.id !== receipt.event.id) };
+  if (count) patch.completionCount = count.before;
+  if (completion) patch.completion = completion.before;
   return patch;
 }
 

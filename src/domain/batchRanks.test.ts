@@ -30,14 +30,15 @@ test('纯等级补丁按双维度资格生效，不重写状态或旧别名 (v0.
   const legacy = item({ id: 'l', gamePlayState: 'replaying', status: 'active', playPriority: 'B' });
   const playing = item({ id: 'x', gamePlayState: 'playing', status: 'active', playPriority: undefined }); // 无优先级的游玩中：不可排
   const patch = createBulkGradePatch([want, paused, legacy, playing], ['w', 'p', 'l', 'x'], 'priority', 'SSS', '2026-10-25T00:00:00Z');
-  // v0.4.24 资格：计划/搁置可排优先级；其他关系但已有历史优先级的保留编辑。
-  assert.equal(patch.changedCount, 3, 'want、搁置、带历史优先级的旧别名均可更新');
+  // v0.4.24 资格：只对计划/搁置开放优先级；其他关系的历史值保持，不顺便清除。
+  assert.equal(patch.changedCount, 2, '只有 want 和搁置可更新');
   assert.equal(patch.items[0].playPriority, 'SSS'); assert.equal(patch.items[0].priorityOrder, undefined);
   assert.equal(patch.items[0].personalGrade, 'S'); assert.equal(patch.items[0].ratingOrder, 9);
   assert.equal(patch.items[0].gamePlayState, 'want'); assert.equal(patch.items[0].status, 'want');
-  assert.equal(patch.items[1].playPriority, 'SSS'); assert.equal(patch.items[2].playPriority, 'SSS');
+  assert.equal(patch.items[1].playPriority, 'SSS');
+  assert.equal(patch.items[2], legacy, '历史优先级与旧replaying别名原样保留');
   assert.equal(patch.items[3], playing, '无历史优先级的游玩中不受影响');
-  for (const changed of patch.items.slice(0, 3)) assert.equal(changed.gamePlayState === 'replaying' ? 'replaying' : changed.gamePlayState, changed === patch.items[2] ? 'replaying' : changed.gamePlayState, '旧轴与别名原样');
+  assert.deepEqual(patch.items.map(changed => changed.gamePlayState), ['want', 'paused', 'replaying', 'playing'], '旧轴与别名原样');
 });
 test('纯等级补丁同值零变化、清除、另一维度与非选中作品保留', () => {
   const a = item({ id: 'a', playPriority: 'S', priorityOrder: 2, personalGrade: 'A', ratingOrder: 4 });

@@ -1,5 +1,5 @@
 import { isValidPersonalGrade } from './library.ts';
-import { engagementFor } from './gameProgress.ts';
+import { completionFor, engagementFor, inPlanView } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
 import type { MediaItem } from './types.ts';
 import type { SortDirection } from './librarySort.ts';
@@ -8,6 +8,7 @@ export type RankMode = 'priority' | 'rating';
 export type RankedGameGroup = { id: string; label: string; items: MediaItem[] };
 const orderKey = (mode: RankMode) => mode === 'priority' ? 'priorityOrder' : 'ratingOrder';
 const normalGame = (item: MediaItem) => item.category === 'game' && !item.hiddenAt && !item.removedAt;
+const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? inPlanView(item) : completionFor(item) === 'cleared');
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 function rankId(item: MediaItem, mode: RankMode): string {
   if (mode === 'priority' && engagementFor(item) === 'paused') return 'paused';
@@ -31,13 +32,13 @@ export function groupRankedGames(items: MediaItem[], mode: RankMode, manualOrder
   groups.push({ id: 'unranked', label: mode === 'priority' ? '未设置优先级' : '未评级', items: [] });
   if (mode === 'priority') groups.push({ id: 'paused', label: '以后再说 · 暂时搁置', items: [] });
   const byId = new Map(groups.map(group => [group.id, group]));
-  for (const item of items) if (normalGame(item)) byId.get(rankId(item, mode))!.items.push(item);
+  for (const item of items) if (inRankView(item, mode)) byId.get(rankId(item, mode))!.items.push(item);
   if (manualOrder) for (const group of groups) group.items = sortRank(group.items, mode);
   return groups;
 }
 
 /** Move to the target's old position, so both drag and up/down commands use the same action.
- * Only the normal, same-state/same-rank subset receives an explicit order. No dates or grades change. */
+ * Only the normal, eligible same-rank subset receives an explicit order. No dates or grades change. */
 export function moveGameWithinRank(allItems: MediaItem[], sourceId: string, targetId: string, mode: RankMode): { items: MediaItem[]; changedCount: number } {
   const unchanged = { items: allItems, changedCount: 0 };
   if (sourceId === targetId || new Set(allItems.map(item => item.id)).size !== allItems.length) return unchanged;
@@ -46,8 +47,8 @@ export function moveGameWithinRank(allItems: MediaItem[], sourceId: string, targ
   const source = sources[0], target = targets[0];
   // v0.4.24：同组判定只看分组维度（优先级档/搁置组 或 评级档），不再比较旧单轴状态——
   // 两款都有效通关的作品即使旧轴分别是 cleared 与 playing 也可同级移动。
-  if (!normalGame(source) || !normalGame(target) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
-  const group = sortRank(allItems.filter(item => normalGame(item) && rankId(item, mode) === rankId(source, mode)), mode);
+  if (!inRankView(source, mode) || !inRankView(target, mode) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
+  const group = sortRank(allItems.filter(item => inRankView(item, mode) && rankId(item, mode) === rankId(source, mode)), mode);
   const from = group.findIndex(item => item.id === sourceId), to = group.findIndex(item => item.id === targetId);
   group.splice(from, 1); group.splice(to, 0, source);
   const positions = new Map(group.map((item, index) => [item.id, index])), key = orderKey(mode);

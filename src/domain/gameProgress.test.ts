@@ -4,6 +4,8 @@ import { completionFor, completionPatch, editCompletionEvent, engagementFor, eng
 import { isValidSnapshot } from './library.ts';
 import type { MediaItem } from './types.ts';
 
+const now = '2026-10-25T00:00:00.000Z';
+
 const make = (extra: Partial<MediaItem> = {}): MediaItem => ({
   id: 'a', title: '游戏', category: 'game', subcategory: 'Steam', creator: '', year: '', status: 'want',
   tags: [], impression: '', favorite: false, artwork: 'default', createdAt: '', updatedAt: '', ...extra,
@@ -43,7 +45,7 @@ test('新字段优先与显式未确定覆盖推导；改一维不动另一维',
   assert.equal(completionFor({ ...legacyCleared, ...completionPatch('not-applicable') }), 'not-applicable');
 });
 
-test('评级与优先级资格：通关/不适用/历史评级可评；计划/搁置/历史优先级可排', () => {
+test('评级与优先级资格：通关/不适用/历史评级可评；仅计划/搁置可排', () => {
   assert.equal(gradeEditable(make({ gamePlayState: 'cleared' })), true);
   assert.equal(gradeEditable(make({ playEngagement: 'planned', completion: 'not-applicable' })), true, '不适用可评级');
   assert.equal(gradeEditable(make({ gamePlayState: 'want' })), false, '无历史评级的未通关不开放');
@@ -51,7 +53,9 @@ test('评级与优先级资格：通关/不适用/历史评级可评；计划/�
   assert.equal(priorityEditable(make({ gamePlayState: 'want' })), true);
   assert.equal(priorityEditable(make({ gamePlayState: 'paused' })), true);
   assert.equal(priorityEditable(make({ gamePlayState: 'playing' })), false);
-  assert.equal(priorityEditable(make({ gamePlayState: 'playing', playPriority: 'B' })), true, '历史优先级保留编辑');
+  const playing = make({ gamePlayState: 'playing', playPriority: 'B' });
+  assert.equal(priorityEditable(playing), false, '历史优先级保留值，但非计划关系不开放规划入口');
+  assert.equal(playing.playPriority, 'B');
 });
 
 test('完成日期精度与日历合法（年/月/日/闰年），不补精度', () => {
@@ -63,6 +67,8 @@ test('完成日期精度与日历合法（年/月/日/闰年），不补精度',
   assert.equal(isCompletionDate('2023-00-10'), false);
   assert.equal(isCompletionDate('2023-5-1'), false);
   assert.equal(isCompletionDate(''), false);
+  assert.equal(isCompletionDate('0000'), false);
+  assert.equal(isCompletionDate('0001'), true);
 });
 
 test('记录一次完成：原子补丁、次数选择、进度标记与幂等', () => {
@@ -77,22 +83,22 @@ test('记录一次完成：原子补丁、次数选择、进度标记与幂等',
   assert.equal(recordCompletion({ ...item, ...first.patch }, { eventId: 'e1', countChoice: 'keep', markCleared: false }, '2026-10-25T00:00:00Z'), null);
   // 未知累计不得隐式 +1。
   const unknown = make({ gamePlayState: 'want' });
-  assert.equal(recordCompletion(unknown, { eventId: 'e2', countChoice: 'increment', markCleared: true }, 'now'), null);
-  const startAtOne = recordCompletion(unknown, { eventId: 'e3', countChoice: 'start-at-one', markCleared: true }, 'now');
+  assert.equal(recordCompletion(unknown, { eventId: 'e2', countChoice: 'increment', markCleared: true }, now), null);
+  const startAtOne = recordCompletion(unknown, { eventId: 'e3', countChoice: 'start-at-one', markCleared: true }, now);
   assert.ok(startAtOne && startAtOne.patch.completionCount === 1 && startAtOne.patch.completion === 'cleared');
   // keep-unknown 只记事件。
-  const keepUnknown = recordCompletion(unknown, { eventId: 'e4', countChoice: 'keep-unknown', markCleared: false }, 'now');
+  const keepUnknown = recordCompletion(unknown, { eventId: 'e4', countChoice: 'keep-unknown', markCleared: false }, now);
   assert.ok(keepUnknown && keepUnknown.patch.completionCount === undefined && keepUnknown.patch.completion === undefined);
   // 不适用默认保留：markCleared=false 不强改。
   const nA = make({ completion: 'not-applicable' });
-  const kept = recordCompletion(nA, { eventId: 'e5', countChoice: 'keep', markCleared: false }, 'now');
+  const kept = recordCompletion(nA, { eventId: 'e5', countChoice: 'keep', markCleared: false }, now);
   assert.ok(kept && kept.patch.completion === undefined);
   // 非法日期拒绝。
-  assert.equal(recordCompletion(item, { eventId: 'e6', occurredAt: '2023-02-30', countChoice: 'keep', markCleared: false }, 'now'), null);
+  assert.equal(recordCompletion(item, { eventId: 'e6', occurredAt: '2023-02-30', countChoice: 'keep', markCleared: false }, now), null);
 });
 
 test('编辑不计数、删除不隐减、撤销一次有效且字段已变时不覆盖', () => {
-  const item = make({ gamePlayState: 'cleared', completionCount: 3, completionEvents: [{ id: 'e1', occurredAt: '2023', recordedAt: 'r' }] });
+  const item = make({ gamePlayState: 'cleared', completionCount: 3, completionEvents: [{ id: 'e1', occurredAt: '2023', recordedAt: now }] });
   const edited = editCompletionEvent(item, 'e1', { occurredAt: '2023-06', note: '改备注' });
   assert.ok(edited && edited.completionCount === undefined && (edited.completionEvents![0] as { occurredAt: string }).occurredAt === '2023-06');
   const removed = removeCompletionEvent(item, 'e1');
@@ -100,21 +106,23 @@ test('编辑不计数、删除不隐减、撤销一次有效且字段已变时�
   const corrected = removeCompletionEvent(item, 'e1', 2);
   assert.ok(corrected && corrected.completionCount === 2, '显式修正同笔提交');
   // 撤销：start-at-one → 1 还原为未记录。
-  const recorded = { ...item, ...(recordCompletion(item, { eventId: 'e2', countChoice: 'increment', markCleared: true }, 'now')!.patch) };
+  const operation = recordCompletion(item, { eventId: 'e2', countChoice: 'increment', markCleared: true }, now)!;
+  const recorded = { ...item, ...operation.patch };
   assert.equal(recorded.completionCount, 4);
-  const undone = undoCompletionRecord(recorded, 'e2', { countAfter: 4, completionAfter: 'cleared' });
+  const undone = undoCompletionRecord(recorded, operation.undo);
   assert.ok(undone && undone.completionCount === 3 && undone.completionEvents!.length === 1, '撤销还原次数与事件');
   // 相关字段被后续修改：拒绝覆盖。
-  const changed = { ...recorded, completion: 'not-applicable' };
-  assert.equal(undoCompletionRecord(changed, 'e2', { countAfter: 4, completionAfter: 'cleared' }), null);
+  const changed = { ...recorded, completion: 'not-applicable' as const };
+  const changedUndo = undoCompletionRecord(changed, operation.undo);
+  assert.ok(changedUndo && !Object.hasOwn(changedUndo, 'completion'), '本次未拥有进度字段，撤销保留后来的进度决定');
   const countChanged = { ...recorded, completionCount: 9 };
-  assert.equal(undoCompletionRecord(countChanged, 'e2', { countAfter: 4 }), null);
+  assert.equal(undoCompletionRecord(countChanged, operation.undo), null);
   // 推导保留：completion 未显式写入（推导 cleared）时撤销不写 unknown，推导仍生效。
-  const derived = make({ gamePlayState: 'cleared', completionEvents: [{ id: 'e3', recordedAt: 'r' }] });
-  const rec2 = recordCompletion(derived, { eventId: 'e4', countChoice: 'keep', markCleared: true }, 'now')!;
+  const derived = make({ gamePlayState: 'cleared', completionEvents: [{ id: 'e3', recordedAt: now }] });
+  const rec2 = recordCompletion(derived, { eventId: 'e4', countChoice: 'keep', markCleared: true }, now)!;
   const after2 = { ...derived, ...rec2.patch };
   assert.equal(after2.completion, undefined, '推导已通关时 markCleared 不必写显式值');
-  const undone2 = undoCompletionRecord(after2, 'e4', { completionAfter: rec2.preview.completionAfter });
+  const undone2 = undoCompletionRecord(after2, rec2.undo);
   assert.ok(undone2 && undone2.completion === undefined, '撤销不破坏推导');
 });
 
@@ -137,11 +145,68 @@ test('快照校验拒绝非法新字段；未知扩展仍可往返', () => {
     { completion: 'maybe' },
     { completionCount: -1 },
     { completionCount: 1.5 },
-    { completionEvents: [{ id: '', recordedAt: 'r' }] },
-    { completionEvents: [{ id: 'a', recordedAt: 'r', occurredAt: '2023-13' }] },
-    { completionEvents: [{ id: 'a', recordedAt: 'r' }, { id: 'a', recordedAt: 'r' }] },
+    { completionEvents: [{ id: '', recordedAt: now }] },
+    { completionEvents: [{ id: 'a', recordedAt: now, occurredAt: '2023-13' }] },
+    { completionEvents: [{ id: 'a', recordedAt: now }, { id: 'a', recordedAt: now }] },
+    { completionEvents: [{ id: 'a', recordedAt: 'invalid' }] },
+    { completionEvents: [{ id: 'a', recordedAt: '2023-02-30T00:00:00Z' }] },
   ]) assert.equal(isValidSnapshot({ schemaVersion: 1, items: [make(bad as Partial<MediaItem>)] }), false, JSON.stringify(bad));
-  const good = make({ playEngagement: 'playing', completion: 'cleared', completionCount: 2, completionEvents: [{ id: 'a', occurredAt: '2023', recordedAt: 'r', note: 'n' }] });
+  const good = make({ playEngagement: 'playing', completion: 'cleared', completionCount: 2, completionEvents: [{ id: 'a', occurredAt: '2023', recordedAt: now, note: 'n' }] });
   assert.equal(isValidSnapshot({ schemaVersion: 1, items: [good] }), true);
-  assert.equal(isValidCompletionEvent({ id: 'x', recordedAt: 'r' }), true);
+  assert.equal(isValidCompletionEvent({ id: 'x', recordedAt: now }), true);
+});
+
+test('精确累计值和零值可保存，拒绝溢出、分数和非法录入时间', () => {
+  const item = make();
+  for (const countValue of [0, 1, 5, Number.MAX_SAFE_INTEGER]) {
+    const result = recordCompletion(item, { eventId: 'set', countChoice: 'set', countValue, markCleared: false }, now);
+    assert.ok(result);
+    assert.equal(result.patch.completionCount, countValue);
+    assert.equal(result.preview.countAfter, countValue);
+  }
+  for (const countValue of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity, undefined]) {
+    assert.equal(recordCompletion(item, { eventId: 'bad', countChoice: 'set', countValue, markCleared: false }, now), null);
+    if (countValue !== undefined) assert.equal(removeCompletionEvent(make({ completionEvents: [{ id: 'a', recordedAt: now }] }), 'a', countValue), null);
+  }
+  assert.equal(recordCompletion(make({ completionCount: Number.MAX_SAFE_INTEGER }), { eventId: 'overflow', countChoice: 'increment', markCleared: false }, now), null);
+  assert.equal(recordCompletion(item, { eventId: 'date', countChoice: 'keep', markCleared: false }, 'bad'), null);
+});
+
+test('清空事件日期和备注是真正删除字段，保留未知扩展且不影响累计', () => {
+  const original = { id: 'e', recordedAt: now, occurredAt: '2023', note: '二周目', future: { keep: true } };
+  const item = make({ completionCount: 5, completionEvents: [original] });
+  const patch = editCompletionEvent(item, 'e', { occurredAt: '', note: '  ' })!;
+  assert.deepEqual(patch.completionEvents, [{ id: 'e', recordedAt: now, future: { keep: true } }]);
+  assert.equal(Object.hasOwn(patch, 'completionCount'), false);
+  assert.deepEqual(item.completionEvents, [original], '不修改调用前快照');
+});
+
+test('精确撤销还原零/未知/任意设值与原进度，仅守卫本次所属字段和事件', () => {
+  for (const completionCount of [undefined, 0, 3]) {
+    for (const completion of [undefined, 'unknown', 'not-cleared', 'not-applicable'] as const) {
+      const before = make({ completionCount, completion, review: 'original' });
+      const result = recordCompletion(before, { eventId: 'e', countChoice: completionCount === undefined ? 'set' : 'increment', countValue: 7, markCleared: true }, now)!;
+      const after = { ...before, ...result.patch, review: 'later review', playtimeMinutes: 99 };
+      const patch = undoCompletionRecord(after, result.undo)!;
+      assert.ok(patch);
+      const undone = { ...after, ...patch };
+      assert.equal(undone.completionCount, completionCount);
+      assert.equal(undone.completion, completion);
+      assert.equal(undone.review, 'later review');
+      assert.equal(undone.playtimeMinutes, 99);
+      assert.equal(undoCompletionRecord(undone, result.undo), null, '同一撤销不能再减');
+      assert.equal(undoCompletionRecord({ ...after, id: 'other' }, result.undo), null, '不能撤销到另一作品');
+      assert.equal(undoCompletionRecord({ ...after, completionCount: 9 }, result.undo), null);
+      assert.equal(undoCompletionRecord({ ...after, completion: 'unknown' }, result.undo), null);
+      const edited = { ...after, ...editCompletionEvent(after, 'e', { note: '后来修改' }) };
+      assert.equal(undoCompletionRecord(edited, result.undo), null, '不能删除后来修改过的事件');
+    }
+  }
+  const before = make({ completionCount: 4, completion: 'cleared' });
+  const result = recordCompletion(before, { eventId: 'keep', countChoice: 'keep', markCleared: true }, now)!;
+  const after = { ...before, ...result.patch, completionCount: 8, completion: 'not-applicable' as const };
+  const undo = undoCompletionRecord(after, result.undo)!;
+  assert.ok(undo);
+  assert.equal(Object.hasOwn(undo, 'completionCount'), false);
+  assert.equal(Object.hasOwn(undo, 'completion'), false);
 });
