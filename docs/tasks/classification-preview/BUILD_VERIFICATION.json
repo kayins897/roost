@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "version": "0.4.24",
+  "candidate": "game-experience-bento-20261025",
+  "sourceCommit": "5578ccafa83d5695820fb9d57a7a8c8e1d9cb424",
+  "branch": "codex/game-experience-bento-20261025",
+  "workflowStages": 19,
+  "unitTests": 206,
+  "packagedDemoChecks": 8,
+  "archiveFilesMatched": 86,
+  "bytes": 179131492,
+  "sha256": "A0C7FBD1684ECF3DDD2BB1D0D0C4FEF269F58F2E67054D045B737D0288CE3C06",
+  "userDataAccessed": false,
+  "mainMerged": false,
+  "published": false,
+  "timestamp": "2026-10-25T13:54:19.0553326Z"
+}
