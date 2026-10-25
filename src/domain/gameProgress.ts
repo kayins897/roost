@@ -1,5 +1,6 @@
 import { isValidPersonalGrade, legacyStatusForGameState } from './library.ts';
 import type { CompletionEvent, CompletionStatus, MediaItem, PlayEngagement } from './types.ts';
+import { experienceStatusFor } from './gameExperience.ts';
 
 /** v0.4.24 双维度模型：当前游玩关系与通关进度相互独立；旧 gamePlayState/status 冻结为
  * 兼容来源，只读推导、不再反投影写入。新字段是新版事实来源。 */
@@ -65,11 +66,9 @@ export function gradeEditable(item: MediaItem): boolean {
   return completion === 'cleared' || completion === 'not-applicable' || isValidPersonalGrade(item.personalGrade);
 }
 
-/** 待体验优先级编辑资格：只用于计划游玩/搁置，其他关系保留旧值但不提供规划入口。 */
+/** 待体验优先级编辑资格：按用户体验一级；已体验保留历史值但不提供规划入口。 */
 export function priorityEditable(item: MediaItem): boolean {
-  if (item.category !== 'game') return false;
-  const engagement = engagementFor(item);
-  return engagement === 'planned' || engagement === 'paused';
+  return item.category === 'game' && experienceStatusFor(item) === 'unplayed';
 }
 
 /** 完成事件实际日期：YYYY / YYYY-MM / YYYY-MM-DD，日历合法（含闰年），不补精度。 */
@@ -241,8 +240,7 @@ export function undoCompletionRecord(item: MediaItem, receipt: CompletionRecordU
   return patch;
 }
 
-/** 待体验计划视图资格：计划游玩 + 暂时搁置（搁置末层由排序层处理）。 */
+/** 待体验视图按新的体验一级资格，不按旧计划/搁置关系分区。 */
 export function inPlanView(item: MediaItem): boolean {
-  const engagement = engagementFor(item);
-  return engagement === 'planned' || engagement === 'paused';
+  return priorityEditable(item);
 }

@@ -2,6 +2,8 @@ import { completionFor, engagementFor, inPlanView, isValidCompletionEvent, PLAY_
 import type { GamePlayState, GameTagGroupKey, GameTagGroups, LibrarySnapshot, MediaItem, MediaType, PersonalGrade, ProgressStatus
 , CompletionStatus, PlayEngagement } from './types.ts';
 import { isValidImportExclusion } from './importExclusions.ts';
+import { experienceCategoryFor, experienceStatusFor, isGameExperienceCategory, isGameExperienceStatus } from './gameExperience.ts';
+import type { GameExperienceCategory, GameExperienceStatus } from './types.ts';
 
 export const MEDIA_LABELS: Record<MediaType, string> = {
   game: '游戏', book: '书籍', screen: '影视', music: '音乐',
@@ -124,6 +126,9 @@ export interface FilterParams {
   gamePlayState?: GamePlayState | 'all';
   gameEngagement?: PlayEngagement | 'all' | 'plan';
   gameCompletion?: CompletionStatus | 'all';
+  /** 两一级采用 OR；与二级及其他筛选 AND 组合。空数组表示空结果，由界面保护全空。 */
+  gameExperienceStatuses?: readonly GameExperienceStatus[];
+  gameExperienceCategories?: readonly GameExperienceCategory[];
   search?: string;
   tags?: string[];
   favoriteOnly?: boolean;
@@ -142,6 +147,8 @@ export function filterLibrary(items: MediaItem[], params: FilterParams): MediaIt
     if (params.status && params.status !== 'all' && item.status !== params.status) return false;
     // v0.4.24 双维度筛选：当前关系（plan=计划+搁置）与通关进度独立 AND 组合。
     if (item.category === 'game') {
+      if (params.gameExperienceStatuses && !params.gameExperienceStatuses.includes(experienceStatusFor(item))) return false;
+      if (params.gameExperienceCategories && !params.gameExperienceCategories.some(value => experienceCategoryFor(item) === value)) return false;
       if (params.gameEngagement && params.gameEngagement !== 'all') {
         if (params.gameEngagement === 'plan') { if (!inPlanView(item)) return false; }
         else if (engagementFor(item) !== params.gameEngagement) return false;
@@ -265,6 +272,8 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
     typeof item.creator === 'string' && typeof item.year === 'string' &&
     statuses.includes(item.status) && Array.isArray(item.tags) &&
     (item.gamePlayState === undefined || item.gamePlayState === 'replaying' || GAME_PLAY_STATES.includes(item.gamePlayState)) &&
+    (item.experienceStatus === undefined || isGameExperienceStatus(item.experienceStatus)) &&
+    (item.experienceCategory === undefined || isGameExperienceCategory(item.experienceCategory)) &&
     item.tags.every((tag: unknown) => typeof tag === 'string') &&
     (item.playtimeMinutes === undefined || (typeof item.playtimeMinutes === 'number' && Number.isSafeInteger(item.playtimeMinutes) && item.playtimeMinutes >= 0)) &&
     (item.personalGrade === undefined || isValidPersonalGrade(item.personalGrade)) &&

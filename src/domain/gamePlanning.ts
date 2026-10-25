@@ -1,5 +1,5 @@
 import { isValidPersonalGrade } from './library.ts';
-import { completionFor, engagementFor, inPlanView } from './gameProgress.ts';
+import { completionFor, inPlanView } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
 import type { MediaItem } from './types.ts';
 import type { SortDirection } from './librarySort.ts';
@@ -11,7 +11,6 @@ const normalGame = (item: MediaItem) => item.category === 'game' && !item.hidden
 const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? inPlanView(item) : completionFor(item) === 'cleared');
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 function rankId(item: MediaItem, mode: RankMode): string {
-  if (mode === 'priority' && engagementFor(item) === 'paused') return 'paused';
   const grade = mode === 'priority' ? item.playPriority : item.personalGrade;
   return isValidPersonalGrade(grade) ? grade : 'unranked';
 }
@@ -30,7 +29,6 @@ export function groupRankedGames(items: MediaItem[], mode: RankMode, manualOrder
   const grades = direction === 'asc' ? [...GAME_GRADES].reverse() : GAME_GRADES;
   const groups: RankedGameGroup[] = grades.map(id => ({ id, label: id, items: [] }));
   groups.push({ id: 'unranked', label: mode === 'priority' ? '未设置优先级' : '未评级', items: [] });
-  if (mode === 'priority') groups.push({ id: 'paused', label: '以后再说 · 暂时搁置', items: [] });
   const byId = new Map(groups.map(group => [group.id, group]));
   for (const item of items) if (inRankView(item, mode)) byId.get(rankId(item, mode))!.items.push(item);
   if (manualOrder) for (const group of groups) group.items = sortRank(group.items, mode);
@@ -45,7 +43,7 @@ export function moveGameWithinRank(allItems: MediaItem[], sourceId: string, targ
   const sources = allItems.filter(item => item.id === sourceId), targets = allItems.filter(item => item.id === targetId);
   if (sources.length !== 1 || targets.length !== 1) return unchanged;
   const source = sources[0], target = targets[0];
-  // v0.4.24：同组判定只看分组维度（优先级档/搁置组 或 评级档），不再比较旧单轴状态——
+  // 同组判定只看有效视图资格与等级档，不再比较旧单轴状态——
   // 两款都有效通关的作品即使旧轴分别是 cleared 与 playing 也可同级移动。
   if (!inRankView(source, mode) || !inRankView(target, mode) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
   const group = sortRank(allItems.filter(item => inRankView(item, mode) && rankId(item, mode) === rankId(source, mode)), mode);

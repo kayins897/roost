@@ -8,6 +8,10 @@ export type PersonalGrade = 'SSS' | 'SS' | 'S' | 'A' | 'B' | 'C';
 export type PlayEngagement = 'planned' | 'playing' | 'paused' | 'inactive' | 'abandoned';
 /** 通关进度四值；unknown 同时用于旧库只读推导的缺省与用户显式覆盖"未确定"。 */
 export type CompletionStatus = 'unknown' | 'not-cleared' | 'cleared' | 'not-applicable';
+/** 手动体验分类优先于时长、通关事实与历史状态；缺省只读回退，不启动补写。 */
+export type GameExperienceStatus = 'unplayed' | 'experienced';
+/** 已体验下可选的单一整理分类，独立于客观通关事实与当前活动。 */
+export type GameExperienceCategory = 'continue' | 'replayable' | 'long-term' | 'completed' | 'put-aside';
 /** 用户明确记录的一次完成；日期保留原始精度，缺省表示实际发生日期未知。 */
 export interface CompletionEvent {
   id: string;
@@ -53,6 +57,10 @@ export interface MediaItem {
   status: ProgressStatus;
   /** Optional for backwards-compatible v0.1/v0.2 snapshots. */
   gamePlayState?: GamePlayState;
+  /** 必选一级的可选存储值：缺省由历史证据只读推导；显式值始终优先。 */
+  experienceStatus?: GameExperienceStatus;
+  /** 仅在有效已体验时展示；缺省不根据旧状态猜测二级分类。 */
+  experienceCategory?: GameExperienceCategory;
   /** v0.4.24 当前游玩关系；undefined 时按旧 gamePlayState 只读推导。 */
   playEngagement?: PlayEngagement;
   /** v0.4.24 通关进度；undefined 时按旧轴推导，'unknown' 显式覆盖推导。 */
