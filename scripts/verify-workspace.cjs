@@ -4,7 +4,7 @@ const http = require('node:http');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { chromium } = require('playwright');
-const root = path.resolve(__dirname, '..'), dist = path.join(root, 'dist');
+const root = path.resolve(__dirname, '..'), dist = path.resolve(process.env.QIYU_DETAIL_DIST || path.join(root, 'dist'));
 const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 const output = path.join(root, 'evidence', `workspace-v${version.replaceAll('.', '')}`);
 const report = { passed: false, version, isolatedDataOnly: true, checks: [], integrity: [], screenshots: [], layouts: [], materials: [], confirmations: [], pageErrors: [], resourceErrors: [], notes: [
@@ -12,14 +12,14 @@ const report = { passed: false, version, isolatedDataOnly: true, checks: [], int
   'browser 使用真实 LocalStorageRepository；bridge 使用真实 DesktopRepository 加隔离内存桥接，不替代原生文件写入测试。',
   '删除确认明确验证取消与接受；保存失败仅注入本测试上下文，所有外部网络均拦截。',
 ] };
-const work = (id, title, extra = {}) => ({ id, title, category: 'game', subcategory: 'Steam', creator: '隔离测试开发者', year: '2024', status: 'want', gamePlayState: 'want', playtimeMinutes: 73,
+const work = (id, title, extra = {}) => ({ id, title, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '隔离测试开发者', year: '2024', status: 'want', gamePlayState: 'want', playtimeMinutes: 73,
   tags: ['动作'], gameTags: { gameplay: ['动作'], theme: [], scenario: [], other: [], futureGroup: ['保留分组'] }, impression: `保留 ${title} 的感受`, favorite: false, artwork: 'hollow',
   createdAt: '2026-01-02T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z', futureItem: { keep: title }, ...extra });
 const fixture = { schemaVersion: 1, futureRoot: { keep: '未知根字段' }, items: [
-  work('a', '旅程 A', { externalIds: [{ provider: 'steam', id: '123' }], experienceEntries: [{ id: 'e', date: '2026-01', kind: 'note', note: '亲手记录' }] }),
+  work('a', '旅程 A', { experienceStatus: 'unplayed', externalIds: [{ provider: 'steam', id: '123' }], experienceEntries: [{ id: 'e', date: '2026-01', kind: 'note', note: '亲手记录' }] }),
   work('b', '同乐 B', { artwork: 'hades', status: 'active', gamePlayState: 'playing', playtimeMinutes: 1337 }),
   work('c', '深空 C', { artwork: 'outer', status: 'finished', gamePlayState: 'cleared', playtimeMinutes: 720 }),
-  work('d', '稍后 D', { artwork: 'dave', status: 'paused', gamePlayState: 'paused', playtimeMinutes: 99 }),
+  work('d', '稍后 D', { experienceStatus: 'unplayed', artwork: 'dave', status: 'paused', gamePlayState: 'paused', playtimeMinutes: 99 }),
   work('book', '阅读样例', { category: 'book', subcategory: '文学', gamePlayState: undefined, gameTags: undefined, playtimeMinutes: undefined }),
 ] };
 const baseline = JSON.stringify(fixture), sha = value => createHash('sha256').update(value).digest('hex');
@@ -47,7 +47,12 @@ const button = (name, scope = page) => scope.getByRole('button', { name, exact: 
 const detail = () => page.getByRole('dialog', { name: '旅程 A详情', exact: true });
 const search = () => page.getByRole('textbox', { name: '搜索收藏', exact: true });
 const bar = () => page.locator('.selection-actionbar');
-async function all() { await button('全部游戏', page.locator('.library-views')).click(); await search().fill(''); }
+async function all() {
+  const back = button('返回收藏库', page.locator('.library-views')); if (await back.count()) await back.click();
+  const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
+  for (const name of ['待体验', '已体验']) { const target = button(name, filters); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+  await search().fill('');
+}
 async function menu(title) {
   await page.keyboard.press("Escape").catch(() => {}); await page.waitForTimeout(60); await button(`查看${title}详情`).click({ button: 'right' }); return page.getByRole('menu', { name: `${title}快捷编辑`, exact: true }); }
 async function unchanged(name, before) { const after = await raw(); report.integrity.push({ mode, name, same: before === after, beforeSha256: sha(before), afterSha256: sha(after), beforeBytes: Buffer.byteLength(before), afterBytes: Buffer.byteLength(after) }); assert.equal(after, before, name); }
@@ -61,7 +66,7 @@ function preserve(before, after, changed, mutable) {
   assert.deepEqual(after.futureRoot, before.futureRoot);
   for (const original of before.items) {
     const updated = byId(after, original.id); assert.ok(updated);
-    for (const key of Object.keys(original)) if (!changed.includes(original.id) || !mutable.includes(key)) assert.deepEqual(updated[key], original[key], `${original.id}.${key} 必须保留`);
+    for (const key of new Set([...Object.keys(original), ...Object.keys(updated)])) if (!changed.includes(original.id) || !mutable.includes(key)) assert.deepEqual(updated[key], original[key], `${original.id}.${key} 必须保留`);
   }
 }
 async function exitSelection() { const exit = button('退出多选'); if (await exit.count()) await exit.click(); }
@@ -93,9 +98,9 @@ async function prepare(currentMode, theme = 'dark', width = 1440) {
 }
 async function suite(currentMode) {
   await prepare(currentMode);
-  await check('默认待体验计划优先展示未开始作品，搁置列于末尾，旧库浏览零写入', async () => {
+  await check('默认待体验展示明确主类，旧搁置按原优先级，浏览零写入', async () => {
     assert.deepEqual(await page.locator('.media-card .card-name').allTextContents(), ['旅程 A', '稍后 D']);
-    assert.ok((await page.locator('.plan-divider').innerText()).includes('以后再说 · 暂时搁置'));
+    assert.equal(await page.locator('.plan-divider').count(), 0, '旧搁置不再单列末档');
     await button('已隐藏').click(); assert.equal(await page.locator('.media-card').count(), 0);
     await button('回收站').click(); assert.equal(await page.locator('.media-card').count(), 0);
     await all(); assert.equal(await page.locator('.media-card').count(), 4);
@@ -128,9 +133,9 @@ async function suite(currentMode) {
     await button('编辑', detail().locator('.detail-facts')).click(); editor = page.getByRole('dialog', { name: '编辑作品', exact: true }); await editor.getByRole('textbox', { name: '发行年份', exact: true }).fill('1999'); const rawBefore = await raw(); await button('取消', editor).click(); await editor.waitFor({ state: 'hidden' }); assert.equal(await detail().isVisible(), true); await unchanged('取消资料编辑不写库', rawBefore); await button('关闭详情', detail()).click();
     await (await menu('旅程 A')).getByRole('menuitem', { name: '编辑作品资料', exact: true }).click(); editor = page.getByRole('dialog', { name: '编辑作品', exact: true }); await editor.getByRole('textbox', { name: '发行年份', exact: true }).fill('2026'); await capture('facts-editor-interactive'); await button('保存修改', editor).click(); await editor.waitFor({ state: 'hidden' }); assert.equal(await detail().isVisible(), true); assert.equal(byId(await data(), 'a').year, '2026'); await button('关闭详情', detail()).click();
   });
-  await check('右键改当前关系，时长、个人记录、旧轴与未知字段保持 (v0.4.24)', async () => {
-    const before = await data(), m = await menu('旅程 A'); await m.getByRole('menuitemradio', { name: '游玩中', exact: true }).click(); const after = await data();
-    preserve(before, after, ['a'], ['playEngagement', 'updatedAt']); assert.equal(byId(after, 'a').playEngagement, 'playing'); assert.equal(byId(after, 'a').gamePlayState, byId(before, 'a').gamePlayState, '旧轴冻结'); assert.equal(byId(after, 'a').playtimeMinutes, 73);
+  await check('右键改体验分类，时长、个人记录、通关事实、旧轴与未知字段保持', async () => {
+    const before = await data(), m = await menu('旅程 A'); await m.getByRole('group', { name: '体验分类', exact: true }).getByRole('menuitemradio', { name: '待续', exact: true }).click(); const after = await data();
+    preserve(before, after, ['a'], ['experienceStatus', 'experienceCategory', 'updatedAt']); assert.equal(byId(after, 'a').experienceStatus, 'experienced'); assert.equal(byId(after, 'a').experienceCategory, 'continue'); assert.equal(byId(after, 'a').gamePlayState, byId(before, 'a').gamePlayState, '旧轴冻结'); assert.equal(byId(after, 'a').playtimeMinutes, 73);
   });
   await check('隐藏与取消隐藏只影响可见性，不改游玩状态，也不建立导入排除', async () => {
     const before = await data(); await (await menu('同乐 B')).getByRole('menuitem', { name: '隐藏作品', exact: true }).click();
@@ -171,10 +176,11 @@ async function suite(currentMode) {
     after = await data(); preserve(before, after, ['b'], ['tags', 'gameTags', 'updatedAt']); assert.deepEqual(byId(after, 'b').gameTags.scenario, ['周末']); assert.deepEqual(byId(after, 'd').gameTags.scenario, ['周末', '联机']);
   });
   await check('批量保存失败保留操作内容和选择，重试只修改明确所选项', async () => {
-    // v0.4.24：批量改当前关系（新维度），失败保留选择与操作、重试只改所选项。
-    await beginSelection(); await choose('同乐 B'); await choose('深空 C'); const before = await data(), beforeRaw = await raw(); await button('改当前关系', bar()).click(); const dialog = page.getByRole('dialog', { name: '更改当前关系', exact: true }); await button('暂时搁置', dialog).click();
-    await page.evaluate(() => { window.__workspaceFail = true; }); await apply(2, dialog); await dialog.getByRole('alert').waitFor(); assert.equal(await button('暂时搁置', dialog).getAttribute('aria-pressed'), 'true'); assert.match(await bar().innerText(), /已选择 2 件/); await unchanged('批量失败原文不变', beforeRaw); await capture('batch-save-failure');
-    await page.evaluate(() => { window.__workspaceFail = false; }); await apply(2, dialog); await dialog.waitFor({ state: 'hidden' }); const after = await data(); preserve(before, after, ['b', 'c'], ['playEngagement', 'updatedAt']); for (const id of ['b', 'c']) assert.equal(byId(after, id).playEngagement, 'paused'); await exitSelection();
+    await beginSelection(); await choose('同乐 B'); await choose('深空 C'); const before = await data(), beforeRaw = await raw();
+    const classification = bar().getByRole('combobox', { name: '批量体验分类', exact: true });
+    await page.evaluate(() => { window.__workspaceFail = true; }); await classification.selectOption('put-aside');
+    await page.getByRole('status').getByText(/保存失败/).waitFor(); assert.equal(await classification.isEnabled(), true); assert.equal(await classification.locator('option[value="put-aside"]').count(), 1); assert.match(await bar().innerText(), /已选择 2 件/); assert.equal(await page.locator('.media-card.is-chosen').count(), 2); await unchanged('批量失败原文不变', beforeRaw); await capture('batch-save-failure');
+    await page.evaluate(() => { window.__workspaceFail = false; }); await classification.selectOption('put-aside'); const after = await data(); preserve(before, after, ['b', 'c'], ['experienceStatus', 'experienceCategory', 'updatedAt']); for (const id of ['b', 'c']) { assert.equal(byId(after, id).experienceStatus, 'experienced'); assert.equal(byId(after, id).experienceCategory, 'put-aside'); } assert.match(await bar().innerText(), /已选择 2 件/); await exitSelection();
   });
   await check('普通标签管理计数及重命名仅作用普通库，隐藏与回收站记录逐字段保留', async () => {
     await (await menu('同乐 B')).getByRole('menuitem', { name: '隐藏作品', exact: true }).click(); await (await menu('稍后 D')).getByRole('menuitem', { name: '移到回收站', exact: true }).click(); const before = await data();
@@ -184,7 +190,7 @@ async function suite(currentMode) {
   await check('从隐藏页与回收站批量收录成功均返回普通收藏并显示新增作品', async () => {
     for (const [view, title] of [['已隐藏', '隐藏页新增'], ['回收站', '回收页新增']]) {
       await button(view).click(); const before = await data(); await button('批量导入作品').click(); const dialog = page.getByRole('dialog', { name: '批量导入作品', exact: true }); await dialog.getByRole('textbox', { name: '作品清单', exact: true }).fill(title); await button('生成预览', dialog).click(); await button('导入选中的 1 件', dialog).click(); await dialog.waitFor({ state: 'hidden' });
-      assert.match(await button('全部游戏', page.locator('.library-views')).getAttribute('class'), /is-active/); assert.equal(await button(`查看${title}详情`).count(), 1); const after = await data(); assert.equal(after.items.length, before.items.length + 1); preserve(before, after, [], []); const added = after.items.find(item => item.title === title); assert.ok(added && !added.hiddenAt && !added.removedAt); await capture(view === '已隐藏' ? 'import-from-hidden' : 'import-from-trash');
+      assert.equal(await button('返回收藏库', page.locator('.library-views')).count(), 0); for (const name of ['待体验', '已体验']) assert.equal(await button(name, page.getByRole('group', { name: '按体验分类筛选', exact: true })).getAttribute('aria-pressed'), 'true'); assert.equal(await button(`查看${title}详情`).count(), 1); const after = await data(); assert.equal(after.items.length, before.items.length + 1); preserve(before, after, [], []); const added = after.items.find(item => item.title === title); assert.ok(added && !added.hiddenAt && !added.removedAt); await capture(view === '已隐藏' ? 'import-from-hidden' : 'import-from-trash');
     }
   });
   await context.close(); context = null;
@@ -208,11 +214,11 @@ async function visual(theme, width) {
   });
   await check('底部多选栏位于可见窗口，宽窄窗口均可操作状态与标签并取消', async () => {
     await beginSelection(); await choose('旅程 A'); await choose('稍后 D');
-    assert.equal(await page.locator('.selection-toolbar').count(), 0, '不应残留第二条多选栏'); assert.equal(await bar().count(), 1); for (const name of ['全选当前结果','清空选择','退出多选','改当前关系','改通关进度','添加标签']) assert.equal(await button(name, bar()).count(), 1);
+    assert.equal(await page.locator('.selection-toolbar').count(), 0, '不应残留第二条多选栏'); assert.equal(await bar().count(), 1); for (const name of ['全选当前结果','清空选择','退出多选','改通关进度','添加标签']) assert.equal(await button(name, bar()).count(), 1); assert.equal(await bar().getByRole('combobox', { name: '批量体验分类', exact: true }).count(), 1);
     const geometry = await bar().boundingBox(); assert.ok(geometry.x >= -1 && geometry.y >= 0 && geometry.x + geometry.width <= width + 1 && geometry.y + geometry.height <= 1001, '底部操作栏必须完整位于可视区');
     assert.equal(await bar().evaluate(element => getComputedStyle(element).position), 'fixed'); await layout(`${theme}-${width}-selection`); await capture('selection-actions');
     await button('改通关进度', bar()).click(); let dialog = page.getByRole('dialog', { name: '更改通关进度', exact: true }); await button('已通关', dialog).click(); assert.equal(await button('应用到 2 款', dialog).isEnabled(), true); await layout(`${theme}-${width}-batch-state`); await button('取消', dialog).click();
-    assert.match(await bar().innerText(), /已选择 2 件/); await button('添加标签', bar()).click(); dialog = page.getByRole('dialog', { name: '添加标签', exact: true }); await dialog.getByRole('combobox', { name: '标签分组', exact: true }).selectOption('scenario'); await dialog.getByRole('textbox', { name: '批量标签名称', exact: true }).fill('周末计划'); assert.equal(await button('应用到 2 款', dialog).isEnabled(), true); await layout(`${theme}-${width}-batch-tags`); await capture('batch-tags-controls'); await button('取消', dialog).click(); await button('清空选择', bar()).click(); assert.match(await bar().innerText(), /已选择 0 件/); assert.equal(await button('改当前关系', bar()).isDisabled(), true); const visibleCount = await page.locator('.media-gallery .media-card').count(); await button('全选当前结果', bar()).click(); assert.ok((await bar().innerText()).includes(`已选择 ${visibleCount} 件`), '全选应与当前筛选结果一致'); await capture('selection-merged-select-all'); await exitSelection(); assert.equal(await bar().count(), 0);
+    assert.match(await bar().innerText(), /已选择 2 件/); await button('添加标签', bar()).click(); dialog = page.getByRole('dialog', { name: '添加标签', exact: true }); await dialog.getByRole('combobox', { name: '标签分组', exact: true }).selectOption('scenario'); await dialog.getByRole('textbox', { name: '批量标签名称', exact: true }).fill('周末计划'); assert.equal(await button('应用到 2 款', dialog).isEnabled(), true); await layout(`${theme}-${width}-batch-tags`); await capture('batch-tags-controls'); await button('取消', dialog).click(); await button('清空选择', bar()).click(); assert.match(await bar().innerText(), /已选择 0 件/); assert.equal(await bar().getByRole('combobox', { name: '批量体验分类', exact: true }).isDisabled(), true); const visibleCount = await page.locator('.media-gallery .media-card').count(); await button('全选当前结果', bar()).click(); assert.ok((await bar().innerText()).includes(`已选择 ${visibleCount} 件`), '全选应与当前筛选结果一致'); await capture('selection-merged-select-all'); await exitSelection(); assert.equal(await bar().count(), 0);
     mode = 'browser'; await unchanged(`${theme}-${width} 多选取消不写库`, baseline); mode = `${theme}-${width}`;
   });
   await context.close(); context = null;
@@ -225,12 +231,14 @@ async function writingSuite(currentMode) {
   await check('独立印象和长文保存，状态编辑不清掉草稿，测评参与搜索', async () => {
     await button('查看旅程 A详情').click();
     assert.equal(await detail().locator('.detail-facts').isVisible(), false);
+    await button('更改体验分类', detail()).click(); await button('更改通关进度', detail()).click();
     const buttons = await detail().locator('.detail-statuses button').evaluateAll(els => els.map(el => ({ width: el.clientWidth, height: el.clientHeight })));
-    assert.ok(buttons.every(value => value.width < 150 && value.height <= 34));
+    assert.equal(buttons.length, 11); assert.ok(buttons.every(value => value.width > 0 && value.width < 150 && value.height > 0 && value.height <= 34));
+    await button('更改体验分类', detail()).click(); await button('更改通关进度', detail()).click();
     await button('展开长文测评', detail()).click();
     await short().fill('短句保留尾空白  '); await review().fill('第一段长文\n星河独有词\n尾空白  ');
-    await button('更改当前游玩关系', detail()).click();
-    await button('游玩中', detail()).click(); assert.equal(await review().inputValue(), '第一段长文\n星河独有词\n尾空白  ');
+    await button('更改体验分类', detail()).click();
+    await button('待续', detail().locator('.game-state-options')).click(); assert.equal(await review().inputValue(), '第一段长文\n星河独有词\n尾空白  ');
     await button('保存感受', detail()).click(); assert.equal(byId(await data(),'a').review, '第一段长文\n星河独有词\n尾空白  ');
     assert.equal(byId(await data(),'a').impression,'短句保留尾空白  '); await capture('writing-split'); await button('关闭详情', detail()).click();
     await page.reload(); await all(); await search().fill('星河独有词'); assert.equal(await page.locator('.media-card').count(),1); await search().fill('');
