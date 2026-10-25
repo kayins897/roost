@@ -47,7 +47,7 @@ const menu = async title => { await button(`查看${title}详情`).click({ butto
 async function showAll() {
  const back = button('返回收藏库', page.locator('.library-views')); if (await back.count()) await back.click();
  const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
- for (const name of ['待体验', '已体验']) { const target = button(name, filters); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+ for (const name of ['新作开荒', '已体验']) { const target = button(name, filters); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
 }
 async function suite(currentMode) {
  await prepare(currentMode); await showAll();
@@ -85,7 +85,7 @@ async function suite(currentMode) {
   // 明确待体验且客观已通关：同值分类不写库，两种等级行与通关事实独立保留。
   m = await menu('可见 Alpha');
   const classificationRaw = await raw(), classificationAttempts = await saves();
-  await m.getByRole('group', { name:'体验分类', exact:true }).getByRole('menuitemradio', { name:'待体验', exact:true }).click();
+  await m.getByRole('group', { name:'体验分类', exact:true }).getByRole('menuitemradio', { name:'新作开荒', exact:true }).click();
   assert.equal((await item('a')).experienceStatus, 'unplayed'); assert.equal((await item('a')).playEngagement, undefined, '分类不补写旧活动维度');
   await unchanged('同分类重复点击幂等不写入', classificationRaw, classificationAttempts);
   assert.equal((await item('a')).gamePlayState, 'want', '旧轴冻结');
@@ -240,12 +240,12 @@ async function planSuite(currentMode) {
   const m = page.getByRole('menu', { name: `计划作品 ${id.slice(1)}快捷编辑`, exact: true });
   await m.waitFor();
   const countBefore = await page.locator('.media-card').count();
-  await m.getByRole('group', { name: '体验分类', exact: true }).getByRole('menuitemradio', { name: '待续', exact: true }).click();
+  await m.getByRole('group', { name: '体验分类', exact: true }).getByRole('menuitemradio', { name: '未完待续', exact: true }).click();
   await page.waitForTimeout(120);
   assert.equal(await m.isVisible(), true, '状态保存失败菜单应留在原位');
   await unchanged('规划视图失败状态保存原文不变', before);
   await page.evaluate(() => { window.__rankFail = false; });
-  await m.getByRole('group', { name: '体验分类', exact: true }).getByRole('menuitemradio', { name: '待续', exact: true }).click();
+  await m.getByRole('group', { name: '体验分类', exact: true }).getByRole('menuitemradio', { name: '未完待续', exact: true }).click();
   await page.waitForTimeout(200);
   assert.equal((await item(id)).experienceStatus, 'experienced'); assert.equal((await item(id)).experienceCategory, 'continue'); assert.equal((await item(id)).playEngagement, undefined, '不补写旧活动维度');
   assert.equal(await page.locator('.media-card').count(), countBefore - 1);
@@ -269,11 +269,11 @@ async function planSuite(currentMode) {
   await last.click({ button: 'right' });
   keyboardMenu = page.getByRole('menu', { name: `计划作品 ${id.slice(1)}快捷编辑`, exact: true });
   await keyboardMenu.waitFor();
-  assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '待体验', exact: true }).evaluate(element => element === document.activeElement), true);
+  assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '新作开荒', exact: true }).evaluate(element => element === document.activeElement), true);
   await page.keyboard.press('ArrowDown');
   assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '已体验 · 未分类', exact: true }).evaluate(element => element === document.activeElement), true);
   await page.keyboard.press('ArrowDown');
-  assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '待续', exact: true }).evaluate(element => element === document.activeElement), true);
+  assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '未完待续', exact: true }).evaluate(element => element === document.activeElement), true);
   await unchanged('菜单方向键只移动焦点', before, attempts);
   const countBefore = await page.locator('.media-card').count();
   assert.equal(countBefore, 61);

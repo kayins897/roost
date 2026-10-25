@@ -28,7 +28,7 @@ function assertGamePlanningFields(item) {
 }
 async function showAll() {
   const group = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-  for (const name of ['待体验','已体验']) { const button = group.getByRole('button', { name, exact: true }); if (await button.getAttribute('aria-pressed') !== 'true') await button.click(); }
+  for (const name of ['新作开荒','已体验']) { const button = group.getByRole('button', { name, exact: true }); if (await button.getAttribute('aria-pressed') !== 'true') await button.click(); }
 }
 async function launch() {
   app = await electron.launch({ executablePath, args: packaged ? [] : [root], env, timeout: 45000 });

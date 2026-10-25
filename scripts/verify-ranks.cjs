@@ -24,7 +24,7 @@ const tile = id => page.locator(`[data-rank-item="${id}"]`);
 const sort = () => page.getByRole('combobox', { name: '排序方式', exact: true });
 async function showClearedRatings() {
   const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-  for (const name of ['待体验', '已体验']) {
+  for (const name of ['新作开荒', '已体验']) {
     const target = filters.getByRole('button', { name, exact: true });
     if (await target.getAttribute('aria-pressed') !== 'true') await target.click();
   }

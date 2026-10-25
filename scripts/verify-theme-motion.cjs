@@ -9,8 +9,8 @@ const output = path.join(root, 'evidence', `theme-motion-v${version.replaceAll('
 const digest = value => createHash('sha256').update(value).digest('hex');
 const report = { passed: false, version, isolatedDataOnly: true, userLibraryAccessed: false, checks: [], captures: [], palettes: [], transitions: [], cadence: [], runtime: [], integrity: [], errors: [], notes: ['60 Hz 为渲染目标，实际帧率受 GPU、窗口尺寸和刷新率影响；实测时间与计数原样记录，不承诺任意设备恒定60帧。', '仅使用合成收藏和全新浏览器上下文，不读写真实 AppData/QIYU。'] };
 const classificationCases = [
-  { state: 'unplayed', label: '待体验', token: '--game-want' },
-  { state: 'continue', label: '待续', token: '--game-playing' },
+  { state: 'unplayed', label: '新作开荒', token: '--game-want' },
+  { state: 'continue', label: '未完待续', token: '--game-playing' },
   { state: 'replayable', label: '可重玩', token: '--game-ongoing' },
   { state: 'long-term', label: '长线游玩', color: '#bf94e8' },
   { state: 'completed', label: '已通关', token: '--game-cleared' },
@@ -91,7 +91,7 @@ function serverStart() {
       const original = page.getByRole('button', { name: '查看配色隔离作品详情', exact: true });
       assert.equal(await original.isVisible(), true); assert.equal(await original.getAttribute('data-game-state'), 'unplayed');
       const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-      for (const name of ['待体验', '已体验']) {
+      for (const name of ['新作开荒', '已体验']) {
         const target = filters.getByRole('button', { name, exact: true });
         if (await target.getAttribute('aria-pressed') !== 'true') await target.click();
       }

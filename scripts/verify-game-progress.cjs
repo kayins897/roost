@@ -50,7 +50,7 @@ async function showAll() {
   if (await button('返回收藏库').count()) await button('返回收藏库').click();
   const allProgress = button('全部进度', page.locator('.completion-row')); if (await allProgress.count()) await allProgress.click();
   const group = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-  for (const name of ['待体验','已体验']) { const target = button(name, group); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+  for (const name of ['新作开荒','已体验']) { const target = button(name, group); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
 }
 async function clearedFilter() {
   const toggle = button('筛选'); if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
@@ -64,7 +64,7 @@ async function suite(currentMode) {
     assert.equal(await detail.getByRole('combobox', { name: '待体验优先级', exact: true }).inputValue(), 'A');
     assert.equal(await detail.getByRole('combobox', { name: '我的评级', exact: true }).inputValue(), 'S');
     await button('更改体验分类', detail).click();
-    await detail.locator('.game-state-options').getByRole('button', { name: '待体验', exact: true }).click();
+    await detail.locator('.game-state-options').getByRole('button', { name: '新作开荒', exact: true }).click();
     await button('更改通关进度', detail).click();
     await detail.locator('.completion-options').getByRole('button', { name: '已通关', exact: true }).click();
     await close(detail); assert.equal(JSON.stringify(await data()), before);

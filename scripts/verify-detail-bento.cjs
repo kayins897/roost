@@ -224,11 +224,11 @@ async function behaviorSuite(currentMode) {
     const detail = await open('portrait'), before = await raw(), attempts = await saves();
     assert.equal(await detail.getByRole('combobox', { name: '待体验优先级', exact: true }).inputValue(), 'A');
     assert.equal(await detail.getByRole('combobox', { name: '我的评级', exact: true }).inputValue(), 'S');
-    for (const [axis, label] of [['engagement', '待体验'], ['completion', '已通关']]) {
+    for (const [axis, label] of [['engagement', '新作开荒'], ['completion', '已通关']]) {
       const options = await expand(detail, axis); await button(label, options).click();
     }
     await unchanged('两轴同值点击', before, attempts);
-    for (const [axis, label, field, value] of [['engagement', '待续', 'experienceCategory', 'continue'], ['completion', '明确未通关', 'completion', 'not-cleared']]) {
+    for (const [axis, label, field, value] of [['engagement', '未完待续', 'experienceCategory', 'continue'], ['completion', '明确未通关', 'completion', 'not-cleared']]) {
       const original = await data(), options = await expand(detail, axis), oldValue = original.items.find(value => value.id === 'portrait')[field];
       await fail(true); await button(label, options).click();
       assert.equal(await options.isVisible(), true); assert.equal((await item('portrait'))[field], oldValue);
@@ -303,7 +303,7 @@ async function behaviorSuite(currentMode) {
 }
 async function showAll() {
   const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-  for (const name of ['待体验','已体验']) { const target = button(name, filters); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+  for (const name of ['新作开荒','已体验']) { const target = button(name, filters); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
 }
 async function classificationSuite(currentMode) {
   await prepare(currentMode);
@@ -314,17 +314,17 @@ async function classificationSuite(currentMode) {
     assert.equal(await button('全部游戏').count(), 0); assert.equal(await button('待体验计划').count(), 0);
     assert.equal((await ids()).length, 4);
     await button('已体验', filters()).click(); assert.equal((await ids()).length, 2);
-    await button('待体验', filters()).click(); assert.equal((await ids()).length, 2);
-    assert.equal(await button('待体验', filters()).getAttribute('aria-pressed'), 'true');
+    await button('新作开荒', filters()).click(); assert.equal((await ids()).length, 2);
+    assert.equal(await button('新作开荒', filters()).getAttribute('aria-pressed'), 'true');
     await button('已体验', filters()).click(); assert.equal((await ids()).length, 4);
-    await button('待体验', filters()).click(); assert.equal((await ids()).length, 2);
+    await button('新作开荒', filters()).click(); assert.equal((await ids()).length, 2);
     await button('已体验', filters()).click(); assert.equal((await ids()).length, 2);
     assert.equal(await button('已体验', filters()).getAttribute('aria-pressed'), 'true');
     await unchanged('三个主类筛选组合不改库', before, attempts); await showAll();
   });
   await check('无时长已体验、五分类唯一可切换、空二级合法、颜色一致且互异', async () => {
     const detail = await open('unknown'), colors = [];
-    const labels = ['待续','可重玩','长线游玩','已通关','已放下'];
+    const labels = ['未完待续','可重玩','长线游玩','已通关','已放下'];
     const values = ['continue','replayable','long-term','completed','put-aside'];
     for (let index = 0; index < values.length; index++) {
       const before = await data(), options = await expand(detail, 'engagement');
@@ -386,7 +386,7 @@ async function classificationSuite(currentMode) {
     await close(detail); const saved = (await data()).items.find(item => item.title === '分类直达样例');
     assert.equal(saved.experienceStatus, 'experienced'); assert.equal(saved.experienceCategory, 'completed'); assert.equal(saved.completion, 'unknown'); assert.equal(saved.completionCount, undefined);
     await page.reload(); await showAll(); const before = await raw(), attempts = await saves();
-    await button('待体验', filters()).click(); const categories = page.getByRole('group', { name: '已体验二级筛选', exact: true }); await button('已通关', categories).click();
+    await button('新作开荒', filters()).click(); const categories = page.getByRole('group', { name: '已体验二级筛选', exact: true }); await button('已通关', categories).click();
     assert.equal(await button('查看分类直达样例详情').count(), 1);
     assert.equal(await page.getByRole('combobox', { name: '排序方式', exact: true }).locator('option:checked').innerText(), '评级'); await button('未分类', categories).click(); assert.equal(await button('查看便当无封面未知值详情').count(), 1);
     await unchanged('重载和二级筛选只读', before, attempts); await showAll(); await capture('classification-library');

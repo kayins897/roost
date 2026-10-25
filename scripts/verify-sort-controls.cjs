@@ -76,7 +76,7 @@ async function prepare(currentMode, width = 1440) {
 }
 async function allGames() {
   const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-  for (const name of ['待体验','已体验']) { const button = filters.getByRole('button', { name, exact: true }); if (await button.getAttribute('aria-pressed') !== 'true') await button.click(); }
+  for (const name of ['新作开荒','已体验']) { const button = filters.getByRole('button', { name, exact: true }); if (await button.getAttribute('aria-pressed') !== 'true') await button.click(); }
 }
 async function expectDirection(value) { assert.equal(await direction().getAttribute('aria-label'), value === 'asc' ? '排序方向：升序，切换为降序' : '排序方向：降序，切换为升序'); }
 async function suite(currentMode) {

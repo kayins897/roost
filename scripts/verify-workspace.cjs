@@ -44,13 +44,22 @@ const raw = () => page.evaluate(key => localStorage.getItem(key), mode === 'brid
 const data = async () => JSON.parse(await raw());
 const byId = (value, id) => value.items.find(item => item.id === id);
 const button = (name, scope = page) => scope.getByRole('button', { name, exact: true });
+
+// 0.4.26 起批量清单导入收进「收录作品」汇聚面板，旧版顶栏按钮已不存在。
+async function openBatchImport() {
+  await button('收录作品').click();
+  await page.getByRole('button', { name: '批量收录', exact: true }).click();
+}
 const detail = () => page.getByRole('dialog', { name: '旅程 A详情', exact: true });
 const search = () => page.getByRole('textbox', { name: '搜索收藏', exact: true });
 const bar = () => page.locator('.selection-actionbar');
 async function all() {
   const back = button('返回收藏库', page.locator('.library-views')); if (await back.count()) await back.click();
   const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-  for (const name of ['待体验', '已体验']) { const target = button(name, filters); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+  const states = [];
+  for (const name of ['新作开荒', '已体验']) states.push([name, await button(name, filters).getAttribute('aria-pressed')]);
+  const pressed = states.filter(([, value]) => value === 'true');
+  if (pressed.length === 1) await button(states.find(([, value]) => value !== 'true')[0], filters).click();
   await search().fill('');
 }
 async function menu(title) {
@@ -101,7 +110,7 @@ async function suite(currentMode) {
   await check('默认待体验展示明确主类，旧搁置按原优先级，浏览零写入', async () => {
     assert.deepEqual(await page.locator('.media-card .card-name').allTextContents(), ['旅程 A', '稍后 D']);
     assert.equal(await page.locator('.plan-divider').count(), 0, '旧搁置不再单列末档');
-    await button('已隐藏').click(); assert.equal(await page.locator('.media-card').count(), 0);
+    await button('数据与设置').click(); const settingsDialog = page.getByRole('dialog', { name: '数据与设置', exact: true }); await settingsDialog.waitFor(); await settingsDialog.getByRole('button', { name: '数据与备份', exact: true }).click(); await settingsDialog.getByRole('button', { name: '查看', exact: true }).click(); assert.equal(await page.locator('.media-card').count(), 0);
     await button('回收站').click(); assert.equal(await page.locator('.media-card').count(), 0);
     await all(); assert.equal(await page.locator('.media-card').count(), 4);
     assert.equal(await page.evaluate(() => window.__workspaceSaves), 0); await unchanged('浏览范围与规划无收藏写入', baseline); await capture('library');
@@ -134,12 +143,12 @@ async function suite(currentMode) {
     await (await menu('旅程 A')).getByRole('menuitem', { name: '编辑作品资料', exact: true }).click(); editor = page.getByRole('dialog', { name: '编辑作品', exact: true }); await editor.getByRole('textbox', { name: '发行年份', exact: true }).fill('2026'); await capture('facts-editor-interactive'); await button('保存修改', editor).click(); await editor.waitFor({ state: 'hidden' }); assert.equal(await detail().isVisible(), true); assert.equal(byId(await data(), 'a').year, '2026'); await button('关闭详情', detail()).click();
   });
   await check('右键改体验分类，时长、个人记录、通关事实、旧轴与未知字段保持', async () => {
-    const before = await data(), m = await menu('旅程 A'); await m.getByRole('group', { name: '体验分类', exact: true }).getByRole('menuitemradio', { name: '待续', exact: true }).click(); const after = await data();
+    const before = await data(), m = await menu('旅程 A'); await m.getByRole('group', { name: '体验分类', exact: true }).getByRole('menuitemradio', { name: '未完待续', exact: true }).click(); const after = await data();
     preserve(before, after, ['a'], ['experienceStatus', 'experienceCategory', 'updatedAt']); assert.equal(byId(after, 'a').experienceStatus, 'experienced'); assert.equal(byId(after, 'a').experienceCategory, 'continue'); assert.equal(byId(after, 'a').gamePlayState, byId(before, 'a').gamePlayState, '旧轴冻结'); assert.equal(byId(after, 'a').playtimeMinutes, 73);
   });
   await check('隐藏与取消隐藏只影响可见性，不改游玩状态，也不建立导入排除', async () => {
     const before = await data(); await (await menu('同乐 B')).getByRole('menuitem', { name: '隐藏作品', exact: true }).click();
-    assert.equal(await button('查看同乐 B详情').count(), 0); await button('已隐藏').click(); assert.equal(await button('查看同乐 B详情').count(), 1);
+    assert.equal(await button('查看同乐 B详情').count(), 0); await button('数据与设置').click(); const settingsDialog = page.getByRole('dialog', { name: '数据与设置', exact: true }); await settingsDialog.waitFor(); await settingsDialog.getByRole('button', { name: '数据与备份', exact: true }).click(); await settingsDialog.getByRole('button', { name: '查看', exact: true }).click(); assert.equal(await button('查看同乐 B详情').count(), 1);
     const hidden = await data(); preserve(before, hidden, ['b'], ['hiddenAt', 'updatedAt']); assert.ok(byId(hidden, 'b').hiddenAt); assert.equal(hidden.importExclusions, undefined);
     await (await menu('同乐 B')).getByRole('menuitem', { name: '取消隐藏', exact: true }).click(); await all(); assert.equal(await button('查看同乐 B详情').count(), 1); assert.equal(byId(await data(), 'b').hiddenAt, undefined);
   });
@@ -154,7 +163,7 @@ async function suite(currentMode) {
   });
   await check('重新加载后排除清单持久化，改名的同 Steam 编号离线重导被阻止', async () => {
     const before = await raw(); await page.reload({ waitUntil: 'networkidle' }); await unchanged('重新加载不写库', before);
-    await button('批量导入作品').click(); const dialog = page.getByRole('dialog', { name: '批量导入作品', exact: true });
+    await openBatchImport(); const dialog = page.getByRole('dialog', { name: '批量导入作品', exact: true });
     await dialog.getByRole('textbox', { name: '作品清单', exact: true }).fill(JSON.stringify({ games: [{ appid: 123, name: '改名以后重新出现' }] })); await button('生成预览', dialog).click();
     assert.equal(await dialog.getByRole('checkbox', { name: '导入 改名以后重新出现', exact: true }).isDisabled(), true); assert.match(await dialog.locator('.steam-import-row-state').innerText(), /移除|排除/);
     assert.equal(await button('导入选中的 0 件', dialog).isDisabled(), true); await unchanged('排除重导预览不写库', before); await capture('excluded-reimport');
@@ -189,8 +198,8 @@ async function suite(currentMode) {
   });
   await check('从隐藏页与回收站批量收录成功均返回普通收藏并显示新增作品', async () => {
     for (const [view, title] of [['已隐藏', '隐藏页新增'], ['回收站', '回收页新增']]) {
-      await button(view).click(); const before = await data(); await button('批量导入作品').click(); const dialog = page.getByRole('dialog', { name: '批量导入作品', exact: true }); await dialog.getByRole('textbox', { name: '作品清单', exact: true }).fill(title); await button('生成预览', dialog).click(); await button('导入选中的 1 件', dialog).click(); await dialog.waitFor({ state: 'hidden' });
-      assert.equal(await button('返回收藏库', page.locator('.library-views')).count(), 0); for (const name of ['待体验', '已体验']) assert.equal(await button(name, page.getByRole('group', { name: '按体验分类筛选', exact: true })).getAttribute('aria-pressed'), 'true'); assert.equal(await button(`查看${title}详情`).count(), 1); const after = await data(); assert.equal(after.items.length, before.items.length + 1); preserve(before, after, [], []); const added = after.items.find(item => item.title === title); assert.ok(added && !added.hiddenAt && !added.removedAt); await capture(view === '已隐藏' ? 'import-from-hidden' : 'import-from-trash');
+      await button(view).click(); const before = await data(); await openBatchImport(); const dialog = page.getByRole('dialog', { name: '批量导入作品', exact: true }); await dialog.getByRole('textbox', { name: '作品清单', exact: true }).fill(title); await button('生成预览', dialog).click(); await button('导入选中的 1 件', dialog).click(); await dialog.waitFor({ state: 'hidden' });
+      assert.equal(await button('返回收藏库', page.locator('.library-views')).count(), 0); for (const name of ['新作开荒', '已体验']) assert.equal(await button(name, page.getByRole('group', { name: '按体验分类筛选', exact: true })).getAttribute('aria-pressed'), 'true'); assert.equal(await button(`查看${title}详情`).count(), 1); const after = await data(); assert.equal(after.items.length, before.items.length + 1); preserve(before, after, [], []); const added = after.items.find(item => item.title === title); assert.ok(added && !added.hiddenAt && !added.removedAt); await capture(view === '已隐藏' ? 'import-from-hidden' : 'import-from-trash');
     }
   });
   await context.close(); context = null;
@@ -238,7 +247,7 @@ async function writingSuite(currentMode) {
     await button('展开长文测评', detail()).click();
     await short().fill('短句保留尾空白  '); await review().fill('第一段长文\n星河独有词\n尾空白  ');
     await button('更改体验分类', detail()).click();
-    await button('待续', detail().locator('.game-state-options')).click(); assert.equal(await review().inputValue(), '第一段长文\n星河独有词\n尾空白  ');
+    await button('未完待续', detail().locator('.game-state-options')).click(); assert.equal(await review().inputValue(), '第一段长文\n星河独有词\n尾空白  ');
     await button('保存感受', detail()).click(); assert.equal(byId(await data(),'a').review, '第一段长文\n星河独有词\n尾空白  ');
     assert.equal(byId(await data(),'a').impression,'短句保留尾空白  '); await capture('writing-split'); await button('关闭详情', detail()).click();
     await page.reload(); await all(); await search().fill('星河独有词'); assert.equal(await page.locator('.media-card').count(),1); await search().fill('');

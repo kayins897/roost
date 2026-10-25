@@ -29,7 +29,7 @@ async function capture(name, locator = page) { const file = name + '.png'; await
 const card = title => page.getByRole('button', { name: `查看${title}详情`, exact: true });
 async function showAll() {
   const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
-  for (const name of ['待体验', '已体验']) {
+  for (const name of ['新作开荒', '已体验']) {
     const target = filters.getByRole('button', { name, exact: true });
     if (await target.getAttribute('aria-pressed') !== 'true') await target.click();
   }
