@@ -35,6 +35,21 @@ export interface GameBatchEditPlan {
 
 const keyFor = (tag: string) => tag.toLocaleLowerCase();
 
+/** v0.4.24 批量双维度补丁：只写新字段，不改旧轴、等级、时长或标签；同值作品引用不变。 */
+export function createBatchProgressPatch(items: MediaItem[], selectedIds: readonly string[], patch: Partial<Pick<MediaItem, 'playEngagement' | 'completion'>>, timestamp = new Date().toISOString()): { changedCount: number; items: MediaItem[]; changes: { id: string; title: string }[] } {
+  const ids = new Set(selectedIds);
+  let changedCount = 0;
+  const changes: { id: string; title: string }[] = [];
+  const result = items.map(item => {
+    if (!ids.has(item.id) || item.category !== 'game' || item.removedAt) return item;
+    const same = (Object.keys(patch) as ('playEngagement' | 'completion')[]).every(key => item[key] === patch[key]);
+    if (same) return item;
+    changedCount++; changes.push({ id: item.id, title: item.title });
+    return { ...item, ...patch, updatedAt: timestamp };
+  });
+  return { changedCount, items: changedCount ? result : items, changes };
+}
+
 /** 纯等级批量补丁：不改状态、时长、标签或旧别名，仅对当前状态与维度匹配
  * （待体验→优先级 / 已通关→评级）的所选游戏生效；同等级零变化（引用与字段
  * 原样），变档时清除对应手动顺序。与 createGameBatchEditPlan 的"等级随状态"

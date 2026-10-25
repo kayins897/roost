@@ -164,7 +164,7 @@ export function useWorkspaceController() {
     setSelectionIds(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }
   function startSelection() { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSelectionIds(new Set()); setAssignment(null); setSelecting(true); }); }
-  function applyBatchEdit(plan: GameBatchEditPlan) {
+  function applyBatchEdit(plan: Pick<GameBatchEditPlan, 'selectedIds' | 'input' | 'changedCount' | 'items'>) {
     const current = snapshotRef.current;
     const next = createGameBatchEditPlan(current.items, plan.selectedIds, plan.input);
     if (!next.changedCount) { setToast('所选作品已符合本次设置，请返回调整。'); return false; }
