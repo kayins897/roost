@@ -1,4 +1,5 @@
-import { gamePlayStateFor, isValidPersonalGrade } from './library.ts';
+import { isValidPersonalGrade } from './library.ts';
+import { completionFor } from './gameProgress.ts';
 import type { MediaItem } from './types.ts';
 
 export { isValidPersonalGrade } from './library.ts';
@@ -19,6 +20,7 @@ export const GAME_GRADE_TIERS = {
 
 /** Stored grades survive status/category edits; only completed games show a rated finish. */
 export function coverFinishFor(item: MediaItem): CoverFinish {
-  if (item.category !== 'game' || gamePlayStateFor(item) !== 'cleared' || !isValidPersonalGrade(item.personalGrade)) return 'standard';
+  // v0.4.24：有效通关进度为已通关或不适用均可获得评级箔面；旧轴推导的已通关同样保留。
+  if (item.category !== 'game' || (completionFor(item) !== 'cleared' && completionFor(item) !== 'not-applicable') || !isValidPersonalGrade(item.personalGrade)) return 'standard';
   return GAME_GRADE_TIERS[item.personalGrade].finish;
 }

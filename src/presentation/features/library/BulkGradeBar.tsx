@@ -1,4 +1,4 @@
-import { gamePlayStateFor } from '../../../domain/library.ts';
+import { gradeEditable, priorityEditable } from '../../../domain/gameProgress.ts';
 import { GAME_GRADES } from '../../../domain/gameRating.ts';
 import { useState } from 'react';
 import type { MediaItem, PersonalGrade } from '../../../domain/types.ts';
@@ -8,12 +8,12 @@ import type { MediaItem, PersonalGrade } from '../../../domain/types.ts';
 export function BulkGradeBar({ selectedGames, onApply }: { selectedGames: MediaItem[]; onApply: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean }) {
   const [grade, setGrade] = useState<PersonalGrade | 'clear' | ''>('');
   if (!selectedGames.length) return null;
-  const allWant = selectedGames.every(item => gamePlayStateFor(item) === 'want');
-  const allCleared = selectedGames.every(item => gamePlayStateFor(item) === 'cleared');
-  if (!allWant && !allCleared) return <span className="bulk-grade-hint">所选游戏状态不一致，等级快捷设置不可用；可先用「改状态」统一。</span>;
-  const mode: 'priority' | 'rating' = allWant ? 'priority' : 'rating';
-  const label = allWant ? '待体验优先级' : '通关评级';
-  const key = allWant ? 'playPriority' : 'personalGrade';
+  const allPlanned = selectedGames.every(item => priorityEditable(item));
+  const allGraded = selectedGames.every(item => gradeEditable(item));
+  if (!allPlanned && !allGraded) return <span className="bulk-grade-hint">所选游戏的等级资格不一致，快捷设置不可用；可用「改状态/进度」调整或单独编辑。</span>;
+  const mode: 'priority' | 'rating' = allPlanned ? 'priority' : 'rating';
+  const label = allPlanned ? '待体验优先级' : '通关评级';
+  const key = allPlanned ? 'playPriority' : 'personalGrade';
   const next = grade === 'clear' ? undefined : grade || undefined;
   const willChange = grade === '' ? -1 : selectedGames.filter(item => item[key] !== next).length;
   return <span className="bulk-grade-bar">

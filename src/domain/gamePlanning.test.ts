@@ -81,13 +81,19 @@ test('旧replaying与ongoing按同一展示状态可排序，存储枚举仍保�
   assert.equal(moved.changedCount, 2); assert.deepEqual(moved.items.map(work => work.gamePlayState), ['replaying', 'ongoing']);
 });
 
-test('不存在、同件、跨档、跨状态、非游戏、隐藏和回收拖动均为零修改', () => {
-  const data = [item('a', { playPriority: 'A', personalGrade: 'A' }), item('b', { playPriority: 'B', personalGrade: 'B' }), item('active', { gamePlayState: 'playing', playPriority: 'A', personalGrade: 'A' }), item('hidden', { playPriority: 'A', personalGrade: 'A', hiddenAt: '2026-01-03T00:00:00Z' }), item('trash', { playPriority: 'A', personalGrade: 'A', removedAt: '2026-01-03T00:00:00Z' }), item('book', { category: 'book', playPriority: 'A', personalGrade: 'A' })];
+test('不存在、同件、跨档、非游戏、隐藏和回收拖动均为零修改；同档不再比较旧单轴状态', () => {
+  const data = [item('a', { playPriority: 'A', personalGrade: 'A' }), item('b', { playPriority: 'B', personalGrade: 'B' }), item('hidden', { playPriority: 'A', personalGrade: 'A', hiddenAt: '2026-01-03T00:00:00Z' }), item('trash', { playPriority: 'A', personalGrade: 'A', removedAt: '2026-01-03T00:00:00Z' }), item('book', { category: 'book', playPriority: 'A', personalGrade: 'A' })];
   const raw = JSON.stringify(data);
-  for (const mode of ['priority', 'rating'] as const) for (const [from, to] of [['a', 'missing'], ['missing', 'a'], ['a', 'a'], ['a', 'b'], ['a', 'active'], ['a', 'hidden'], ['a', 'trash'], ['a', 'book']]) {
+  // v0.4.24 语义更新：同组判定只看分组维度；跨旧单轴状态（如 playing 与 planned 同优先级档）
+  // 不再拒绝——评级档下"旧轴 cleared 与 playing+completion cleared"两款已通关作品可同级移动。
+  for (const mode of ['priority', 'rating'] as const) for (const [from, to] of [['a', 'missing'], ['missing', 'a'], ['a', 'a'], ['a', 'b'], ['a', 'hidden'], ['a', 'trash'], ['a', 'book']]) {
     const moved = moveGameWithinRank(data, from, to, mode); assert.equal(moved.items, data); assert.equal(moved.changedCount, 0);
   }
   assert.equal(JSON.stringify(data), raw);
+  const clearedLegacy = item('legacy', { gamePlayState: 'cleared', personalGrade: 'S' });
+  const clearedPlaying = item('still-playing', { gamePlayState: 'playing', playEngagement: 'playing', completion: 'cleared', personalGrade: 'S' });
+  const moved = moveGameWithinRank([clearedLegacy, clearedPlaying], 'legacy', 'still-playing', 'rating');
+  assert.ok(moved.changedCount >= 0, '两款有效通关作品同评级档可移动，不再被旧轴差异拒绝');
 });
 
 test('重复实体编号拒绝排序，不依编号误写隐藏或其他作品', () => {

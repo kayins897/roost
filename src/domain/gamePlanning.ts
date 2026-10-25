@@ -1,4 +1,5 @@
-import { gamePlayStateFor, isValidPersonalGrade } from './library.ts';
+import { isValidPersonalGrade } from './library.ts';
+import { engagementFor } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
 import type { MediaItem } from './types.ts';
 import type { SortDirection } from './librarySort.ts';
@@ -9,7 +10,7 @@ const orderKey = (mode: RankMode) => mode === 'priority' ? 'priorityOrder' : 'ra
 const normalGame = (item: MediaItem) => item.category === 'game' && !item.hiddenAt && !item.removedAt;
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 function rankId(item: MediaItem, mode: RankMode): string {
-  if (mode === 'priority' && gamePlayStateFor(item) === 'paused') return 'paused';
+  if (mode === 'priority' && engagementFor(item) === 'paused') return 'paused';
   const grade = mode === 'priority' ? item.playPriority : item.personalGrade;
   return isValidPersonalGrade(grade) ? grade : 'unranked';
 }
@@ -43,8 +44,10 @@ export function moveGameWithinRank(allItems: MediaItem[], sourceId: string, targ
   const sources = allItems.filter(item => item.id === sourceId), targets = allItems.filter(item => item.id === targetId);
   if (sources.length !== 1 || targets.length !== 1) return unchanged;
   const source = sources[0], target = targets[0];
-  if (!normalGame(source) || !normalGame(target) || gamePlayStateFor(source) !== gamePlayStateFor(target) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
-  const group = sortRank(allItems.filter(item => normalGame(item) && gamePlayStateFor(item) === gamePlayStateFor(source) && rankId(item, mode) === rankId(source, mode)), mode);
+  // v0.4.24：同组判定只看分组维度（优先级档/搁置组 或 评级档），不再比较旧单轴状态——
+  // 两款都有效通关的作品即使旧轴分别是 cleared 与 playing 也可同级移动。
+  if (!normalGame(source) || !normalGame(target) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
+  const group = sortRank(allItems.filter(item => normalGame(item) && rankId(item, mode) === rankId(source, mode)), mode);
   const from = group.findIndex(item => item.id === sourceId), to = group.findIndex(item => item.id === targetId);
   group.splice(from, 1); group.splice(to, 0, source);
   const positions = new Map(group.map((item, index) => [item.id, index])), key = orderKey(mode);

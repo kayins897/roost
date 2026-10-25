@@ -1,4 +1,5 @@
 import { emptyGameTags, flattenGameTags, GAME_PLAY_STATES, GAME_TAG_KEYS, gamePlayStateFor, gameTagsFor, isValidPersonalGrade, legacyStatusForGameState, normalizeTags } from './library.ts';
+import { gradeEditable, priorityEditable } from './gameProgress.ts';
 import type { GamePlayState, GameTagGroupKey, GameTagGroups, MediaItem, PersonalGrade } from './types.ts';
 
 export interface GameBatchEditInput {
@@ -44,7 +45,8 @@ export function createBulkGradePatch(items: MediaItem[], selectedIds: readonly s
   let changedCount = 0;
   const result = items.map(item => {
     if (!ids.has(item.id) || item.category !== 'game' || item.removedAt) return item;
-    const matches = mode === 'priority' ? gamePlayStateFor(item) === 'want' : gamePlayStateFor(item) === 'cleared';
+    // v0.4.24：资格按双维度（计划/搁置可排优先级；通关/不适用/历史评级可评）。
+    const matches = mode === 'priority' ? priorityEditable(item) : gradeEditable(item);
     if (!matches) return item;
     if ((mode === 'priority' ? item.playPriority : item.personalGrade) === grade) return item;
     changedCount++;
