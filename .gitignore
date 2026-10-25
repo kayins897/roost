@@ -1,7 +1,7 @@
-node_modules/
+﻿node_modules/
 .backups/
 desktop-build/
-release/
+/release/
 evidence/
 .downloads/
 .cache/
