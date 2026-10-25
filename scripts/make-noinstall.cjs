@@ -19,23 +19,29 @@ if (!path.resolve(staging).startsWith(release + path.sep)) throw new Error('临�
 try {
   const bundle = path.join(staging, `QIYU-${version}`);
   fs.cpSync(source, bundle, { recursive: true, force: false, errorOnExist: true });
-  const instructions = `栖域 ${version} · Windows x64 免安装版\r\n\r\n` +
-    '1. 将整个 ZIP 解压到一个普通文件夹。\r\n' +
-    '2. 进入 QIYU-' + version + ' 文件夹，双击“栖域.exe”运行。\r\n' +
-    '3. 请保留 DLL、locales、resources 等全部文件；不要只单独复制 EXE，也不要在压缩包预览中直接运行。\r\n\r\n' +
-    '本包包含完整桌面功能：多平台收藏、Steam/豆瓣资料导入、标签、封面、时长、体验记录、筛选和备份恢复。\r\n' +
-    '数据仍保存在本机 %APPDATA%\\QIYU\\，与同一 Windows 账户下的安装版共用。\r\n' +
-    '切换两个版本前先退出已运行的栖域；应用使用单实例保护收藏数据。\r\n' +
-    '删除或移动程序文件夹不会删除收藏。换电脑时，请先导出 JSON，再在新电脑上导入。\r\n' +
-    '本版本不会自动创建桌面/开始菜单快捷方式，也没有自动更新功能。\r\n' +
-    '更新时退出栖域，将新版本完整解压到新文件夹再运行；同一账户下的收藏会继续保留。\r\n\r\n' +
-    '旧网页迁移：在原来使用的网页中导出 JSON，再在应用“数据与设置”导入。\r\n' +
-    '当前程序尚未进行数字签名。\r\n';
+  fs.copyFileSync(path.join(root, 'build', 'demo-library.json'), path.join(bundle, 'demo-library.json'));
+  // PowerShell 5.1 needs a BOM for Chinese literals. CMD itself only contains ASCII.
+  fs.writeFileSync(path.join(bundle, 'launch-demo.ps1'), '\ufeff' + fs.readFileSync(path.join(root, 'build', 'launch-demo.ps1'), 'utf8').replace(/^\ufeff/, ''), 'utf8');
+  fs.writeFileSync(path.join(bundle, '启动演示.cmd'), '@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch-demo.ps1" %*\r\n', 'ascii');
+  const instructions = `栖域 ${version} · Windows x64 免安装待验收版\r\n\r\n` +
+    '请先完整解压 ZIP，保留全部文件。\r\n\r\n' +
+    '先体验：双击“启动演示.cmd”。窗口可见并标明演示数据与实际版本，使用合成收藏。\r\n' +
+    '同一入口再次启动会打开同一演示目录，修改保留；可以与原正式版并行。\r\n' +
+    '演示目录定位记录为 qiyu-demo-profile.json。目录丢失或损坏会报错，绝不静默重置或回退正式收藏。\r\n' +
+    '若想新建演示，请重新解压到另一新文件夹；不要删除现有定位记录或收藏。\r\n\r\n' +
+    '正式使用：先在原版本导出备份，自行退出原程序，再双击本目录“栖域.exe”。\r\n' +
+    '正常模式沿用本机 %APPDATA%\\QIYU；启动不会迁移或补写旧数据。代理未操作真实收藏。\r\n' +
+    '如旧版仍在运行，正常 EXE 可能只唤醒旧版，请核对界面左下角版本。\r\n' +
+    '新版读取旧库安全；旧版不能理解新增独立状态与完成记录，勿交替编辑。回退前保留升级前备份与新版完整导出。\r\n\r\n' +
+    '五分钟验收见“验收步骤.md”，功能与已知限制见“更新说明.md”。仅供本地验收，未正式发布。\r\n';
   fs.writeFileSync(path.join(bundle, '先读我-免安装版.txt'), '\ufeff' + instructions, 'utf8');
   fs.copyFileSync(path.join(root, 'CHANGELOG.md'), path.join(bundle, '更新说明.md'));
+  fs.copyFileSync(path.join(root, 'docs', 'tasks', 'v0424-preview', '验收步骤.md'), path.join(bundle, '验收步骤.md'));
+  fs.writeFileSync(path.join(bundle, 'SOURCE.json'), JSON.stringify({ version, commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim() }, null, 2));
   const command = `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory(${quote(staging)}, ${quote(output)}, [System.IO.Compression.CompressionLevel]::Optimal, $false)`;
   execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { windowsHide: true, stdio: 'inherit' });
   const sha256 = createHash('sha256').update(fs.readFileSync(output)).digest('hex').toUpperCase();
+  fs.writeFileSync(path.join(release, 'SHA256SUMS.txt'), `${sha256}  ${path.basename(output)}\r\n`);
   console.log(JSON.stringify({ artifact: output, bytes: fs.statSync(output).size, sha256, version }));
 } finally {
   const resolved = path.resolve(staging);

@@ -3,35 +3,30 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { LibraryStore } from './store.ts';
+import { assertDemoProfile, resolveLaunchMode } from './launchMode.ts';
 import { lookupMetadata } from './metadata.ts';
 import { enrichSteamLibrary, readSteamLibrary, SteamConnectionStore } from './steam.ts';
 
 const ENTRY_URL = 'qiyu://app/index.html';
-const testing = process.env.QIYU_E2E === '1';
-app.setName('栖域');
-// 可见隔离演示模式：--demo（随包启动器传入）使用独立的 QIYU-Demo 数据目录与单实例锁，
-// 与正常模式/测试模式互不干扰；绝不回退真实 QIYU 目录。
-const demoMode = process.argv.includes('--demo');
-const demoSeed = () => path.join(app.getAppPath(), 'build', 'demo-library.json');
-function seedDemoLibrary(keepExisting: boolean): boolean {
-  const seedFile = demoSeed();
-  if (!fs.existsSync(seedFile)) return false;
-  if (keepExisting && fs.existsSync(path.join(dataDirectory, 'library.json'))) return true;
-  fs.copyFileSync(seedFile, path.join(dataDirectory, 'library.json'));
-  return true;
-}
-const dataDirectory = testing && process.env.QIYU_TEST_DATA_DIR
-  ? path.resolve(process.env.QIYU_TEST_DATA_DIR)
-  : demoMode ? path.join(app.getPath('appData'), 'QIYU-Demo')
-  : path.join(app.getPath('appData'), 'QIYU');
-fs.mkdirSync(dataDirectory, { recursive: true });
-app.setPath('userData', dataDirectory);
-if (demoMode && !testing) {
-  const libraryFile = path.join(dataDirectory, 'library.json');
-  if (!fs.existsSync(libraryFile)) {
-    if (!seedDemoLibrary(false)) { dialog.showErrorBox('栖域演示启动失败', '找不到随包演示数据（build/demo-library.json）。请重新解压完整目录后重试。'); app.quit(); }
+const runtime = (() => {
+  try {
+    const mode = resolveLaunchMode(process.argv, process.env, app.getPath('appData'));
+    if (mode.mode === 'demo') assertDemoProfile(mode.dataDirectory);
+    else fs.mkdirSync(mode.dataDirectory, { recursive: true });
+    return mode;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '启动参数无效';
+    console.error(`QIYU_STARTUP_FAILED: ${message}`);
+    dialog.showErrorBox('栖域启动已停止', message);
+    app.exit(1);
+    throw error;
   }
-}
+})();
+const testing = runtime.mode === 'test';
+const demoMode = runtime.mode === 'demo';
+const dataDirectory = runtime.dataDirectory;
+app.setName('栖域');
+app.setPath('userData', dataDirectory);
 protocol.registerSchemesAsPrivileged([{ scheme: 'qiyu', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 let mainWindow: BrowserWindow | null = null;
 function windowVisible() {
@@ -132,15 +127,6 @@ function registerIpc() {
       catch (error) { event.returnValue = { ok: false, error: error instanceof Error ? error.message : '本机文件操作失败' }; }
     });
   }
-  ipcMain.handle('qiyu:demo-reset', event => {
-    if (!trusted(event) || !demoMode) return { ok: false, error: '演示重置仅在演示模式可用' };
-    try {
-      const libraryFile = path.join(dataDirectory, 'library.json');
-      if (fs.existsSync(libraryFile)) fs.renameSync(libraryFile, path.join(dataDirectory, `demo-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
-      if (!seedDemoLibrary(false)) return { ok: false, error: '找不到随包演示数据，请重新解压完整目录' };
-      return { ok: true, value: null };
-    } catch (error) { return { ok: false, error: error instanceof Error ? error.message : '演示重置失败' }; }
-  });
   ipcMain.on('qiyu:open-data', event => {
     if (!trusted(event)) return;
     fs.mkdirSync(dataDirectory, { recursive: true });

@@ -65,6 +65,14 @@ if ($request.operation -eq 'inspect') {
  @{ action=$request.operation } | ConvertTo-Json -Compress
 }
 `;
+async function waitMaximized(expected) {
+ const deadline=Date.now()+5000;
+ while (Date.now()<deadline) {
+  if (await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()) === expected) return;
+  await new Promise(resolve=>setTimeout(resolve,50));
+ }
+ assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()),expected);
+}
 async function native(operation, more = {}) {
  const payload = Buffer.from(JSON.stringify({ handle, processId, width: await page.evaluate(() => innerWidth), operation, ...more })).toString('base64');
  const encoded = Buffer.from(nativeSource.replace('PAYLOAD', payload), 'utf16le').toString('base64');
@@ -90,9 +98,9 @@ async function geometry() { return page.evaluate(() => {
   assert.equal(report.nativeHits.hits.find(x=>x.name==='drag').hit,2); await capture('native-transparent-title.png');
  });
  await check('原生标题区双击最大化与还原，安全区跟随尺寸变化', async () => {
-  await native('double',{points:[{x:80,y:16}]}); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()),true);
+  await native('double',{points:[{x:80,y:16}]}); await waitMaximized(true);
   const g=await geometry(); report.maximizedGeometry=g; assert.ok(g.search.y>=g.chrome.bottom); await capture('native-maximized.png');
-  await native('double',{points:[{x:80,y:16}]}); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()),false);
+  await native('double',{points:[{x:80,y:16}]}); await waitMaximized(false);
  });
  await check('原生最小化和还原，窗口仍允许边缘缩放', async () => {
   await native('minimize'); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMinimized()),true); await native('restore');

@@ -20,7 +20,6 @@ export type {
 
 export interface DesktopBridge {
   getInfo(): { version: string; dataDirectory: string; windowVisible?: boolean; demo?: boolean };
-  resetDemo?(): Promise<DesktopResult<null>>;
   onWindowVisibility?(listener: (visible: boolean) => void): () => void;
   loadLibrary(): DesktopResult<StoredRecord>;
   saveLibrary(snapshot: LibrarySnapshot, revision: string, allowRecovery: boolean): DesktopResult<{ revision: string }>;

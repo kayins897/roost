@@ -9,7 +9,6 @@ const bridge: DesktopBridge = {
   saveLibrary: (snapshot: LibrarySnapshot, revision: string, allowRecovery: boolean) =>
     ipcRenderer.sendSync('qiyu:save', { snapshot, revision, allowRecovery }),
   openDataDirectory: () => { ipcRenderer.send('qiyu:open-data'); },
-  ...(ipcRenderer.invoke ? { resetDemo: (): Promise<DesktopResult<null>> => ipcRenderer.invoke('qiyu:demo-reset') } : {}),
   lookupMetadata: (query: string): Promise<DesktopResult<MetadataCandidate[]>> => ipcRenderer.invoke('qiyu:metadata', query),
   getSteamConnection: () => ipcRenderer.invoke('qiyu:steam-state'),
   forgetSteamConnection: () => ipcRenderer.invoke('qiyu:steam-forget'),
