@@ -54,8 +54,10 @@ async function startupFailure(args, expectedFile, original) {
   try {
     await poll(() => stderr.includes('QIYU_STARTUP_FAILED:'), true, 15000);
     // Dismiss only this newly created test process's error dialog, never another application.
-    const command = `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class QiyuClose { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l); }'; $p=Get-Process -Id ${child.pid} -ErrorAction SilentlyContinue; if($p -and $p.MainWindowHandle -ne 0){ [QiyuClose]::PostMessage($p.MainWindowHandle,16,[IntPtr]::Zero,[IntPtr]::Zero) | Out-Null }`;
-    execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')], { windowsHide: true });
+    // A hidden startup error box is not necessarily Process.MainWindowHandle.
+    // Enumerate only windows owned by this exact newly spawned process.
+    const command = `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class QiyuClose { public delegate bool WindowCallback(IntPtr h, IntPtr l); [DllImport("user32.dll")] static extern bool EnumWindows(WindowCallback c, IntPtr l); [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint p); [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l); public static void Dismiss(int target) { EnumWindows((h,l) => { uint p; GetWindowThreadProcessId(h,out p); if (p == target) { PostMessage(h,0x111,new IntPtr(1),IntPtr.Zero); PostMessage(h,0x10,IntPtr.Zero,IntPtr.Zero); } return true; },IntPtr.Zero); } }'; for($i=0;$i -lt 20;$i++){ if(!(Get-Process -Id ${child.pid} -ErrorAction SilentlyContinue)){break}; [QiyuClose]::Dismiss(${child.pid}); Start-Sleep -Milliseconds 100 }`;
+    execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-OutputFormat', 'Text', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     const result = await Promise.race([exited, sleep(8000).then(() => null)]);
     assert.ok(result && result.code !== 0, 'invalid startup must exit with failure');
     if (expectedFile) assert.equal(fs.readFileSync(expectedFile, 'utf8'), original);
