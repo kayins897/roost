@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const assert = require('node:assert/strict');
+const { pathToFileURL } = require('node:url');
 const { _electron: electron } = require('playwright');
 
 const root = path.resolve(__dirname, '..');
@@ -21,13 +22,14 @@ delete env.ELECTRON_RUN_AS_NODE;
 const fakeKey = 'a1'.repeat(16);
 const fakeProfile = '76561198000000001';
 const item = (id, title, extra = {}) => ({ id, title, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '', year: '', status: 'paused', gamePlayState: 'paused', playtimeMinutes: 500,
+  experienceStatus: 'experienced', playEngagement: 'playing', completion: 'cleared', completionCount: 2, personalGrade: 'S', playPriority: 'A', ratingOrder: 7, priorityOrder: 9,
   tags: ['私人标签'], gameTags: { gameplay: ['私人标签'], theme: [], scenario: [], other: [] }, impression: '私人印象保持不变', favorite: true, artwork: 'default',
   experienceEntries: [{ id: `entry-${id}`, date: '2026-01', kind: 'note', note: '私人体验记录', minutes: 9 }], futureItem: { preserve: id }, createdAt: '2020-01-01', updatedAt: '2020-01-01', ...extra });
 const completeCover = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 const fixture = { schemaVersion: 1, futureRoot: { preserve: true }, items: [
-  item('existing-update', '已有游戏', { externalIds: [{ provider: 'steam', id: '1000' }] }),
-  item('existing-current', '已齐全的游戏', { externalIds: [{ provider: 'steam', id: '1001' }], sourceUrl: 'https://store.steampowered.com/app/1001/', creator: '本地开发商', year: '2021', coverUrl: completeCover, playtimeMinutes: 17 }),
-  item('ambiguous', '同名待确认', { subcategory: 'Switch', platforms: ['Switch'] }),
+  item('existing-update', '已有游戏', { experienceCategory: 'replayable', externalIds: [{ provider: 'steam', id: '1000' }] }),
+  item('existing-current', '已齐全的游戏', { experienceStatus: 'unplayed', externalIds: [{ provider: 'steam', id: '1001' }], sourceUrl: 'https://store.steampowered.com/app/1001/', creator: '本地开发商', year: '2021', coverUrl: completeCover, playtimeMinutes: 17 }),
+  item('ambiguous', '同名待确认', { experienceCategory: 'continue', subcategory: 'Switch', platforms: ['Switch'] }),
 ] };
 const baseline = JSON.stringify(fixture, null, 2);
 fs.mkdirSync(evidence, { recursive: true });
@@ -123,6 +125,8 @@ async function exportSnapshot() {
 }
 (async () => {
   try {
+    const { experienceStatusFor, experienceCategoryFor } = await import(pathToFileURL(path.join(root, 'src/domain/gameExperience.ts')).href);
+    const { completionFor } = await import(pathToFileURL(path.join(root, 'src/domain/gameProgress.ts')).href);
     await launch();
     await check('默认不请求网络，缺少密钥拒绝读取且不改收藏', async () => {
       assert.deepEqual(await network(), []);
@@ -141,6 +145,10 @@ async function exportSnapshot() {
       assert.match(counts, /478\s*新增/); assert.match(counts, /1\s*可更新/); assert.match(counts, /1\s*已是最新/); assert.match(counts, /1\s*待确认/);
       assert.equal((await network()).filter(request => request.kind === 'owned').length, 1);
       assert.equal((await network()).length, 1, '读取库存不应逐条请求资料');
+      const positiveMinutes = modal().locator('.steam-connect-row').filter({ has: page.getByRole('checkbox', { name: '同步 Steam 测试游戏 1003', exact: true }) });
+      assert.equal(await positiveMinutes.count(), 1);
+      assert.match(await positiveMinutes.innerText(), /0\.8 h/);
+      await positiveMinutes.getByText('将以“已体验 · 未分类”加入收藏', { exact: true }).waitFor();
       assert.equal(await modal().getByLabel('Steam Web API 密钥', { exact: true }).inputValue(), '');
       const state = await page.evaluate(() => window.qiyuDesktop.getSteamConnection());
       assert.equal(state.value.hasApiKey, true); assert.equal(state.value.remembered, true);
@@ -163,7 +171,7 @@ async function exportSnapshot() {
       await modal().waitFor({ state: 'detached' });
       const saved = readSnapshot(); assert.equal(saved.items.length, 481); assert.deepEqual(saved.futureRoot, fixture.futureRoot);
       const old = saved.items.find(entry => entry.id === 'existing-update');
-      const expectedPersonal = ['title', 'status', 'gamePlayState', 'playtimeMinutes', 'tags', 'gameTags', 'impression', 'favorite', 'experienceEntries', 'futureItem', 'createdAt'];
+      const expectedPersonal = ['title', 'status', 'gamePlayState', 'playtimeMinutes', 'experienceStatus', 'experienceCategory', 'playEngagement', 'completion', 'completionCount', 'completionEvents', 'personalGrade', 'playPriority', 'ratingOrder', 'priorityOrder', 'tags', 'gameTags', 'impression', 'favorite', 'experienceEntries', 'futureItem', 'createdAt'];
       for (const field of expectedPersonal) assert.deepEqual(old[field], fixture.items[0][field]);
       assert.equal(old.creator, 'Fixture Developer'); assert.equal(old.year, '2024'); assert.match(old.coverUrl, /^data:image\/jpeg;base64,/);
       // v0.4.24（N3-C）：enrich 会为缺失原名的既有作品补上来源原名，比较时剔除该补充字段。
@@ -172,6 +180,13 @@ async function exportSnapshot() {
       assert.deepEqual(saved.items.find(entry => entry.id === 'ambiguous'), fixture.items[2]);
       const added = saved.items.find(entry => entry.externalIds?.some(ref => ref.provider === 'steam' && ref.id === '1003'));
       assert.equal(added.playtimeMinutes, 51); assert.equal(added.status, 'want'); assert.equal(added.favorite, false); assert.equal(added.impression, ''); assert.equal(added.experienceEntries, undefined);
+      assert.equal(added.gamePlayState, 'want'); assert.equal(added.playEngagement, undefined);
+      assert.equal(added.experienceStatus, undefined); assert.equal(added.experienceCategory, undefined);
+      assert.equal(experienceStatusFor(added), 'experienced'); assert.equal(experienceCategoryFor(added), undefined, '正分钟的自动分类与预览一致，不猜二级');
+      assert.equal(added.completion, undefined); assert.equal(completionFor(added), 'unknown');
+      assert.equal(added.completionCount, undefined); assert.equal(added.completionEvents, undefined); assert.equal(added.personalGrade, undefined);
+      assert.equal(experienceStatusFor(currentSaved), 'unplayed', 'Steam时长不覆盖手动待体验主类');
+      assert.equal(experienceCategoryFor(old), 'replayable', '补资料不覆盖手动已体验二级');
       assert.equal(fs.readFileSync(previousFile, 'utf8'), baseline);
       const dailyFiles = fs.readdirSync(path.join(dataDirectory, 'backups')).filter(name => /^daily-\d{4}-\d{2}-\d{2}\.json$/.test(name));
       assert.equal(dailyFiles.length, 1); assert.equal(fs.readFileSync(path.join(dataDirectory, 'backups', dailyFiles[0]), 'utf8'), baseline);
