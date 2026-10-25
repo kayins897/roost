@@ -1,12 +1,13 @@
 import { ChevronDown,Clock3,EyeOff,Heart,Pencil,Trash2,X } from 'lucide-react';
 import { useId,useRef,useState,type RefObject } from 'react';
-import { formatPlaytime,GAME_PLAY_LABELS,GAME_PLAY_STATES,GAME_TAG_KEYS,GAME_TAG_LABELS,gamePlayStateFor,gameTagsFor,legacyStatusForGameState,platformsFor } from '../../../domain/library.ts';
+import { formatPlaytime,GAME_PLAY_LABELS,GAME_TAG_KEYS,GAME_TAG_LABELS,gamePlayStateFor,gameTagsFor,platformsFor } from '../../../domain/library.ts';
 import type { ExperienceEntry,GameTagGroupKey,MediaItem,ProgressStatus } from '../../../domain/types.ts';
 import { ExperienceEditor,ExperienceList,QuickEditor } from '../../RecordEditors.tsx';
 import { GameStateIcon,Poster,StatusMark } from '../../components/MediaPrimitives.tsx';
 import { statuses } from '../../components/libraryOptions.ts';
 import { useDialogKeyboard } from '../../useDialogKeyboard.ts';
 import { GameRating } from './GameRating.tsx';
+import { GameProgressPanel } from './GameProgressPanel.tsx';
 import { PersonalWritingFields } from './PersonalWritingFields.tsx';
 import { usePersonalWriting } from './usePersonalWriting.ts';
 import './detail.css';
@@ -37,7 +38,7 @@ export function DetailPanel({ item, onClose, onEdit, onPatch, onDelete, onHide, 
         <main className="detail-personal" aria-label="个人体验">
           <div className="detail-personal-heading"><h3>我的体验</h3>{!locked && <button className="icon-button" onClick={() => onPatch({ favorite: !item.favorite })} aria-label={item.favorite ? '取消喜欢' : '标为喜欢'}><Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} /></button>}</div>
           {item.category === 'game' ? <><div className="detail-experience-summary"><div className="detail-hours"><Clock3 size={20} /><strong>{item.playtimeMinutes === undefined ? '时长未记录' : formatPlaytime(item.playtimeMinutes)}</strong>{!locked && <button className="text-button" onClick={() => openQuick('time')} aria-label="修改时长"><Pencil size={14} /></button>}</div><span className={`game-state--${state}`}><GameStateIcon state={state} size={14} />{GAME_PLAY_LABELS[state]}</span></div>
-            {!locked && <div className="detail-statuses game-state-options" aria-label="游玩状态">{GAME_PLAY_STATES.map(value => <button key={value} className={`status-option game-state-option--${value} ${state === value ? 'is-selected' : ''}`} aria-pressed={state === value} onClick={() => onPatch({ gamePlayState: value, status: legacyStatusForGameState(value) })}><GameStateIcon state={value} size={15} />{GAME_PLAY_LABELS[value]}</button>)}</div>}</> : <><StatusMark status={item.status} />{!locked && <div className="detail-statuses">{statuses.slice(1).map(value => <button key={value.id} className={`status-option ${item.status === value.id ? 'is-selected' : ''}`} onClick={() => onPatch({ status: value.id as ProgressStatus })}>{value.label}</button>)}</div>}</>}
+            <GameProgressPanel item={item} onPatch={onPatch} /></> : <><StatusMark status={item.status} />{!locked && <div className="detail-statuses">{statuses.slice(1).map(value => <button key={value.id} className={`status-option ${item.status === value.id ? 'is-selected' : ''}`} onClick={() => onPatch({ status: value.id as ProgressStatus })}>{value.label}</button>)}</div>}</>}
           {item.category === 'game' && <GameRating item={item} locked={locked} onPatch={onPatch} />}
           <PersonalWritingFields writing={writing} locked={locked} />
           {!locked && <ExperienceList item={item} onAdd={() => openExperience('new')} onEdit={openExperience} onDelete={entry => { if (window.confirm(`删除 ${entry.date} 的这条体验记录？`)) onPatch({ experienceEntries: (item.experienceEntries ?? []).filter(value => value.id !== entry.id) }); }} />}
