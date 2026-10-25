@@ -38,6 +38,8 @@ export function ContextMenu(props: Props) {
     let userScrolled = false;
     const markUser = () => { userScrolled = true; };
     const markKeys = (event: KeyboardEvent) => {
+      // 菜单内方向键只移动焦点，不能污染随后由保存引起的主区布局滚动。
+      if (panel.current?.contains(event.target as Node)) return;
       if (['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' '].includes(event.key) && !(event.target as HTMLElement)?.closest('input, textarea, select')) userScrolled = true;
     };
     const scroll = () => {
