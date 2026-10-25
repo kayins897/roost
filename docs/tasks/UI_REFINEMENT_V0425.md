@@ -29,7 +29,7 @@
 - `npm test`：212/212；`npm run desktop:build`：类型检查、前端与主进程构建通过。
 - `node scripts/verify-library-refinement.cjs`：21组、18截图通过。真实 LocalStorage / DesktopRepository+合成内存桥双模式；新增四处磨砂、原生 picker 展开/键盘、极黑极白背景下文字对比、实底降级、设置搜索焦点、设置导出原文与回收站往返零写入。
 - `node scripts/verify-window-chrome.cjs`：源码 Windows 7组通过。实际 HTML 按钮经 IPC、原生 HTCAPTION 命中及标题区双击、最小化/最大化/还原、全屏恢复、880×640、正常关闭；注入 beforeunload 验证可取消关闭，窗口操作前后合成收藏逐字不变。
-- 最终免安装成品使用 `verify-refinement-package.cjs <新鲜演示副本>`；窗口专项也对最终 EXE 重跑。最终结果与资源/ZIP一致性报告随交付提供。
+- 最终免安装成品 `verify-refinement-package.cjs <新鲜演示副本>`：9组通过，包含真实CMD独立演示、展开面板/设置/圆形按钮、分类与印象磁盘保存、关闭重启逐字读回；窗口7组专项也对最终EXE重跑通过。13项ASAR资源与5项随包文件逐字匹配，最终结果与ZIP一致性报告随交付提供。运行代码提交为 `0f50c9fa8da144c8837f1365c7e841cd3e83a029`，随后文档提交不改运行代码。
 - 非作者只读审查通过；额外隔离探针确认未受信来源和非法窗口命令均被拒绝。
 - 未实测 Windows 边缘鼠标拖拽/Snap悬停布局菜单、真实个人草稿关闭、真实500款帧率及 Steam 联网。自绘最大化按钮与 Windows 原生 Snap 悬停菜单不等价，人工验收包括 Win+Z/Win+方向键及拖动吸附。
 - 未重跑旧完整19阶段工作流；其中历史入口、分类名、版本断言需适配。本轮专项不冒充完整工作流成绩。
