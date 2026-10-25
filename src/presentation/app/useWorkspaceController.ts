@@ -70,7 +70,7 @@ export function useWorkspaceController() {
     steamOpen: false,
     metadataCandidate: (null) as MetadataCandidate | null,
     importedDraft: (null) as MediaItem | null,
-    tagManager: false,
+    tagManager: false as boolean | 'create',
     settings: false,
     menuOpen: false,
     toast: ''

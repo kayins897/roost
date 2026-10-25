@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Tag } from 'lucide-react';
+import { Check, ChevronDown, Plus, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { availableTags, GAME_TAG_KEYS, GAME_TAG_LABELS, gameTagCounts } from '../domain/library.ts';
 import type { GameTagGroupKey, GameTagGroups, MediaItem } from '../domain/types.ts';
@@ -14,6 +14,8 @@ interface Props {
   onTag: (tag: string) => void;
   onGameTag: (group: GameTagGroupKey, tag: string) => void;
   onClear: () => void;
+  onCreate?: () => void;
+  creationDisabled?: boolean;
 }
 
 export function TagFilterPanel(props: Props) {
@@ -52,6 +54,7 @@ export function TagFilterPanel(props: Props) {
     <div className="tag-panel-heading">
       <button className="tag-panel-toggle" aria-label={props.open ? '收起标签' : '展开标签'} aria-expanded={props.open} aria-controls="library-tag-filters" onClick={props.onToggle}><Tag size={15} /><strong>标签筛选</strong>{count > 0 && <span className="filter-counter">{count}</span>}<ChevronDown size={14} /></button>
       {props.open && count > 0 && <button className="reset-tags" onClick={props.onClear}>清除标签</button>}
+      {props.onCreate && <button type="button" className="button button--secondary tag-create-button" disabled={props.creationDisabled} onClick={props.onCreate}><Plus size={14} />新增标签</button>}
     </div>
     <div id="library-tag-filters" hidden={!props.open}>
       {props.game ? <div className="game-tag-filter">{GAME_TAG_KEYS.map(key => <div className={`game-filter-group tag-type--${key}`} key={key}><span className="game-filter-label">{GAME_TAG_LABELS[key]}</span>{strip(groups[key], key)}</div>)}</div> : <div className="filter-tags">{strip(tags)}</div>}

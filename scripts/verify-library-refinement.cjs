@@ -208,6 +208,29 @@ async function suite(value){await prepare(value);
  await check('Dock 收录三入口与标签整理，取消不写',async()=>{
  const before=await raw(),attempts=await saves();for(const [label,title,closeLabel] of [['手动收录','收录新作品','关闭'],['检索与导入','从来源收录','关闭'],['批量收录','批量导入作品','关闭批量导入'],['整理标签','管理标签','关闭']]){await button('收录作品').click();const hub=page.getByRole('dialog',{name:'收录作品',exact:true});assert.equal(await button('手动收录',hub).evaluate(n=>n===document.activeElement),true);await button(label,hub).click();const dialog=page.getByRole('dialog',{name:title,exact:true});await dialog.waitFor();assert.equal(await dialog.getByText('通关进度',{exact:true}).count(),0);await button(closeLabel,dialog).first().click();}await unchanged('收录入口浏览取消',before,attempts);
  });
+ await check('标签筛选常驻新增入口、直接聚焦创建、取消零写与指定作品分配',async()=>{
+ const panel=page.locator('.tag-panel'),entry=button('新增标签',panel);
+ assert.equal(await entry.count(),1);assert.equal(await entry.isEnabled(),true);
+ if(await button('收起标签',panel).count())await button('收起标签',panel).click();
+ assert.equal(await entry.isVisible(),true,'收起筛选后仍能新增标签');
+ const original=await raw(),attempts=await saves();await entry.click();let dialog=page.getByRole('dialog',{name:'新增标签',exact:true});
+ const input=dialog.getByRole('textbox',{name:'新标签',exact:true});await input.waitFor();
+ await page.waitForFunction(()=>document.activeElement===document.querySelector('.tag-assignment input'));
+ assert.ok((await dialog.locator('.tag-assignment').boundingBox()).y<(await dialog.locator('.feature-tag-search').boundingBox()).y,'创建表单优先展示');
+ await input.fill('取消不会创建的标签');await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
+ await unchanged('新增标签打开及取消不写入',original,attempts);assert.equal(await entry.evaluate(n=>n===document.activeElement),true);
+ await entry.click();dialog=page.getByRole('dialog',{name:'新增标签',exact:true});await dialog.getByRole('combobox',{name:'分组',exact:true}).selectOption('scenario');await dialog.getByRole('textbox',{name:'新标签',exact:true}).fill('周末新标签');
+ await capture('new-tag-dialog');await button('选择要添加的作品',dialog).click();await dialog.waitFor({state:'hidden'});
+ const bar=page.locator('.selection-actionbar');await bar.waitFor();await unchanged('选择分配作品前不产生空标签',original,attempts);
+ await button('选择便当纵图').click();const before=await data();await button('添加标签',bar).click();const edit=page.getByRole('dialog',{name:'添加标签',exact:true});
+ assert.equal(await edit.getByRole('combobox',{name:'标签分组',exact:true}).inputValue(),'scenario');assert.equal(await edit.getByRole('textbox',{name:'批量标签名称',exact:true}).inputValue(),'周末新标签');
+ await button('应用到 1 款',edit).click();await edit.waitFor({state:'hidden'});const after=await data();preserve(before,after,'portrait',['tags','gameTags','updatedAt']);
+ assert.deepEqual(after.items.find(i=>i.id==='portrait').gameTags.scenario,['周末新标签']);assert.ok(after.items.find(i=>i.id==='portrait').tags.includes('周末新标签'));
+ if(await button('展开标签',panel).count())await button('展开标签',panel).click();
+ const chip=panel.locator('.game-filter-group.tag-type--scenario .tag-filter').filter({hasText:'周末新标签'});assert.equal(await chip.count(),1);await capture('new-tag-filter');
+ const saved=await raw(),savedAttempts=await saves();await chip.click();assert.equal(await button('查看便当纵图详情').count(),1);assert.equal(await button('查看便当横图详情').count(),0);await button('清除标签',panel).click();await unchanged('新标签筛选不改写作品',saved,savedAttempts);
+ await button('回收站').click();assert.equal(await button('新增标签').count(),0,'回收站不提供普通库标签创建');await button('回收站').click();await showAll();
+ });
  await check('新建最终分类资格与隐藏等级草稿保护',async()=>{
  await button('收录作品').click();await button('手动收录').click();const editor=page.getByRole('dialog',{name:'收录新作品',exact:true});await editor.getByRole('textbox',{name:'作品名称',exact:false}).fill('新建搁置样例');await editor.getByRole('combobox',{name:'体验分类',exact:true}).selectOption('replayable');await editor.getByRole('combobox',{name:'通关评级',exact:true}).selectOption('SS');await editor.getByRole('combobox',{name:'游玩优先级',exact:true}).selectOption('SSS');await editor.getByRole('combobox',{name:'体验分类',exact:true}).selectOption('put-aside');await button('加入收藏',editor).click();const created=page.getByRole('dialog',{name:'新建搁置样例详情',exact:true});await created.waitFor();const saved=(await data()).items.find(i=>i.title==='新建搁置样例');assert.equal(saved.personalGrade,undefined);assert.equal(saved.playPriority,undefined);assert.equal(saved.completion,'unknown');await close(created);
  });
