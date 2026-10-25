@@ -10,18 +10,25 @@ const runDirectory = path.join(evidence, `${startedAt.replace(/[:.]/g, '-')}-${p
 const stages = [
   { id: 'unit', label: '单元测试', npm: 'test' },
   { id: 'desktop-build', label: '桌面构建', npm: 'build' },
+  { id: 'workspace', label: '收藏工作区、详情与批量操作', script: 'verify-workspace.cjs' },
+  { id: 'sort-controls', label: '双向排序、标签筛选与单行布局', script: 'verify-sort-controls.cjs' },
+  { id: 'cover-finishes', label: '同图封面反光、方向与动态降级', script: 'verify-cover-finishes.cjs' },
+  { id: 'ranks', label: '优先级与通关评级分组、折叠及手动排序', script: 'verify-ranks.cjs' },
+  { id: 'rank-controls', label: '详情、右键、表单与批量等级入口', script: 'verify-rank-controls.cjs' },
+  { id: 'detail-bento', label: '游戏主次分类与详情Bento、保存失败和响应布局', script: 'verify-detail-bento.cjs' },
+  { id: 'game-progress', label: '独立游玩关系、完成记录与精确撤销', script: 'verify-game-progress.cjs' },
+  { id: 'tag-move', label: '标签跨组移动与原文保护', script: 'verify-tag-move.cjs' },
+  { id: 'import-preview', label: '导入预览选择与去重说明', script: 'verify-import-preview.cjs' },
+  { id: 'settings', label: '设置分区与独立材质参数', script: 'verify-settings.cjs' },
+  { id: 'theme-motion', label: '主题联动、过渡与动画降级', script: 'verify-theme-motion.cjs' },
   { id: 'desktop', label: '桌面基础验收', script: 'verify-desktop.cjs', desktop: true },
-  { id: 'features', label: '桌面功能验收', script: 'verify-features.cjs', desktop: true },
-  { id: 'abandoned', label: '已放弃独立状态、批量编辑及原生重开', script: 'verify-abandoned.cjs', desktop: true },
-  { id: 'cinema', label: '当前配色、封面景深与界面验收', script: 'verify-cinema.cjs' },
+  { id: 'window-chrome', label: 'Windows透明标题区与原生窗口控件', script: 'verify-window-chrome.cjs', desktop: true },
   { id: 'ambient-desktop', label: '原生窗口背景停帧、恢复与偏好记忆', script: 'verify-ambient-desktop.cjs', desktop: true },
-  { id: 'batch-edit', label: '游戏批量编辑与保存失败保护', script: 'verify-batch-edit.cjs' },
   { id: 'steam-batch', label: 'Edge 批量导入验收', script: 'verify-steam-batch.cjs' },
   { id: 'batch-desktop', label: 'Electron 批量导入验收', script: 'verify-batch-desktop.cjs', desktop: true },
   { id: 'steam-connect', label: 'Steam 官方接口连接与重复同步验收', script: 'verify-steam-connect.cjs', desktop: true },
 ].map(stage => ({ ...stage, status: 'pending' }));
 const report = { startedAt, status: 'running', packaged: null, runDirectory, stages };
-fs.mkdirSync(runDirectory, { recursive: true });
 
 function writeReport() {
   const json = JSON.stringify(report, null, 2);
@@ -30,9 +37,10 @@ function writeReport() {
 }
 function packagedArgument() {
   const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === '--list') return null;
   if (!args.length) return null;
   if (args.length !== 2 || args[0] !== '--packaged') {
-    throw new Error('用法：node scripts/verify-workflow.cjs [--packaged <release 内已存在的 EXE>]');
+    throw new Error('用法：node scripts/verify-workflow.cjs [--list | --packaged <release 内已存在的 EXE>]');
   }
   const release = fs.realpathSync(path.join(root, 'release'));
   const executable = fs.realpathSync(path.resolve(root, args[1]));
@@ -83,6 +91,11 @@ async function runStage(stage, index) {
 }
 
 (async () => {
+  if (process.argv.length === 3 && process.argv[2] === '--list') {
+    console.log(stages.map((stage, index) => `${String(index + 1).padStart(2, '0')} ${stage.id}: ${stage.label}`).join('\n'));
+    return;
+  }
+  fs.mkdirSync(runDirectory, { recursive: true });
   try {
     report.packaged = packagedArgument();
     writeReport();

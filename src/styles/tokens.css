@@ -81,6 +81,12 @@
   --surface: #171614;
   --surface-raised: #211f1b;
   --surface-shadow: #0000004a;
+  --library-overlay-solid: color-mix(in srgb,var(--background) 94%,var(--accent));
+  --library-overlay-fill: color-mix(in srgb,var(--library-overlay-solid) max(82%,var(--action-glass-opacity,56%)),transparent);
+  --library-overlay-filter: blur(max(20px,var(--action-glass-blur,8px))) saturate(115%);
+  --library-overlay-muted: color-mix(in srgb,var(--text) 25%,var(--muted));
+  --library-hub-scrim: color-mix(in srgb,var(--background) 42%,transparent);
+  --library-hub-filter: blur(6px);
 }
 
 :root[data-theme="light"] {
@@ -159,6 +165,31 @@
   --surface: #fffcf5;
   --surface-raised: #f5f1e9;
   --surface-shadow: #62516f24;
+  --library-overlay-fill: color-mix(in srgb,var(--library-overlay-solid) max(94%,var(--action-glass-opacity,56%)),transparent);
+}
+
+/* Expanded library surfaces keep a readable floor and share the ordinary glass preference. */
+:root[data-action-glass='off'] {
+  --library-overlay-fill: var(--library-overlay-solid);
+  --library-overlay-filter: none;
+  --library-hub-scrim: var(--scrim);
+  --library-hub-filter: none;
+}
+@media(prefers-reduced-transparency:reduce) {
+  :root[data-theme] {
+    --library-overlay-fill: var(--library-overlay-solid);
+    --library-overlay-filter: none;
+    --library-hub-scrim: var(--scrim);
+    --library-hub-filter: none;
+  }
+}
+@supports not(backdrop-filter:blur(1px)) {
+  :root[data-theme] {
+    --library-overlay-fill: var(--library-overlay-solid);
+    --library-overlay-filter: none;
+    --library-hub-scrim: var(--scrim);
+    --library-hub-filter: none;
+  }
 }
 
 :is(.game-state--want,.mark-tab--want,.game-state-option--want,[data-game-state="want"]) { --play-state-color: var(--game-want); }
@@ -174,3 +205,14 @@
 :is(.game-state--abandoned,.mark-tab--abandoned,.game-state-option--abandoned,[data-game-state="abandoned"]) { --play-state-color: var(--game-abandoned); }
 
 :is(.game-state--replaying,.mark-tab--replaying,.game-state-option--replaying,[data-game-state="replaying"]) { --play-state-color: var(--game-ongoing); }
+
+/* 游戏整理分类：五种已体验分类各用独立辅助色，客观通关标记仍独立。 */
+:is(.experience-color--unplayed,[data-game-state="unplayed"]) { --play-state-color: var(--game-want); }
+:is(.experience-color--unclassified,[data-game-state="unclassified"]) { --play-state-color: var(--muted); }
+:is(.experience-color--continue,[data-game-state="continue"]) { --play-state-color: var(--game-playing); }
+:is(.experience-color--playing,[data-game-state="playing"]) { --play-state-color: #ee95a5; }
+:is(.experience-color--replayable,[data-game-state="replayable"]) { --play-state-color: var(--game-ongoing); }
+:is(.experience-color--long-term,[data-game-state="long-term"]) { --play-state-color: #bf94e8; }
+:is(.experience-color--completed,[data-game-state="completed"]) { --play-state-color: var(--game-cleared); }
+:is(.experience-color--put-aside,[data-game-state="put-aside"]) { --play-state-color: var(--game-paused); }
+[class*="experience-color--"] { color: var(--play-state-color); }

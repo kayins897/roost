@@ -1,5 +1,5 @@
 import { GAME_GRADES } from './gameRating.ts';
-import { gamePlayStateFor } from './library.ts';
+import { engagementFor } from './gameProgress.ts';
 import type { RankMode } from './gamePlanning.ts';
 import type { MediaItem } from './types.ts';
 
@@ -22,7 +22,7 @@ function compareKnown(first: number | undefined, second: number | undefined, dir
 /** Read-only derivation: missing values stay last in both directions; equal values retain input order. */
 export function sortLibraryItems(items: readonly MediaItem[], { sort, direction, rankMode = 'priority', pausedLast = false }: { sort: LibrarySort; direction: SortDirection; rankMode?: RankMode; pausedLast?: boolean }): MediaItem[] {
   return items.map((item, index) => ({ item, index })).sort((a, b) => {
-    const firstPaused = gamePlayStateFor(a.item) === 'paused', secondPaused = gamePlayStateFor(b.item) === 'paused';
+    const firstPaused = engagementFor(a.item) === 'paused', secondPaused = engagementFor(b.item) === 'paused';
     if (pausedLast && firstPaused !== secondPaused) return firstPaused ? 1 : -1;
     let difference: number;
     if (sort === 'title') {

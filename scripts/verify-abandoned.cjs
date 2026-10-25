@@ -160,9 +160,12 @@ async function exportSnapshot() {
     await launch();
     await check('新增独立状态入口，首次读取和原有暂停/待体验不改库', async () => {
       await tabs().getByRole('button', { name: '已放弃', exact: true }).waitFor();
+      // v0.4.24 默认计划视图=计划游玩+搁置（2 件）；切全部游戏后 7 件游戏齐。
+      assert.equal(await page.locator('.media-gallery .media-card').count(), 2);
+      assert.equal(await card('原有暂时搁置').locator('.card-game-state').innerText(), '搁置');
+      assert.equal(await card('原有待体验').locator('.card-game-state').innerText(), '计划');
+      await tabs().getByRole('button', { name: '全部游戏', exact: true }).click();
       assert.equal(await page.locator('.media-gallery .media-card').count(), 7);
-      assert.equal(await card('原有暂时搁置').locator('.card-game-state').innerText(), '暂时搁置');
-      assert.equal(await card('原有待体验').locator('.card-game-state').innerText(), '待体验');
       unchanged('启动浏览原始字节不变', baseline);
       assert.equal(fs.existsSync(previousFile), false);
     });

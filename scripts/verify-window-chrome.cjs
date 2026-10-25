@@ -65,6 +65,14 @@ if ($request.operation -eq 'inspect') {
  @{ action=$request.operation } | ConvertTo-Json -Compress
 }
 `;
+async function waitMaximized(expected) {
+ const deadline=Date.now()+5000;
+ while (Date.now()<deadline) {
+  if (await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()) === expected) return;
+  await new Promise(resolve=>setTimeout(resolve,50));
+ }
+ assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()),expected);
+}
 async function native(operation, more = {}) {
  const payload = Buffer.from(JSON.stringify({ handle, processId, width: await page.evaluate(() => innerWidth), operation, ...more })).toString('base64');
  const encoded = Buffer.from(nativeSource.replace('PAYLOAD', payload), 'utf16le').toString('base64');
@@ -75,7 +83,7 @@ async function capture(name) { const result = await native('capture', { output: 
 async function geometry() { return page.evaluate(() => {
  const bounds = element => { const r = element.getBoundingClientRect(); return { x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom }; };
  const overlay = navigator.windowControlsOverlay, chrome = document.querySelector('.window-chrome');
- return { width:innerWidth,height:innerHeight,overlayVisible:overlay?.visible,media:matchMedia('(display-mode: window-controls-overlay)').matches,chrome:bounds(chrome),drag:getComputedStyle(chrome).getPropertyValue('-webkit-app-region'),search:bounds(document.querySelector('.global-search')),main:bounds(document.querySelector('.main-panel')) };
+ return { customButtons:document.querySelectorAll('.window-caption-button,.window-caption-actions').length,width:innerWidth,height:innerHeight,overlayVisible:overlay?.visible,media:matchMedia('(display-mode: window-controls-overlay)').matches,chrome:bounds(chrome),drag:getComputedStyle(chrome).getPropertyValue('-webkit-app-region'),search:bounds(document.querySelector('.global-search')),main:bounds(document.querySelector('.main-panel')) };
  }); }
 (async () => { try {
  app = await electron.launch({ executablePath, args: process.argv[2] ? [] : [root], env, timeout:45000 }); page = await app.firstWindow();
@@ -84,26 +92,45 @@ async function geometry() { return page.evaluate(() => {
  await page.evaluate(() => localStorage.setItem('qiyu.background.v1', JSON.stringify({enabled:false,hue:268,paletteHue:268})));
  await page.reload(); await app.evaluate(({BrowserWindow}) => { const w=BrowserWindow.getAllWindows()[0]; w.show(); w.focus(); }); await page.bringToFront();
  await check('透明原生覆盖控件与安全拖动区，顶部搜索和操作不重叠', async () => {
-  const g=await geometry(); report.initialGeometry=g; assert.equal(g.overlayVisible,true); assert.equal(g.drag,'drag'); assert.ok(g.chrome.height>=30 && g.chrome.height<=34); assert.ok(g.chrome.width<g.width-80); assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
+  const g=await geometry(); report.initialGeometry=g; assert.equal(g.overlayVisible,true); assert.equal(g.customButtons,0); assert.ok(Math.abs(g.search.x+g.search.width/2-g.main.x-g.main.width/2)<2); assert.equal(g.drag,'drag'); assert.ok(g.chrome.height>=30 && g.chrome.height<=34); assert.ok(g.chrome.width<g.width-80); assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
   const slot=(g.width-g.chrome.width)/3, y=g.chrome.height/2;
   report.nativeHits=await native('inspect',{points:[{name:'drag',x:80,y},{name:'minimize',x:g.chrome.width+slot*.5,y},{name:'maximize',x:g.chrome.width+slot*1.5,y},{name:'close',x:g.chrome.width+slot*2.5,y}]});
   assert.equal(report.nativeHits.hits.find(x=>x.name==='drag').hit,2); await capture('native-transparent-title.png');
  });
  await check('原生标题区双击最大化与还原，安全区跟随尺寸变化', async () => {
-  await native('double',{points:[{x:80,y:16}]}); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()),true);
+  await native('double',{points:[{x:80,y:16}]}); await waitMaximized(true);
   const g=await geometry(); report.maximizedGeometry=g; assert.ok(g.search.y>=g.chrome.bottom); await capture('native-maximized.png');
-  await native('double',{points:[{x:80,y:16}]}); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMaximized()),false);
+  await native('double',{points:[{x:80,y:16}]}); await waitMaximized(false);
  });
  await check('原生最小化和还原，窗口仍允许边缘缩放', async () => {
   await native('minimize'); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMinimized()),true); await native('restore');
   await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];w.show();w.focus();w.setSize(880,640);});
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isResizable()),true);
-  const g=await geometry(); report.minimumGeometry=g; assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
+  const g=await geometry(); report.minimumGeometry=g; assert.ok(Math.abs(g.search.x+g.search.width/2-g.main.x-g.main.width/2)<2); assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
   await page.getByRole('textbox',{name:'搜索收藏',exact:true}).fill('可以输入'); assert.equal(await page.getByRole('textbox',{name:'搜索收藏',exact:true}).inputValue(),'可以输入'); await capture('native-880.png');
+ });
+ await check('原生全屏与退出恢复，搜索遵守实际覆盖控件安全区',async()=>{
+  const before=await geometry();const initialBounds=await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];globalThis.__chromeFullscreenEvents=[];w.once('enter-full-screen',()=>globalThis.__chromeFullscreenEvents.push('enter'));w.once('leave-full-screen',()=>globalThis.__chromeFullscreenEvents.push('leave'));return w.getBounds();});
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setFullScreen(true));
+  let deadline=Date.now()+5000;while(Date.now()<deadline&&!await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()))await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()),true);
+  // Electron 45 on Windows retains WCO.visible and its 32px safe area in native fullscreen.
+  // Validate the actual advertised rectangle rather than assuming fullscreen clears it.
+  const full=await geometry(),fullRect=await page.evaluate(()=>navigator.windowControlsOverlay.getTitlebarAreaRect().toJSON());report.fullscreenGeometry={...full,overlayRect:fullRect};
+  assert.equal(full.customButtons,0);assert.ok(Math.abs(full.chrome.height-fullRect.height)<1);assert.ok(full.search.y>=full.chrome.bottom);assert.ok(full.main.bottom<=full.height+1);assert.ok(Math.abs(full.search.x+full.search.width/2-full.main.x-full.main.width/2)<2);
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setFullScreen(false));
+  deadline=Date.now()+5000;while(Date.now()<deadline&&await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()))await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()),false);
+  await page.waitForFunction(({width,height})=>innerWidth===width&&innerHeight===height,{width:before.width,height:before.height});
+  const restored=await geometry();report.restoredFullscreenGeometry=restored;assert.ok(restored.search.y>=restored.chrome.bottom);assert.equal(restored.chrome.height,before.chrome.height);assert.equal(restored.main.y,before.main.y);assert.deepEqual(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds()),initialBounds);assert.deepEqual(await app.evaluate(()=>globalThis.__chromeFullscreenEvents),['enter','leave']);
  });
  await check('小窗口设置搜索及关闭可点击，弹窗避开系统控制区', async () => {
   await page.getByRole('button',{name:'数据与设置',exact:true}).click(); const d=page.getByRole('dialog',{name:'数据与设置',exact:true}); const search=d.getByRole('textbox',{name:'搜索设置',exact:true});
   const g=await geometry(), b=await search.boundingBox(); assert.ok(b.y>=g.chrome.bottom); await search.fill('粒子'); assert.equal(await search.inputValue(),'粒子'); await page.screenshot({path:path.join(output,'settings-minimum.png')}); await d.getByRole('button',{name:'关闭',exact:true}).click(); await d.waitFor({state:'hidden'});
+ });
+ await check('原生关闭尊重beforeunload取消，不强制销毁窗口',async()=>{
+  await app.evaluate(({BrowserWindow})=>{globalThis.__chromeClosePrevented=false;BrowserWindow.getAllWindows()[0].webContents.once('will-prevent-unload',()=>{globalThis.__chromeClosePrevented=true;});});
+  await page.evaluate(()=>{window.__chromeBlockClose=event=>{event.preventDefault();event.returnValue=false;};window.addEventListener('beforeunload',window.__chromeBlockClose);});await native('close');const deadline=Date.now()+5000;while(Date.now()<deadline&&!await app.evaluate(()=>globalThis.__chromeClosePrevented))await new Promise(resolve=>setTimeout(resolve,50));assert.equal(await app.evaluate(()=>globalThis.__chromeClosePrevented),true);assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().length),1);await page.evaluate(()=>window.removeEventListener('beforeunload',window.__chromeBlockClose));
  });
  await check('窗口交互不改写收藏，原生关闭正常退出', async () => {
   assert.equal(fs.readFileSync(file,'utf8'),initial); const closed=app.waitForEvent('close'); await native('close'); await closed; app=null; assert.equal(fs.readFileSync(file,'utf8'),initial);

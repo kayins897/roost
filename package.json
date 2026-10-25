@@ -1,7 +1,7 @@
 {
   "name": "qiyu-media",
   "private": true,
-  "version": "0.4.23",
+  "version": "0.4.26",
   "description": "栖域 · 个人文娱收藏",
   "author": "QIYU",
   "license": "UNLICENSED",
@@ -13,8 +13,9 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test --experimental-strip-types src/domain/*.test.ts src/infrastructure/*.test.ts desktop/*.test.ts",
     "test:desktop": "npm run desktop:build && node scripts/verify-desktop.cjs",
-    "test:features": "npm run desktop:build && node scripts/verify-features.cjs",
+    "test:features": "npm run desktop:build && node scripts/verify-workspace.cjs",
     "test:workflow": "node scripts/verify-workflow.cjs",
+    "setup:desktop": "install-electron",
     "desktop:build": "npm run build && tsc -p desktop/tsconfig.json && node scripts/build-desktop.mjs",
     "desktop": "npm run desktop:build && electron .",
     "pack": "npm run desktop:build && electron-builder --win --x64 --dir",
@@ -51,6 +52,7 @@
       "dist/**/*",
       "desktop-build/**/*",
       "build/icon.png",
+      "build/demo-library.json",
       "package.json"
     ],
     "win": {

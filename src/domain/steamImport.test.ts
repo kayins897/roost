@@ -292,3 +292,12 @@ test('来源身份严格限制协议主机板块与路径，仿域或无效链�
     }
   }
 });
+
+
+test('游戏导入明确设置独立关系与通关进度，不推算次数、日期或评级；非游戏不带游戏字段', () => {
+  const items = createSteamImportItems([{ title: '重玩合成样例', appId: '1234' }, { title: '合成电影', category: 'screen' }], 'want', 'playing', 'cleared');
+  assert.equal(items[0].playEngagement, 'playing'); assert.equal(items[0].completion, 'cleared');
+  assert.equal(items[0].completionCount, undefined); assert.equal(items[0].completionEvents, undefined);
+  assert.equal(items[0].personalGrade, undefined); assert.equal(items[0].experienceEntries, undefined);
+  assert.equal(items[1].playEngagement, undefined); assert.equal(items[1].completion, undefined); assert.equal(items[1].status, 'want');
+});

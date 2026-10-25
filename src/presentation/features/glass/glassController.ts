@@ -22,7 +22,7 @@ export function startGlassMaterials(settings: GlassSettings) {
     for (const pane of panes.values()) pane.configure(effective, animated);
   }
   function collect() {
-    for (const [host, pane] of panes) if (!host.isConnected) { pane.dispose(); panes.delete(host); }
+    for (const [host, pane] of panes) if (!host.isConnected || !host.matches(selector)) { pane.dispose(); panes.delete(host); }
     document.querySelectorAll<HTMLElement>(selector).forEach(host => {
       if (panes.has(host)) return;
       const pane = createMaterialPane(host, settings, defs);
@@ -32,9 +32,9 @@ export function startGlassMaterials(settings: GlassSettings) {
   }
   collect();
   const observer = new MutationObserver(records => {
-    if (records.some(record => [...record.addedNodes, ...record.removedNodes].some(node => node instanceof Element && (node.matches(selector) || node.querySelector(selector))))) collect();
+    if (records.some(record => record.type === 'attributes' || [...record.addedNodes, ...record.removedNodes].some(node => node instanceof Element && (node.matches(selector) || node.querySelector(selector))))) collect();
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-material-glass'] });
   function move(event: PointerEvent) {
     if (event.pointerType === 'touch') return;
     const target = event.target;

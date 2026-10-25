@@ -20,6 +20,7 @@ let app, page, failure;
 const fixtureItem = (id, title, extra = {}) => ({
   id, title, category: 'game', subcategory: 'Switch', platforms: ['Switch'], creator: '原作者', year: '2020', status: 'paused',
   gamePlayState: 'paused', playtimeMinutes: 333, tags: ['私人标签'], impression: '原有印象', favorite: true, artwork: 'default', createdAt: '2020-01-01', updatedAt: '2020-01-01',
+  experienceStatus: 'experienced', experienceCategory: 'long-term', playEngagement: 'paused', completion: 'not-cleared', completionCount: 0,
   futureData: { preserve: id }, ...extra,
 });
 const fixture = { schemaVersion: 1, futureRoot: { preserve: true }, items: [fixtureItem('existing', '已有收藏', { externalIds: [{ provider: 'steam', id: '123' }] })] };
@@ -44,6 +45,8 @@ async function launch() {
 const modal = () => page.getByRole('dialog', { name: '批量导入作品', exact: true });
 async function openPreview() {
   await page.getByRole('button', { name: '批量导入作品', exact: true }).click();
+  assert.equal(await modal().getByRole('combobox', { name: '新增游戏的体验分类', exact: true }).inputValue(), 'auto');
+  assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).inputValue(), 'unknown');
   await modal().getByRole('textbox', { name: '作品清单', exact: true }).fill(JSON.stringify(manifest));
   await modal().getByRole('button', { name: '生成预览', exact: true }).click();
   assert.match(await modal().locator('.steam-import-summary').innerText(), /2\s*件可新增/);
@@ -81,7 +84,11 @@ async function openPreview() {
       const game = updated.items.find(item => item.title === '新增Switch作品');
       assert.deepEqual(game.platforms, ['Switch', 'PS5']); assert.equal(game.subcategory, 'Switch');
       assert.deepEqual(game.gameTags, manifest.items[1].gameTags); assert.equal(game.status, 'want');
+      assert.equal(game.gamePlayState, 'want'); assert.equal(game.playEngagement, 'planned');
+      assert.equal(game.experienceStatus, undefined); assert.equal(game.experienceCategory, undefined); assert.equal(game.playtimeMinutes, undefined);
+      assert.equal(game.completion, 'unknown'); assert.equal(game.completionCount, undefined); assert.equal(game.completionEvents, undefined); assert.equal(game.experienceEntries, undefined);
       const movie = updated.items.find(item => item.title === '新增电影'); assert.equal(movie.category, 'screen'); assert.equal(movie.status, 'want'); assert.equal(movie.experienceEntries, undefined);
+      assert.equal(movie.experienceStatus, undefined); assert.equal(movie.experienceCategory, undefined); assert.equal(movie.playEngagement, undefined); assert.equal(movie.completion, undefined);
       await page.getByRole('button', { name: '查看新增Switch作品详情', exact: true }).waitFor();
       assert.equal(await page.getByRole('button', { name: '查看新增电影详情', exact: true }).count(), 0, '电影不能混入游戏板块');
       assert.equal(await page.locator('.media-gallery .media-card').count(), 3);

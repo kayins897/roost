@@ -33,7 +33,7 @@ async function serve() {
     if (!file.startsWith(dist + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { 'content-type': mime[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' }); fs.createReadStream(file).pipe(res);
   });
-  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+  await require('./test-loopback.cjs').listenLoopback(server);
   return `http://127.0.0.1:${server.address().port}`;
 }
 async function prepare(theme = 'dark', width = 1440) {

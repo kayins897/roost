@@ -221,13 +221,14 @@ export async function enrichSteamLibrary(value: unknown, options: SteamNetworkOp
   async function worker() {
     while (!options.signal?.aborted && cursor < games.length) {
       const index = cursor++; const game = games[index]; let fallbackCover: string | undefined;
-      if ((!game.creator || !game.year) && !detailsRateLimited) {
+      if ((!game.creator || !game.year || !game.originalTitle) && !detailsRateLimited) {
         try {
           const url = `https://store.steampowered.com/api/appdetails?appids=${game.appId}&l=schinese`;
           const details = parseSteamDetails(await jsonRequest(url, 'details', options), game.appId!);
           if (!game.creator) game.creator = details.creator;
           if (!game.year) game.year = details.year;
-          if (!game.originalTitle && details.title !== game.title) game.originalTitle = details.title;
+          // v0.4.24（N3-C）：来源确认的原名即使与标题相同也记录，保证补全幂等、重读不再重复请求详情。
+          if (!game.originalTitle) game.originalTitle = details.title;
           fallbackCover = details.coverSourceUrl;
         } catch (error) { if (error instanceof SteamHttpError && [401, 403, 429].includes(error.status)) detailsRateLimited = true; }
       }

@@ -1,0 +1,149 @@
+{
+  "kind": "development-baseline-validation",
+  "localDate": "2026-10-25",
+  "timezone": "Asia/Shanghai",
+  "applicationVersion": "0.4.23",
+  "baseCommit": "637e6b597984b35383fe5528b38bab5828f2f32c",
+  "testedCodeCommit": "626231c4e157274a611ce8baab5d74826d4b0338",
+  "candidateBranch": "prep/baseline-20261025",
+  "uncommittedAtTest": "B1 documentation only; runtime sources, test scripts and package match testedCodeCommit",
+  "environment": {
+    "os": "Windows x64",
+    "node": "24.19.0",
+    "npm": "11.17.0"
+  },
+  "productionSourceChanged": false,
+  "userLibraryAccessed": false,
+  "dependencySetup": {
+    "npmCiExitCode": 0,
+    "electronSetupExitCode": 0,
+    "directDownload": "timed out",
+    "cache": "isolated worktree cache, archive checked against locked Electron package checksums.json",
+    "archiveSha256": "ae53887a23bb640369c93dbd38c408a2af5c0deb86f2fa76c6c244cb444b7f47"
+  },
+  "initialFailure": {
+    "command": "npm run test:workflow",
+    "stage": "desktop",
+    "passedStages": 9,
+    "reason": "Electron runtime binary missing after npm ci; retained original failure report"
+  },
+  "workflow": {
+    "command": "npm run test:workflow",
+    "exitCode": 0,
+    "status": "passed",
+    "startedAtUtc": "2026-10-24T17:00:15.623Z",
+    "finishedAtUtc": "2026-10-24T17:05:57.912Z",
+    "unitTests": 167,
+    "stages": [
+      {
+        "id": "unit",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "desktop-build",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "workspace",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "sort-controls",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "cover-finishes",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "ranks",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "rank-controls",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "settings",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "theme-motion",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "desktop",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "window-chrome",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "ambient-desktop",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "steam-batch",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "batch-desktop",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "steam-connect",
+        "status": "passed",
+        "exitCode": 0
+      }
+    ]
+  },
+  "coverGrades": {
+    "command": "node scripts/verify-cover-grades.cjs",
+    "exitCode": 0,
+    "scope": "full",
+    "checks": 22,
+    "integrityChecks": 14,
+    "pageErrors": [],
+    "resourceErrors": []
+  },
+  "coverSmoke": {
+    "command": "node scripts/verify-cover-grades.cjs --final-smoke",
+    "exitCode": 0,
+    "scope": "final-copy-navigation-smoke",
+    "checks": 4
+  },
+  "documentation": {
+    "filesChecked": 18,
+    "missingLinks": [],
+    "privatePathOrSteamIdFindings": [],
+    "historicalLocalArtifactLinksExcluded": 105,
+    "scope": "new baselines and touched documentation; historical evidence/release links are local-only"
+  },
+  "limitations": [
+    "Steam uses synthetic mock data; no real account verification",
+    "Hosted GitHub Actions not validated",
+    "No new packaged ZIP or release validation",
+    "No real library, broad performance or screen-reader validation",
+    "Cache setup succeeded; direct network download did not"
+  ],
+  "review": {
+    "incomingScripts": "non-author b0_incoming_review, two static reviews",
+    "productDocuments": "b1_product_docs author; root independent review before cherry-pick",
+    "governance": "root author; b0_incoming_review and b1_product_docs cross-review"
+  }
+}

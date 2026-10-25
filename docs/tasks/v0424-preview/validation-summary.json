@@ -1,0 +1,267 @@
+{
+  "version": "0.4.24",
+  "status": "local-candidate-awaiting-owner-acceptance",
+  "productCommit": "07fe1ef25536a746eb56ca86afbe4a4d12acd364",
+  "verificationCommit": "19c9707e568670349b02ba64b83a102c7fd6ae78",
+  "unit": {
+    "skipped": 0,
+    "failed": 0,
+    "passed": 192
+  },
+  "workflow": {
+    "evidence": "evidence/workflow-v0424/2026-10-25T08-44-03-961Z-33376/validation.json",
+    "stages": [
+      {
+        "id": "unit",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "desktop-build",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "workspace",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "sort-controls",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "cover-finishes",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "ranks",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "rank-controls",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "game-progress",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "tag-move",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "import-preview",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "settings",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "theme-motion",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "desktop",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "window-chrome",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "ambient-desktop",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "steam-batch",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "batch-desktop",
+        "status": "passed",
+        "exitCode": 0
+      },
+      {
+        "id": "steam-connect",
+        "status": "passed",
+        "exitCode": 0
+      }
+    ],
+    "finishedAt": "2026-10-25T08:49:49.029Z",
+    "nativeStagesUsePackagedExecutable": true,
+    "status": "passed",
+    "startedAt": "2026-10-25T08:44:03.961Z"
+  },
+  "demo": {
+    "pageErrors": [],
+    "actualCmdLauncher": true,
+    "checks": [
+      {
+        "name": "真实CMD入口：窗口可见、0.4.24、独立目录及浏览零写",
+        "passed": true
+      },
+      {
+        "name": "通关后计划重玩，原通关/评级/旧轴保留；右键两等级入口",
+        "passed": true
+      },
+      {
+        "name": "60小时未通关搁置、当前关系与进度独立",
+        "passed": true
+      },
+      {
+        "name": "累计3→4→撤销3，事件原子落盘",
+        "passed": true
+      },
+      {
+        "name": "补录2023保留年份精度与未知累计",
+        "passed": true
+      },
+      {
+        "name": "无终点游戏自填累计5，默认保留不适用及评级",
+        "passed": true
+      },
+      {
+        "name": "关闭后从同一CMD入口重新启动，读回所有修改且不重播种",
+        "passed": true
+      },
+      {
+        "name": "成品缺失演示参数与损坏独立演示库均失败、不回退、不改原文",
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "evidence": "evidence/demo-package-v0424/2026-10-25T08-45-37-977Z/validation.json"
+  },
+  "assets": {
+    "source": {
+      "version": "0.4.24",
+      "commit": "07fe1ef25536a746eb56ca86afbe4a4d12acd364"
+    },
+    "external": [
+      {
+        "file": "demo-library.json",
+        "sha256": "2a7e58f767fa668ccf4c0ce484a2f8bdbb636a843d6f9492489c717592e0fc25"
+      },
+      {
+        "file": "launch-demo.ps1",
+        "sha256": "7ea0af5a648ff3396b88747b0576dbb24097a7be2c6cc340f959c8fe5c0c07e7"
+      },
+      {
+        "file": "启动演示.cmd",
+        "sha256": "172fccbe1aa39de9d33a075800f8ed6c17269efeca20e96247d36b9b96f1463a"
+      },
+      {
+        "file": "更新说明.md",
+        "sha256": "97e4c53e2a49c3b79d3b926c7f97ad69145c4351d037c08698c828252d70541b"
+      },
+      {
+        "file": "验收步骤.md",
+        "sha256": "8684b8a98b6a0c06f8b53a5b1e99ee331c3f236103641e5a444db7bcf5295805"
+      }
+    ],
+    "passed": true,
+    "archived": [
+      {
+        "file": "dist/assets/index-CnJHG2KV.css",
+        "sha256": "7e550dfc4775904b9c9699fb0089355d88961d129d16614b5a2ad760632d1ce5"
+      },
+      {
+        "file": "dist/assets/index-fU61QYKz.js",
+        "sha256": "7afa0460cc3671ed363c7468730312d140b3d71b96125be0d522cffd7c3d73d0"
+      },
+      {
+        "file": "dist/fonts/Inter-OFL.txt",
+        "sha256": "262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a"
+      },
+      {
+        "file": "dist/fonts/InterVariable.woff2",
+        "sha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3"
+      },
+      {
+        "file": "dist/fonts/NotoSansSC-OFL.txt",
+        "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+      },
+      {
+        "file": "dist/fonts/NotoSansSC-VF.ttf",
+        "sha256": "d68bafcb48a2707749396aa12bbbd833cb70401f3a9a689fd2902c7e0d295964"
+      },
+      {
+        "file": "dist/fonts/README.md",
+        "sha256": "ee285ece9eed972b425f769de19a501c1823647a9433eefc78e04efc74188460"
+      },
+      {
+        "file": "dist/fonts/sources.json",
+        "sha256": "2fcba67211898f23202b69ca2630d5eaba9bf09461b2e99ba0c966e09c853714"
+      },
+      {
+        "file": "dist/index.html",
+        "sha256": "ae6f1c5dee6506f156165e7ee1c19422f7220577106b098cbae529dfba7a77dc"
+      },
+      {
+        "file": "desktop-build/main.cjs",
+        "sha256": "3b874caf7cda2a8550b8b908f0b992fb9c9ae523ecf3bdb3df684ab2df81e9ba"
+      },
+      {
+        "file": "desktop-build/preload.cjs",
+        "sha256": "b297925298bcef06b485158b710616ba83a4044f223454de32edebd23516c9ba"
+      },
+      {
+        "file": "build/icon.png",
+        "sha256": "d8a0236f5e2d7f79204970999bb2d3c17148ff3a5ab4cc25d81ee9cc65660c4d"
+      },
+      {
+        "file": "build/demo-library.json",
+        "sha256": "2a7e58f767fa668ccf4c0ce484a2f8bdbb636a843d6f9492489c717592e0fc25"
+      }
+    ]
+  },
+  "artifact": {
+    "bytes": 173703019,
+    "filename": "Qiyu-NoInstall-0.4.24-x64.zip",
+    "sha256": "FE98A70489D60945F2D44CAD5AE89197C09C3D77EC7D6524654E1A92289F1353"
+  },
+  "independentReview": [
+    {
+      "result": "no unresolved blocking finding",
+      "testsPersonallyRun": [
+        28,
+        35
+      ],
+      "scope": "domain and import/sync",
+      "task": "review_progress_ui"
+    },
+    {
+      "result": "no unresolved blocking finding",
+      "didNotRepeatFullWorkflow": true,
+      "scope": "UI and shared controller wiring",
+      "task": "review_progress_core"
+    },
+    {
+      "result": "local acceptance candidate approved",
+      "scope": "native demo report, screenshots, launcher, asset report and independent ZIP hash",
+      "task": "review_demo_delivery"
+    }
+  ],
+  "limitations": [
+    "Steam network is mocked; no real account or API key used.",
+    "N3 selected metadata enrichment entry is withdrawn pending request ownership and binding fixes.",
+    "No real library accessed or monitored; isolation is established by controlled paths, startup validation and code review.",
+    "No main merge, tag or formal Release; owner acceptance remains pending.",
+    "This summary removes local usernames, private session logs and absolute temporary profile paths."
+  ]
+}

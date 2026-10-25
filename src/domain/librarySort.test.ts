@@ -4,7 +4,7 @@ import { defaultSortDirection, sortLibraryItems, type LibrarySort, type SortDire
 import { groupRankedGames } from './gamePlanning.ts';
 import type { MediaItem } from './types.ts';
 
-const work = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: '', creator: '', year: '', status: 'want', gamePlayState: 'want', tags: [], impression: '原文', review: '长文', favorite: false, artwork: 'default', createdAt: '', updatedAt: '', ...extra });
+const work = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: '', creator: '', year: '', status: 'want', gamePlayState: 'want', experienceStatus: 'unplayed', tags: [], impression: '原文', review: '长文', favorite: false, artwork: 'default', createdAt: '', updatedAt: '', ...extra });
 const ids = (items: MediaItem[]) => items.map(item => item.id);
 const sorted = (items: MediaItem[], sort: LibrarySort, direction: SortDirection) => ids(sortLibraryItems(items, { sort, direction }));
 
@@ -46,14 +46,14 @@ test('优先级和评级分别读取，切换方向不改变个人数据或手�
   assert.equal(JSON.stringify(items), before);
 });
 
-test('等级组升降序只改变组顺序，组内手动顺序不反转，未设置和暂停仍在末尾', () => {
+test('等级组升降序只改变组顺序，组内手动顺序不反转，旧搁置按原档且未设置末尾', () => {
   const items = [work('top', { playPriority: 'SSS' }), work('b', { playPriority: 'A', priorityOrder: 2 }), work('a', { playPriority: 'A', priorityOrder: 1 }), work('low', { playPriority: 'C' }), work('unranked'), work('paused', { gamePlayState: 'paused', status: 'paused', playPriority: 'SSS' })];
   const before = JSON.stringify(items);
   const asc = groupRankedGames(items, 'priority', true, 'asc').filter(group => group.items.length);
   const desc = groupRankedGames(items, 'priority', true, 'desc').filter(group => group.items.length);
-  assert.deepEqual(asc.map(group => group.id), ['C','A','SSS','unranked','paused']);
-  assert.deepEqual(desc.map(group => group.id), ['SSS','A','C','unranked','paused']);
-  for (const groups of [asc, desc]) assert.deepEqual(ids(groups.find(group => group.id === 'A')!.items), ['a','b']);
+  assert.deepEqual(asc.map(group => group.id), ['C','A','SSS','unranked']);
+  assert.deepEqual(desc.map(group => group.id), ['SSS','A','C','unranked']);
+  for (const groups of [asc, desc]) { assert.deepEqual(ids(groups.find(group => group.id === 'A')!.items), ['a','b']); assert.deepEqual(ids(groups.find(group => group.id === 'SSS')!.items), ['top','paused']); }
   assert.equal(JSON.stringify(items), before);
 });
 

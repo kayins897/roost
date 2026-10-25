@@ -4,43 +4,51 @@
 
 栖域（QIYU）是本地优先、以个人体验为核心的文娱收藏管理应用。一级板块：游戏、书籍、影视、音乐；游戏最优先。Windows 优先，Android 与同步后置。首要用户价值是快速统一收录、有效筛选、个人印象与体验回顾。
 
-## 当前负责人（2026-10-24 起）
+## 稳定职责与接力（2026-10-25，ADR-011）
 
-- 写入负责人：GLM-5.3（2026-10-24 接任）。前任 Agent 交付的 0.4.13/0.4.14 已原样捕获为快照提交 `5179707`（分支 `dev/0.4.15`）。
-- 经项目所有者确认，恢复**受限**多 Agent 协作：DeepSeek Harness 仅负责 `src/domain/` 与 `desktop/`（含各自 `*.test.ts`）；GLM-5.3 负责 `src/presentation/`、`src/infrastructure/`、样式、集成与发布。`src/presentation/App.tsx` 与 `src/infrastructure/repository.ts` 为 GLM-5.3 单写入者文件；契约相关文件（如 `desktop/preload.ts`）改动须协调时间片，同文件不并发写。
+- Codex 是长期技术负责人和主要集成负责人；DeepSeek Harness 是长期辅助开发者，可独立开发、测试、修复和研究有明确边界的已批准任务。Zcode/GLM 为限时任务资源，不绑定永久模块所有权。
+- ChatGPT 负责产品讨论、设计/技术方案评估和规范整理；所有者决定方向、批准重大技术决定和最终验收。按任务风险审查所有 Agent，不按模型名称推断能力。
+- Codex 不在线不使协议失效。其他 Agent 可继续 READY 任务；非作者独立评审及临时合并权限见 [WORKFLOW](WORKFLOW.md)。不自审自合，不因额度耗尽自动获得主分支或发布权限。
+- 前期源码与完整历史保留在所有者本机私密备份。迁回临时工作成果时逐文件比较，只移入缺失的功能、可移植脚本与合成验证资料，保留当前清理后的测试夹具和公开基线。
 - 历史代码由 Codex 迭代至 0.4.12，已整体纳入 Git 版本控制（完整历史与 tag `baseline-0.4.12` 保留在所有者本机私密备份；公开仓库为隐私清理后的单一基线，见 `docs/GITHUB_SETUP.md`）。
-- 多 Agent 并行写入任务同时不超过两条；恢复或调整协作前，必须先按 `docs/ARCHITECTURE.md` 与 `docs/DECISIONS.md` 的归属划分执行。
+- 每个写入任务独立分支、独立 worktree；集成工作区仅集成人写入。同一物理目录不能由多个 Agent 各自切分支。原目录未提交成果不得自动丢弃或覆盖。
+- 同时最多两条写入任务，只读审查另计。按任务指定文件、接口、依赖与禁止修改范围；`App.tsx`、`repository.ts` 及 IPC 契约各有唯一写入者，跨层修改先协调。
+- 接手入口为 [阅读指南](docs/process/README.md) 和 [任务表](docs/tasks/README.md)。未决提案、历史记录、竞品研究不等于开发授权；本轮确认先做 B0/B1，不自动授权主分支合并或发布。
+- 共享工作区有其他代理活跃时，不进行历史重写、分支删除或强制重置；历史清理在隔离克隆执行，不把私密历史、旧提交引用或本地交接日志带回公开仓库。
 
 ## 真实状态优先
 
 - 每次任务前先读当前 `README.md`、`docs/ARCHITECTURE.md`、`package.json`、`git status`，**不得假定文档里的版本是现状**。
-- 文档与代码冲突时以代码和实测结果为准，并顺手修正文档。
+- 文档与代码冲突先记录事实及批准状态，在任务授权范围内修订；不能擅自改变产品语义或用户数据。当前实现、批准需求与历史数字分开核查。
 - 未实际运行的测试必须标为「未验证」，不得用代码生成成功冒充验收通过。
 
 ## 架构红线（详见 docs/ARCHITECTURE.md）
 
-1. 依赖方向单向：`presentation → domain ← infrastructure`，`desktop` 只依赖 `domain`。禁止 UI 直接访问文件系统、`%APPDATA%`、网络或 `window.qiyuDesktop`。
+1. 依赖方向单向：`presentation → domain ← infrastructure`，`desktop` 可依赖 `domain`、共享契约与 Electron，不依赖表现层。禁止 UI 直接访问文件系统、`%APPDATA%`、网络或 `window.qiyuDesktop`。
 2. `domain` 必须是纯函数：不 import React、不 import Electron、不做 I/O、不读全局状态。
 3. 渲染进程与主进程的通信只能经**单一类型化契约模块**，禁止在 preload 里出现 `unknown` 载荷。
-4. 单个组件文件超过 ~250 行，或单个组件 `useState` 超过 ~8 个，必须拆分为 feature 模块 + reducer/hook。
+4. 单个组件文件超过 ~250 行，或单个组件 `useState` 超过 ~8 个，必须拆分为 feature 模块 + reducer/hook；不能用压缩行数或字段 reducer 冒充显式业务 action 已完成。
 5. 新增样式只能进 `src/styles/tokens.css`（变量）与对应 feature 的组件样式文件；**不得再新增 theme 覆盖层**。
-6. 数据结构或存储键变更，必须先写迁移与回滚方案，并保留旧版可读备份。
+6. 状态模型、数据结构/存储键、元数据覆盖和正式 UI 大改先有方案及批准；数据变更必须有兼容、备份与回滚设计，保留旧版可读备份。
 
 ## 数据安全红线
 
 - 收藏格式保持 `schemaVersion: 1`；启动时**不得**自动迁移、重写或规范化用户数据。
 - 任何测试、截图、验证脚本必须使用独立临时目录，**绝不读写真实 `%APPDATA%\QIYU`**。
 - 不执行未经批准的数据清除、数据库迁移、仓库公开或外部付费 API 操作。
-- 保存路径必须保留：修订号检查、同目录临时文件 + 原子替换、previous 与最近 7 份 daily 备份、导入前原文。
+- 保存保持修订检查、同目录临时文件 + 原子替换、previous / 最近 7 份 daily；整库替换和恢复保留操作前原文，批量追加细节见 DATA_COMPATIBILITY。同 schema 不等于旧程序可安全写新数据。
+- 原始私密证据和本地交接保持忽略；去敏任务/测试摘要跟踪入仓，不能只留聊天或忽略目录。测试不关闭用户实例。
 
 ## 交付要求
 
 每个改动至少附带：
 
 - 变更说明（解决了什么问题，为什么这样做）；
-- `npm test`（当前基线 122 项）与 `npm run build` 的实际结果；
+- `npm test`（当前基线 167 项）与 `npm run build` 的实际结果；
 - 涉及界面时：`npm run test:workflow` 或对应 `scripts/verify-*.cjs` 的结果与截图路径；
 - 数据风险与回退方法；
 - 更新 `CHANGELOG.md`；版本号变更时同步 `README.md`。
+
+纯文档变更检查引用、事实、批准状态、隐私和任务完整性，不重复跑无关 GUI。代码或脚本变更按影响验证，记录被测 SHA/未提交范围、环境、结果和未验证项，区分源码/成品、mock/真实网络、本轮/历史。接力使用统一模板；默认只交免安装 ZIP，构建不自动发布。
 
 提交规范：`feat:` / `fix:` / `refactor:` / `test:` / `docs:` / `chore:`，一个提交只做一件事；重构提交不得夹带行为变更。
