@@ -1,0 +1,436 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "demo-a",
+      "category": "game",
+      "title": "星海旅人",
+      "subcategory": "Steam",
+      "creator": "示例工作室",
+      "year": "2023",
+      "status": "finished",
+      "gamePlayState": "cleared",
+      "playEngagement": "playing",
+      "completion": "cleared",
+      "personalGrade": "SS",
+      "playtimeMinutes": 2760,
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "肉鸽"
+        ],
+        "theme": [
+          "科幻"
+        ],
+        "scenario": [],
+        "other": []
+      },
+      "impression": "长线游玩与曾经通关并存，分类不会清除通关事实与个人评级。",
+      "favorite": true,
+      "artwork": "default",
+      "createdAt": "2026-09-01T10:00:00.000Z",
+      "updatedAt": "2026-10-20T10:00:00.000Z",
+      "experienceStatus": "experienced",
+      "experienceCategory": "long-term"
+    },
+    {
+      "id": "demo-b",
+      "category": "game",
+      "title": "远界编年史",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2022",
+      "status": "active",
+      "gamePlayState": "playing",
+      "playEngagement": "playing",
+      "completion": "not-cleared",
+      "playtimeMinutes": 3600,
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "角色扮演"
+        ],
+        "theme": [
+          "奇幻"
+        ],
+        "scenario": [
+          "深夜长线"
+        ],
+        "other": []
+      },
+      "impression": "仍希望继续体验，当前没有完成主要内容。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-08-01T10:00:00.000Z",
+      "updatedAt": "2026-10-18T10:00:00.000Z",
+      "experienceStatus": "experienced",
+      "experienceCategory": "continue"
+    },
+    {
+      "id": "demo-c",
+      "category": "game",
+      "title": "无尽回廊",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2021",
+      "status": "active",
+      "gamePlayState": "playing",
+      "playEngagement": "playing",
+      "completion": "not-applicable",
+      "personalGrade": "S",
+      "playtimeMinutes": 2210,
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "肉鸽",
+          "策略"
+        ],
+        "theme": [
+          "黑暗"
+        ],
+        "scenario": [],
+        "other": []
+      },
+      "impression": "长期保持游玩关系，无固定通关目标也可保留个人评级。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-07-01T10:00:00.000Z",
+      "updatedAt": "2026-10-10T10:00:00.000Z",
+      "experienceStatus": "experienced",
+      "experienceCategory": "long-term"
+    },
+    {
+      "id": "demo-d",
+      "category": "game",
+      "title": "潮汐协议",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2025",
+      "status": "paused",
+      "gamePlayState": "paused",
+      "playEngagement": "paused",
+      "completion": "cleared",
+      "completionCount": 3,
+      "playtimeMinutes": 480,
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "策略"
+        ],
+        "theme": [],
+        "scenario": [
+          "朋友同乐"
+        ],
+        "other": []
+      },
+      "impression": "已经完成多次，未来仍愿意重新体验。完成次数不来自普通日志。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-06-01T10:00:00.000Z",
+      "updatedAt": "2026-09-20T10:00:00.000Z",
+      "experienceStatus": "experienced",
+      "experienceCategory": "replayable"
+    },
+    {
+      "id": "demo-e",
+      "category": "game",
+      "title": "机械花园",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2026",
+      "status": "want",
+      "gamePlayState": "want",
+      "playEngagement": "planned",
+      "playtimeMinutes": 96,
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "模拟经营"
+        ],
+        "theme": [],
+        "scenario": [],
+        "other": []
+      },
+      "impression": "主观已通关分类与明确通关记录分开，可按需要补录。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-10-22T10:00:00.000Z",
+      "updatedAt": "2026-10-22T10:00:00.000Z",
+      "experienceStatus": "experienced",
+      "experienceCategory": "completed"
+    },
+    {
+      "id": "demo-f1",
+      "category": "game",
+      "title": "雪原信标",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2025",
+      "status": "want",
+      "gamePlayState": "want",
+      "playEngagement": "planned",
+      "playPriority": "B",
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "生存"
+        ],
+        "theme": [],
+        "scenario": [],
+        "other": []
+      },
+      "impression": "",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-10-23T10:00:00.000Z",
+      "updatedAt": "2026-10-23T10:00:00.000Z",
+      "experienceStatus": "unplayed"
+    },
+    {
+      "id": "demo-f2",
+      "category": "game",
+      "title": "林中隙光",
+      "subcategory": "Switch",
+      "creator": "",
+      "year": "2023",
+      "status": "want",
+      "gamePlayState": "want",
+      "playEngagement": "planned",
+      "playPriority": "A",
+      "platforms": [
+        "Switch"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "解谜"
+        ],
+        "theme": [
+          "治愈"
+        ],
+        "scenario": [
+          "碎片时间"
+        ],
+        "other": []
+      },
+      "impression": "",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-10-21T10:00:00.000Z",
+      "updatedAt": "2026-10-21T10:00:00.000Z",
+      "experienceStatus": "unplayed"
+    },
+    {
+      "id": "demo-f3",
+      "category": "game",
+      "title": "灰烬之城",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2020",
+      "status": "want",
+      "gamePlayState": "want",
+      "playEngagement": "planned",
+      "playPriority": "A",
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "动作"
+        ],
+        "theme": [],
+        "scenario": [],
+        "other": []
+      },
+      "impression": "待体验优先级沿用六档，可通过右键或多选统一整理。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-10-19T10:00:00.000Z",
+      "updatedAt": "2026-10-19T10:00:00.000Z",
+      "experienceStatus": "unplayed"
+    },
+    {
+      "id": "demo-f4",
+      "category": "game",
+      "title": "双星彼岸",
+      "subcategory": "PS5",
+      "creator": "",
+      "year": "2024",
+      "status": "want",
+      "gamePlayState": "want",
+      "playEngagement": "planned",
+      "playPriority": "S",
+      "platforms": [
+        "PS5"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "平台跳跃"
+        ],
+        "theme": [],
+        "scenario": [],
+        "other": []
+      },
+      "impression": "",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-10-18T10:00:00.000Z",
+      "updatedAt": "2026-10-18T10:00:00.000Z",
+      "experienceStatus": "unplayed"
+    },
+    {
+      "id": "demo-g",
+      "category": "game",
+      "title": "已放弃示例",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2019",
+      "status": "paused",
+      "gamePlayState": "abandoned",
+      "playEngagement": "abandoned",
+      "playtimeMinutes": 132,
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "射击"
+        ],
+        "theme": [],
+        "scenario": [],
+        "other": []
+      },
+      "impression": "待体验优先级沿用六档，可通过右键或多选统一整理。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-05-01T10:00:00.000Z",
+      "updatedAt": "2026-05-15T10:00:00.000Z",
+      "experienceStatus": "unplayed"
+    },
+    {
+      "id": "demo-b1",
+      "category": "book",
+      "title": "演示之书",
+      "subcategory": "严肃文学",
+      "creator": "某作者",
+      "year": "2019",
+      "status": "active",
+      "tags": [
+        "文学"
+      ],
+      "impression": "非游戏板块沿用原有状态逻辑。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-10-01T10:00:00.000Z",
+      "updatedAt": "2026-10-05T10:00:00.000Z"
+    },
+    {
+      "id": "demo-v1",
+      "category": "screen",
+      "title": "演示电影",
+      "subcategory": "电影",
+      "creator": "某导演",
+      "year": "2018",
+      "status": "finished",
+      "tags": [
+        "剧情"
+      ],
+      "impression": "",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-09-15T10:00:00.000Z",
+      "updatedAt": "2026-09-15T10:00:00.000Z"
+    },
+    {
+      "id": "demo-put-aside",
+      "category": "game",
+      "title": "搁浅航线",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2022",
+      "status": "active",
+      "gamePlayState": "playing",
+      "playEngagement": "playing",
+      "completion": "not-cleared",
+      "playtimeMinutes": 3600,
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "角色扮演"
+        ],
+        "theme": [
+          "奇幻"
+        ],
+        "scenario": [
+          "深夜长线"
+        ],
+        "other": []
+      },
+      "impression": "已经体验过，决定不再继续；与待续采用不同颜色。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-08-01T10:00:00.000Z",
+      "updatedAt": "2026-10-18T10:00:00.000Z",
+      "experienceStatus": "experienced",
+      "experienceCategory": "put-aside"
+    },
+    {
+      "id": "demo-unclassified",
+      "category": "game",
+      "title": "留白档案",
+      "subcategory": "Steam",
+      "creator": "",
+      "year": "2022",
+      "status": "active",
+      "gamePlayState": "playing",
+      "playEngagement": "playing",
+      "completion": "not-cleared",
+      "platforms": [
+        "Steam"
+      ],
+      "tags": [],
+      "gameTags": {
+        "gameplay": [
+          "角色扮演"
+        ],
+        "theme": [
+          "奇幻"
+        ],
+        "scenario": [
+          "深夜长线"
+        ],
+        "other": []
+      },
+      "impression": "时长未记录，但明确已经体验；允许稍后再设置二级分类。",
+      "favorite": false,
+      "artwork": "default",
+      "createdAt": "2026-08-01T10:00:00.000Z",
+      "updatedAt": "2026-10-18T10:00:00.000Z",
+      "experienceStatus": "experienced"
+    }
+  ]
+}

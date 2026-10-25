@@ -24,7 +24,7 @@
 ## 当前验证入口与证据口径
 
 - `npm ci`；`npm run setup:desktop`；`npm test`；`npm run desktop:build`。Electron 45 的运行文件按需下载，自动化直接指定 EXE 时先执行显式安装；该脚本调用已锁定依赖自带的 `install-electron`，不启动应用。依据：[官方安装说明](https://www.electronjs.org/docs/latest/tutorial/installation#binary-download-step)。
-- `npm run test:features` 验当前工作区；`npm run test:workflow -- --list` 只列 15 阶段、不创建证据目录；`npm run test:workflow` 实际运行当前完整链，失败即停。
+- `npm run test:features` 验当前工作区；`npm run test:workflow -- --list` 只列当前 19 阶段、不创建证据目录；`npm run test:workflow` 实际运行当前完整链，失败即停。阶段清单以脚本为准，历史结果保留当时数量。
 - `node scripts/verify-cover-grades.cjs` 是工作流外的完整评级专项，修改该脚本时另验，不拿 `cover-finishes` 的定向覆盖冒充。
 - 自动化仅用临时目录/隔离上下文和合成夹具，Steam mock 与真实账号验证分开；不碰真实收藏或关闭用户实例。
 - `test:workflow -- --packaged <release内EXE>` 仅将原生阶段指向该 EXE，网页阶段仍读当前 `dist`。应称“源码网页 + 指定 EXE 原生检查”，不能称全部验 ZIP。

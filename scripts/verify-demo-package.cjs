@@ -45,7 +45,11 @@ async function closeEntry() {
   await page.close(); await browser.close().catch(() => {}); browser = null; page = null;
   await sleep(1200); // allow Chromium to release the independently scoped demo lock
 }
-async function open(title) { await button('全部游戏', page.locator('.library-views')).click(); await button(`查看${title}详情`).click(); return page.getByRole('dialog', { name: `${title}详情`, exact: true }); }
+async function showAll() {
+  const group = page.getByRole('group', { name: '按体验分类筛选', exact: true });
+  for (const name of ['待体验','已体验']) { const target = button(name, group); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+}
+async function open(title) { await showAll(); await button(`查看${title}详情`).click(); return page.getByRole('dialog', { name: `${title}详情`, exact: true }); }
 async function screenshot(name) { const target = path.join(output, name); await page.screenshot({ path: target }); report.screenshots.push(name); }
 async function startupFailure(args, expectedFile, original) {
   const child = spawn(executable, args, { cwd: bundle, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -71,17 +75,17 @@ async function startupFailure(args, expectedFile, original) {
   await check('真实CMD入口：窗口可见、0.4.24、独立目录及浏览零写', async () => {
     await launchEntry(); assert.equal(fs.readFileSync(file, 'utf8'), seed); await screenshot('01-demo-start.png');
   });
-  await check('通关后计划重玩，原通关/评级/旧轴保留；右键两等级入口', async () => {
-    await button('全部游戏', page.locator('.library-views')).click(); await button('查看星海旅人详情').click({ button: 'right' });
+  await check('明确待体验分类优先，原通关/评级/旧轴保留；右键两等级入口', async () => {
+    await showAll(); await button('查看星海旅人详情').click({ button: 'right' });
     const menu = page.getByRole('menu', { name: '星海旅人快捷编辑', exact: true });
-    await menu.getByRole('menuitemradio', { name: '计划游玩', exact: true }).click();
+    await menu.getByRole('menuitemradio', { name: '待体验', exact: true }).click();
     assert.equal(await menu.getByRole('group', { name: '待体验优先级', exact: true }).count(), 1);
     assert.equal(await menu.getByRole('group', { name: '通关评级', exact: true }).count(), 1);
     await menu.getByRole('group', { name: '待体验优先级', exact: true }).getByRole('menuitemradio', { name: 'S', exact: true }).click();
-    assert.equal(item('demo-a').playEngagement, 'planned'); assert.equal(item('demo-a').completion, 'cleared'); assert.equal(item('demo-a').personalGrade, 'SS'); assert.equal(item('demo-a').gamePlayState, 'cleared');
+    assert.equal(item('demo-a').experienceStatus, 'unplayed'); assert.equal(item('demo-a').playEngagement, 'playing'); assert.equal(item('demo-a').completion, 'cleared'); assert.equal(item('demo-a').personalGrade, 'SS'); assert.equal(item('demo-a').gamePlayState, 'cleared');
   });
-  await check('60小时未通关搁置、当前关系与进度独立', async () => {
-    const d = await open('远界编年史'); await button('暂时搁置', d).click(); assert.equal(item('demo-b').playtimeMinutes, 3600); assert.equal(item('demo-b').completion, 'not-cleared'); await button('关闭详情', d).click();
+  await check('60小时未通关已放下、体验分类与进度独立', async () => {
+    const d = await open('远界编年史'); await button('更改体验分类', d).click(); await button('已放下', d.locator('.game-state-options')).click(); assert.equal(item('demo-b').experienceCategory, 'put-aside'); assert.equal(item('demo-b').playtimeMinutes, 3600); assert.equal(item('demo-b').completion, 'not-cleared'); await button('关闭详情', d).click();
   });
   await check('累计3→4→撤销3，事件原子落盘', async () => {
     const d = await open('潮汐协议'); await button('记录一次完成', d).click(); await d.getByRole('combobox', { name: '累计次数处理', exact: true }).selectOption('increment'); await button('保存这条完成记录', d).click();
