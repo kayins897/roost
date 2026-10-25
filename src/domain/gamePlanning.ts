@@ -1,6 +1,5 @@
 import { isValidPersonalGrade } from './library.ts';
-import { experienceCategoryFor } from './gameExperience.ts';
-import { completionFor, inPlanView } from './gameProgress.ts';
+import { gradeEditable, priorityEditable } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
 import type { MediaItem } from './types.ts';
 import type { SortDirection } from './librarySort.ts';
@@ -9,7 +8,7 @@ export type RankMode = 'priority' | 'rating';
 export type RankedGameGroup = { id: string; label: string; items: MediaItem[] };
 const orderKey = (mode: RankMode) => mode === 'priority' ? 'priorityOrder' : 'ratingOrder';
 const normalGame = (item: MediaItem) => item.category === 'game' && !item.hiddenAt && !item.removedAt;
-const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? inPlanView(item) : (completionFor(item) === 'cleared' || experienceCategoryFor(item) === 'completed'));
+const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? priorityEditable(item) : gradeEditable(item));
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 function rankId(item: MediaItem, mode: RankMode): string {
   const grade = mode === 'priority' ? item.playPriority : item.personalGrade;
@@ -45,7 +44,7 @@ export function moveGameWithinRank(allItems: MediaItem[], sourceId: string, targ
   if (sources.length !== 1 || targets.length !== 1) return unchanged;
   const source = sources[0], target = targets[0];
   // 同组判定只看有效视图资格与等级档，不再比较旧单轴状态——
-  // 两款都有效通关的作品即使旧轴分别是 cleared 与 playing 也可同级移动。
+  // 两款分类资格匹配的作品即使旧轴分别是 cleared 与 playing 也可同级移动。
   if (!inRankView(source, mode) || !inRankView(target, mode) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
   const group = sortRank(allItems.filter(item => inRankView(item, mode) && rankId(item, mode) === rankId(source, mode)), mode);
   const from = group.findIndex(item => item.id === sourceId), to = group.findIndex(item => item.id === targetId);

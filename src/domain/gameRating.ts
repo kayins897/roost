@@ -1,26 +1,25 @@
 import { isValidPersonalGrade } from './library.ts';
-import { completionFor } from './gameProgress.ts';
+import { gradeEditable } from './gameProgress.ts';
 import type { MediaItem } from './types.ts';
 
 export { isValidPersonalGrade } from './library.ts';
 
-export type CoverFinish = 'standard' | 'silver' | 'gold' | 'holographic' | 'prismatic';
+export type CoverFinish = 'standard' | 'silver' | 'gold' | 'foil' | 'holographic' | 'prismatic';
 
 export const GAME_GRADES = ['SSS', 'SS', 'S', 'A', 'B', 'C'] as const;
 
 /** Presentation mapping only; it never infers or changes a personal grade. */
 export const GAME_GRADE_TIERS = {
-  SSS: { finish: 'prismatic', label: '棱彩星辉' },
-  SS: { finish: 'holographic', label: '镭射全息' },
-  S: { finish: 'gold', label: '金箔' },
-  A: { finish: 'silver', label: '银箔' },
-  B: { finish: 'standard', label: '标准' },
+  SSS: { finish: 'prismatic', label: '多彩' },
+  SS: { finish: 'holographic', label: '镭射' },
+  S: { finish: 'foil', label: '闪箔' },
+  A: { finish: 'gold', label: '烫金' },
+  B: { finish: 'silver', label: '烫银' },
   C: { finish: 'standard', label: '标准' },
 } as const satisfies Record<typeof GAME_GRADES[number], { finish: CoverFinish; label: string }>;
 
-/** Stored grades survive status/category edits; only completed games show a rated finish. */
+/** Stored grades survive category edits; only rating-eligible games show a rated finish. */
 export function coverFinishFor(item: MediaItem): CoverFinish {
-  // v0.4.24：有效通关进度为已通关或不适用均可获得评级箔面；旧轴推导的已通关同样保留。
-  if (item.category !== 'game' || (completionFor(item) !== 'cleared' && completionFor(item) !== 'not-applicable') || !isValidPersonalGrade(item.personalGrade)) return 'standard';
+  if (!gradeEditable(item) || !isValidPersonalGrade(item.personalGrade)) return 'standard';
   return GAME_GRADE_TIERS[item.personalGrade].finish;
 }

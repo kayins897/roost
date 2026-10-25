@@ -45,11 +45,14 @@ test('新字段优先与显式未确定覆盖推导；改一维不动另一维',
   assert.equal(completionFor({ ...legacyCleared, ...completionPatch('not-applicable') }), 'not-applicable');
 });
 
-test('评级与优先级资格：通关/不适用/历史评级可评；仅计划/搁置可排', () => {
-  assert.equal(gradeEditable(make({ gamePlayState: 'cleared' })), true);
-  assert.equal(gradeEditable(make({ playEngagement: 'planned', completion: 'not-applicable' })), true, '不适用可评级');
+test('评级只按新游戏+/收官完结，优先级按新作开荒/未完待续/新游戏+；旧事实不放宽', () => {
+  assert.equal(gradeEditable(make({ gamePlayState: 'cleared' })), false);
+  assert.equal(gradeEditable(make({ playEngagement: 'planned', completion: 'not-applicable' })), false, '旧不适用事实不授予资格');
   assert.equal(gradeEditable(make({ gamePlayState: 'want' })), false, '无历史评级的未通关不开放');
-  assert.equal(gradeEditable(make({ gamePlayState: 'playing', personalGrade: 'S' })), true, '历史评级保留编辑');
+  assert.equal(gradeEditable(make({ gamePlayState: 'playing', personalGrade: 'S' })), false, '历史评级保留值但不授予编辑资格');
+  for (const experienceCategory of ['replayable', 'long-term', 'completed'] as const) assert.equal(gradeEditable(make({ experienceStatus: 'experienced', experienceCategory, completion: 'unknown' })), true);
+  for (const experienceCategory of ['continue', 'replayable', 'long-term'] as const) assert.equal(priorityEditable(make({ experienceStatus: 'experienced', experienceCategory })), true);
+  assert.equal(priorityEditable(make({ experienceStatus: 'experienced', experienceCategory: 'completed', playPriority: 'A' })), false);
   assert.equal(priorityEditable(make({ gamePlayState: 'want' })), true);
   assert.equal(priorityEditable(make({ gamePlayState: 'paused' })), true);
   assert.equal(priorityEditable(make({ gamePlayState: 'playing' })), false);

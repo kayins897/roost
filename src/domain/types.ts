@@ -10,7 +10,7 @@ export type PlayEngagement = 'planned' | 'playing' | 'paused' | 'inactive' | 'ab
 export type CompletionStatus = 'unknown' | 'not-cleared' | 'cleared' | 'not-applicable';
 /** 手动体验分类优先于时长、通关事实与历史状态；缺省只读回退，不启动补写。 */
 export type GameExperienceStatus = 'unplayed' | 'experienced';
-/** 已体验下可选的单一整理分类，独立于客观通关事实与当前活动。 */
+/** 已体验下可选的单一整理分类；long-term仅作旧库兼容，读取合并为replayable。 */
 export type GameExperienceCategory = 'continue' | 'replayable' | 'long-term' | 'completed' | 'put-aside';
 /** 用户明确记录的一次完成；日期保留原始精度，缺省表示实际发生日期未知。 */
 export interface CompletionEvent {

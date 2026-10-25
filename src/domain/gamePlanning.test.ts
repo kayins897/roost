@@ -5,8 +5,8 @@ import { GAME_GRADES } from './gameRating.ts';
 import { isValidSnapshot } from './library.ts';
 import type { MediaItem } from './types.ts';
 
-// 显式待体验可规划重玩；客观已通关及正时长独立保留，可用于两套排序的共同断言。
-const item = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '', year: '', status: 'want', gamePlayState: 'want', experienceStatus: 'unplayed', completion: 'cleared', tags: ['自己的标签'], impression: '旧印象', review: '长文测评', favorite: true, artwork: 'default', playtimeMinutes: 150, createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra });
+// 新游戏+同时具备两套排序资格；客观已通关与正时长独立保留，不用于授予等级资格。
+const item = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '', year: '', status: 'want', gamePlayState: 'want', experienceStatus: 'experienced', experienceCategory: 'replayable', completion: 'cleared', tags: ['自己的标签'], impression: '旧印象', review: '长文测评', favorite: true, artwork: 'default', playtimeMinutes: 150, createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra });
 const ids = (items: MediaItem[]) => items.map(work => work.id);
 const groupIds = (items: MediaItem[], mode: RankMode, group: string) => ids(groupRankedGames(items, mode).find(entry => entry.id === group)!.items);
 
@@ -81,7 +81,7 @@ test('旧搁置按原优先级同档可排序，跨档零修改且保留未知�
   assert.equal(JSON.stringify(data), raw);
 });
 
-test('旧replaying与ongoing显式计划重玩后可排序，存储枚举仍保持原值', () => {
+test('旧replaying与ongoing显式新游戏+后可排序，存储枚举仍保持原值', () => {
   const data = [item('legacy', { status: 'active', gamePlayState: 'replaying', playEngagement: 'planned', playPriority: 'A' }), item('new', { status: 'active', gamePlayState: 'ongoing', playEngagement: 'planned', playPriority: 'A' })];
   const moved = moveGameWithinRank(data, 'new', 'legacy', 'priority');
   assert.equal(moved.changedCount, 2); assert.deepEqual(moved.items.map(work => work.gamePlayState), ['replaying', 'ongoing']);
@@ -111,8 +111,8 @@ test('重复实体编号拒绝排序，不依编号误写隐藏或其他作品',
 test('拖动只写当前分档视图成员，不改同档但不在视图中的历史等级作品', () => {
   const rating = [
     item('first', { personalGrade: 'S' }),
-    item('outside-unknown', { personalGrade: 'S', completion: 'unknown', ratingOrder: 55 }),
-    item('outside-na', { personalGrade: 'S', completion: 'not-applicable', ratingOrder: 66 }),
+    item('outside-unknown', { experienceCategory: 'continue', personalGrade: 'S', completion: 'unknown', ratingOrder: 55 }),
+    item('outside-na', { experienceCategory: 'put-aside', personalGrade: 'S', completion: 'not-applicable', ratingOrder: 66 }),
     item('last', { personalGrade: 'S', playEngagement: 'playing' }),
   ];
   const changed = moveGameWithinRank(rating, 'last', 'first', 'rating');
@@ -123,7 +123,7 @@ test('拖动只写当前分档视图成员，不改同档但不在视图中的�
   assert.equal(moveGameWithinRank(rating, 'outside-na', 'first', 'rating').changedCount, 0);
   const priority = [
     item('first', { playPriority: 'A' }),
-    item('outside', { playPriority: 'A', experienceStatus: 'experienced', playEngagement: 'playing', priorityOrder: 55 }),
+    item('outside', { playPriority: 'A', experienceStatus: 'experienced', experienceCategory: 'completed', playEngagement: 'playing', priorityOrder: 55 }),
     item('last', { playPriority: 'A' }),
   ];
   const reordered = moveGameWithinRank(priority, 'last', 'first', 'priority');

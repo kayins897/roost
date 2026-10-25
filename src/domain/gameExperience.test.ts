@@ -20,7 +20,7 @@ const make = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({
   favorite: false, artwork: 'default', createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra,
 });
 const ids = (items: MediaItem[]) => items.map(item => item.id);
-const categories: GameExperienceCategory[] = ['continue', 'replayable', 'long-term', 'completed', 'put-aside'];
+const categories: GameExperienceCategory[] = ['continue', 'replayable', 'completed', 'put-aside'];
 const classifications: GameExperienceClassification[] = ['unplayed', 'unclassified', ...categories];
 function preserveExcept(before: MediaItem, after: MediaItem, allowed: readonly string[]) {
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
@@ -38,11 +38,12 @@ const withFacts = (id: string, extra: Partial<MediaItem> = {}) => ({
   futureItem: { keep: ['未知扩展字段'] },
 });
 
-test('体验一级两值、二级五个单选与空值严格校验，标签不混同旧通关事实', () => {
+test('体验一级两值、二级四个单选与空值严格校验，旧long-term仍可读取', () => {
   assert.deepEqual(EXPERIENCE_STATUSES, ['unplayed', 'experienced']);
-  assert.deepEqual(EXPERIENCE_STATUS_LABELS, { unplayed: '待体验', experienced: '已体验' });
+  assert.deepEqual(EXPERIENCE_STATUS_LABELS, { unplayed: '新作开荒', experienced: '已体验' });
   assert.deepEqual(EXPERIENCE_CATEGORIES, categories);
-  assert.deepEqual(EXPERIENCE_CATEGORY_LABELS, { continue: '待续', replayable: '可重玩', 'long-term': '长线游玩', completed: '已通关', 'put-aside': '已放下' });
+  assert.deepEqual(EXPERIENCE_CATEGORY_LABELS, { continue: '未完待续', replayable: '新游戏+', 'long-term': '新游戏+', completed: '收官完结', 'put-aside': '暂时搁置' });
+  assert.equal(isGameExperienceCategory('long-term'), true);
   for (const value of ['unplayed', 'experienced']) assert.equal(isGameExperienceStatus(value), true);
   for (const value of categories) assert.equal(isGameExperienceCategory(value), true);
   for (const value of [undefined, null, true, 1, {}, [], '', 'playing', 'cleared', 'Experienced']) {
@@ -125,7 +126,7 @@ test('主类三种勾选组合采用OR，二级与主类/搜索/标签/平台采
   assert.equal(JSON.stringify(items), raw);
 });
 
-test('已体验可无二级或五选一；设待体验清二级，分类与通关事实完全分离', () => {
+test('已体验可无二级或四选一；设待体验清二级，分类与通关事实完全分离', () => {
   const original = withFacts('a', { experienceStatus: 'unplayed', experienceCategory: 'put-aside' });
   const before = JSON.stringify(original);
   for (const classification of classifications) {
@@ -200,7 +201,7 @@ test('schemaVersion1接受可选分类与未知扩展，拒绝未知分类枚举
   const legacy = make('legacy');
   assert.equal(isValidSnapshot({ schemaVersion: 1, futureRoot: { keep: true }, items: [{ ...legacy, futureItem: { experienceStatus: 'future' } }] }), true);
   for (const experienceStatus of [undefined, 'unplayed', 'experienced'] as const) {
-    for (const experienceCategory of [undefined, ...categories]) assert.equal(isValidSnapshot({ schemaVersion: 1, items: [make('valid', { experienceStatus, experienceCategory })] }), true, '残存二级兼容读取，不自动清理');
+    for (const experienceCategory of [undefined, ...categories, 'long-term'] as const) assert.equal(isValidSnapshot({ schemaVersion: 1, items: [make('valid', { experienceStatus, experienceCategory })] }), true, '残存二级兼容读取，不自动清理');
   }
   for (const value of [null, true, 1, {}, [], '', 'playing', 'cleared', 'future']) {
     for (const field of ['experienceStatus', 'experienceCategory']) assert.equal(isValidSnapshot({ schemaVersion: 1, items: [{ ...legacy, [field]: value }] }), false, `${field}=${JSON.stringify(value)}`);
@@ -234,7 +235,7 @@ test('真实存储适配器以内存夹具加载零写入；分类保存往返�
   assert.throws(() => repository.save(invalid), /校验失败/); assert.equal(storage.getItem('qiyu.library.v1'), saved);
 });
 
-test('Steam补资料或累计时长不覆盖手动一级/五种二级，也不采信来源分类', () => {
+test('Steam补资料或累计时长不覆盖手动一级/四种二级，也不采信来源分类', () => {
   for (const classification of classifications) {
     const original = { ...withFacts('a', { ...experienceClassificationPatch(classification), playtimeMinutes: 0 }), externalIds: [{ provider: 'steam' as const, id: '123' }] };
     const before = JSON.stringify(original), unselected = make('unselected');
@@ -297,9 +298,10 @@ test('游戏分类筛选、单件/批量分类与优先级资格不影响书籍�
   assert.equal(JSON.stringify(otherMedia), raw);
 });
 
-test('新已通关分类与客观已通关都保留评级组成员，可同档排序而不补写事实', () => {
+test('收官完结与新游戏+都保留评级组成员，仅客观已通关不再授予资格', () => {
   const items = [
     withFacts('classified', { experienceStatus: 'experienced', experienceCategory: 'completed', completion: 'unknown', playtimeMinutes: 0, personalGrade: 'S' }),
+    withFacts('new-game-plus', { experienceStatus: 'experienced', experienceCategory: 'replayable', completion: 'unknown', personalGrade: 'S' }),
     withFacts('factual', { experienceStatus: 'experienced', completion: 'cleared', personalGrade: 'S' }),
     withFacts('uncategorized', { experienceStatus: 'experienced', completion: 'unknown', personalGrade: 'S' }),
     withFacts('other-category', { experienceStatus: 'experienced', experienceCategory: 'continue', completion: 'unknown', personalGrade: 'S' }),
@@ -308,17 +310,18 @@ test('新已通关分类与客观已通关都保留评级组成员，可同档�
     withFacts('book', { category: 'book', experienceStatus: 'experienced', experienceCategory: 'completed' }),
   ];
   const raw = JSON.stringify(items), groups = groupRankedGames(items, 'rating');
-  assert.deepEqual(groups.flatMap(group => ids(group.items)), ['classified', 'factual']);
-  assert.deepEqual(ids(groups.find(group => group.id === 'S')!.items), ['classified', 'factual']);
-  const moved = moveGameWithinRank(items, 'factual', 'classified', 'rating');
+  assert.deepEqual(groups.flatMap(group => ids(group.items)), ['classified', 'new-game-plus']);
+  assert.deepEqual(ids(groups.find(group => group.id === 'S')!.items), ['classified', 'new-game-plus']);
+  const moved = moveGameWithinRank(items, 'new-game-plus', 'classified', 'rating');
   assert.equal(moved.changedCount, 2);
-  assert.deepEqual(ids(groupRankedGames(moved.items, 'rating').find(group => group.id === 'S')!.items), ['factual', 'classified']);
+  assert.deepEqual(ids(groupRankedGames(moved.items, 'rating').find(group => group.id === 'S')!.items), ['new-game-plus', 'classified']);
   assert.equal(moved.items[0].completion, 'unknown'); assert.equal(moved.items[0].completionCount, 0);
   for (let index = 0; index < items.length; index++) {
     preserveExcept(items[index], moved.items[index], ['ratingOrder']);
     if (index >= 2) assert.equal(moved.items[index], items[index]);
   }
   assert.equal(moveGameWithinRank(items, 'uncategorized', 'classified', 'rating').changedCount, 0);
+  assert.equal(moveGameWithinRank(items, 'factual', 'classified', 'rating').changedCount, 0, '历史完成与评级值保留但不开放排序');
   assert.equal(JSON.stringify(items), raw);
 });
 

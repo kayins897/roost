@@ -15,13 +15,18 @@ test('批量待体验顺带优先级，只重置本模式序号，保留通关�
   assert.equal(after.playPriority, 'SSS'); assert.equal(after.priorityOrder, undefined); assert.equal(after.ratingOrder, 2); assert.equal(after.personalGrade, 'A'); assert.equal(after.review, before.review); assert.equal(after.impression, before.impression); assert.equal(JSON.stringify(before), raw);
   assert.equal(createGameBatchEditPlan([after], ['a'], { gamePlayState: 'want', playPriority: 'SSS' }).changedCount, 0);
 });
-test('批量通关可顺带评分或显式清除，默认不覆盖原评级或优先级', () => {
-  const before = item();
+test('批量评级按当前新游戏+资格设置或清除，不由目标旧通关状态放宽', () => {
+  const before = item({ experienceStatus: 'experienced', experienceCategory: 'replayable' });
   const after = createGameBatchEditPlan([before], ['a'], { gamePlayState: 'cleared', personalGrade: 'SS' }).items[0];
   assert.equal(after.personalGrade, 'SS'); assert.equal(after.ratingOrder, undefined); assert.equal(after.playPriority, 'S'); assert.equal(after.priorityOrder, 3);
   const cleared = createGameBatchEditPlan([after], ['a'], { gamePlayState: 'cleared', personalGrade: null }).items[0]; assert.equal(cleared.personalGrade, undefined);
   const preserved = createGameBatchEditPlan([before], ['a'], { gamePlayState: 'cleared' }).items[0]; assert.equal(preserved.personalGrade, before.personalGrade); assert.equal(preserved.ratingOrder, before.ratingOrder);
-  assert.throws(() => createGameBatchEditPlan([before], ['a'], { gamePlayState: 'paused', playPriority: 'S' }), /不匹配/);
+  assert.equal(createGameBatchEditPlan([before], ['a'], { gamePlayState: 'paused', playPriority: 'SS' }).items[0].playPriority, 'SS', '新游戏+优先级不绑定旧状态');
+  const noEligibility = item({ experienceStatus: 'experienced', experienceCategory: 'put-aside' });
+  const blocked = createGameBatchEditPlan([noEligibility], ['a'], { gamePlayState: 'cleared', personalGrade: 'SS' });
+  assert.equal(blocked.items[0].personalGrade, 'A'); assert.equal(blocked.items[0].ratingOrder, 2, '旧通关目标不能绕过分类资格');
+  assert.equal(blocked.items[0].gamePlayState, 'cleared', '原显式旧状态API仍可用');
+  assert.throws(() => createGameBatchEditPlan([before], ['a'], { playPriority: 'SS', personalGrade: 'S' }), /一种等级/);
 });
 
 test('纯等级补丁按双维度资格生效，不重写状态或旧别名 (v0.4.24 语义)', () => {

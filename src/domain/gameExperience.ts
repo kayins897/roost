@@ -1,10 +1,10 @@
 import type { GameExperienceCategory, GameExperienceStatus, MediaItem } from './types.ts';
 
 export const EXPERIENCE_STATUSES: readonly GameExperienceStatus[] = ['unplayed', 'experienced'];
-export const EXPERIENCE_CATEGORIES: readonly GameExperienceCategory[] = ['continue', 'replayable', 'long-term', 'completed', 'put-aside'];
-export const EXPERIENCE_STATUS_LABELS: Record<GameExperienceStatus, string> = { unplayed: '待体验', experienced: '已体验' };
+export const EXPERIENCE_CATEGORIES: readonly GameExperienceCategory[] = ['continue', 'replayable', 'completed', 'put-aside'];
+export const EXPERIENCE_STATUS_LABELS: Record<GameExperienceStatus, string> = { unplayed: '新作开荒', experienced: '已体验' };
 export const EXPERIENCE_CATEGORY_LABELS: Record<GameExperienceCategory, string> = {
-  continue: '待续', replayable: '可重玩', 'long-term': '长线游玩', completed: '已通关', 'put-aside': '已放下',
+  continue: '未完待续', replayable: '新游戏+', 'long-term': '新游戏+', completed: '收官完结', 'put-aside': '暂时搁置',
 };
 /** 表现层映射至现有游戏语义色；领域不依赖 CSS 或具体色值。 */
 export type GameExperienceTone = 'want' | 'playing' | 'ongoing' | 'cleared' | 'paused';
@@ -18,7 +18,7 @@ export function isGameExperienceStatus(value: unknown): value is GameExperienceS
 }
 
 export function isGameExperienceCategory(value: unknown): value is GameExperienceCategory {
-  return typeof value === 'string' && EXPERIENCE_CATEGORIES.includes(value as GameExperienceCategory);
+  return value === 'long-term' || (typeof value === 'string' && EXPERIENCE_CATEGORIES.includes(value as GameExperienceCategory));
 }
 
 /** 手动一级始终优先，包括有时长/旧通关记录时明确设为待体验。
@@ -36,9 +36,10 @@ export function experienceStatusFor(item: MediaItem): GameExperienceStatus {
   return item.status === 'active' || item.status === 'finished' ? 'experienced' : 'unplayed';
 }
 
-/** 旧状态不等于用户新分类；二级只读显式值，待体验下不展示残存二级。 */
+/** 旧状态不等于用户新分类；旧长线游玩只读合并为新游戏+，不重写原记录。 */
 export function experienceCategoryFor(item: MediaItem): GameExperienceCategory | undefined {
-  return experienceStatusFor(item) === 'experienced' ? item.experienceCategory : undefined;
+  if (experienceStatusFor(item) !== 'experienced') return undefined;
+  return item.experienceCategory === 'long-term' ? 'replayable' : item.experienceCategory;
 }
 
 export type ExperienceClassificationPatch = Partial<Pick<MediaItem, 'experienceStatus' | 'experienceCategory'>>;
@@ -52,10 +53,10 @@ export function experienceStatusPatch(value: GameExperienceStatus): ExperienceCl
 /** 只改二级，不自动改变一级、通关进度或完成次数；调用方须满足已体验资格。 */
 export function experienceCategoryPatch(value: GameExperienceCategory | undefined): ExperienceClassificationPatch {
   if (value !== undefined && !isGameExperienceCategory(value)) throw new Error('不支持的已体验分类。');
-  return { experienceCategory: value };
+  return { experienceCategory: value === 'long-term' ? 'replayable' : value };
 }
 
-/** 最终分类入口：待体验，或已体验下未分类/五个二级之一。 */
+/** 最终分类入口：新作开荒，或已体验下未分类/四个二级之一；旧输入写为canonical值。 */
 export type GameExperienceClassification = GameExperienceCategory | 'unclassified' | 'unplayed';
 
 export function experienceClassificationPatch(value: GameExperienceClassification): ExperienceClassificationPatch {

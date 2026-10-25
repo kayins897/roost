@@ -148,7 +148,7 @@ export function filterLibrary(items: MediaItem[], params: FilterParams): MediaIt
     // v0.4.24 双维度筛选：当前关系（plan=计划+搁置）与通关进度独立 AND 组合。
     if (item.category === 'game') {
       if (params.gameExperienceStatuses && !params.gameExperienceStatuses.includes(experienceStatusFor(item))) return false;
-      if (params.gameExperienceCategories && !params.gameExperienceCategories.some(value => experienceCategoryFor(item) === value)) return false;
+      if (params.gameExperienceCategories && !params.gameExperienceCategories.some(value => experienceCategoryFor(item) === (value === 'long-term' ? 'replayable' : value))) return false;
       if (params.gameEngagement && params.gameEngagement !== 'all') {
         if (params.gameEngagement === 'plan') { if (!inPlanView(item)) return false; }
         else if (engagementFor(item) !== params.gameEngagement) return false;
