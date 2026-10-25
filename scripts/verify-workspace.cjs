@@ -106,7 +106,7 @@ async function suite(currentMode) {
     assert.equal(await detail().locator('[aria-label="个人体验"]').count(), 1); assert.equal(await detail().locator('[aria-label="作品资料"]').count(), 1);
     assert.equal(await detail().locator('.detail-facts').isVisible(), false); await capture('detail-personal-collapsed'); await button('展开作品资料', detail()).click();
     const geometry = await detail().boundingBox(); assert.ok(Math.abs(geometry.x + geometry.width / 2 - 720) < 8, '详情应居中');
-    const personal = await detail().locator('.detail-personal').boundingBox(), facts = await detail().locator('.detail-facts').boundingBox(); assert.ok(personal.x < facts.x && Math.abs(personal.y - facts.y) < 8);
+    const personal = await detail().locator('.detail-personal').boundingBox(), facts = await detail().locator('.detail-facts').boundingBox(); assert.ok(facts.y >= personal.y + personal.height - 1 && Math.abs(personal.x - facts.x) < 1 && Math.abs(personal.width - facts.width) < 1, '游戏资料展开后位于 Bento 下方，保持同宽');
     assert.equal(await detail().getByText('发行年份', { exact: true }).count(), 1); assert.equal(await detail().getByText('收录日期', { exact: true }).count(), 1);
     await layout('desktop-detail'); await capture('central-detail'); await unchanged('打开双栏详情不写库', baseline);
   });
@@ -227,7 +227,9 @@ async function writingSuite(currentMode) {
     assert.equal(await detail().locator('.detail-facts').isVisible(), false);
     const buttons = await detail().locator('.detail-statuses button').evaluateAll(els => els.map(el => ({ width: el.clientWidth, height: el.clientHeight })));
     assert.ok(buttons.every(value => value.width < 150 && value.height <= 34));
+    await button('展开长文测评', detail()).click();
     await short().fill('短句保留尾空白  '); await review().fill('第一段长文\n星河独有词\n尾空白  ');
+    await button('更改当前游玩关系', detail()).click();
     await button('游玩中', detail()).click(); assert.equal(await review().inputValue(), '第一段长文\n星河独有词\n尾空白  ');
     await button('保存感受', detail()).click(); assert.equal(byId(await data(),'a').review, '第一段长文\n星河独有词\n尾空白  ');
     assert.equal(byId(await data(),'a').impression,'短句保留尾空白  '); await capture('writing-split'); await button('关闭详情', detail()).click();
@@ -236,11 +238,12 @@ async function writingSuite(currentMode) {
   await check('80个emoji有效，81字阻止关闭且原文不变，长测评不被短印象上限限制', async () => {
     await button('查看旅程 A详情').click(); const before=await raw(); await short().fill('😀'.repeat(81)); await button('关闭详情',detail()).click();
     assert.equal(await detail().isVisible(),true); assert.equal(await short().getAttribute('aria-invalid'),'true'); assert.equal(await short().inputValue(),'😀'.repeat(81)); await unchanged('超限不截断不写库',before);
+    await button('展开长文测评', detail()).click();
     await short().fill('😀'.repeat(80)); await review().fill('长测评\n'.repeat(2500)); await button('关闭详情',detail()).click();
     assert.equal(byId(await data(),'a').impression,'😀'.repeat(80)); assert.equal(byId(await data(),'a').review,'长测评\n'.repeat(2500));
   });
   await check('两份感受保存失败同时留存并阻止关闭，重试仅改目标记录', async () => {
-    await button('查看旅程 A详情').click(); await short().fill('失败后的短印象'); await review().fill('失败后的测评\r\n全文'); const before=await raw();
+    await button('查看旅程 A详情').click(); await button('展开长文测评', detail()).click(); await short().fill('失败后的短印象'); await review().fill('失败后的测评\r\n全文'); const before=await raw();
     await page.evaluate(()=>window.__workspaceFail=true); await button('关闭详情',detail()).click(); assert.equal(await detail().isVisible(),true);
     assert.equal(await short().inputValue(),'失败后的短印象'); assert.equal(await review().inputValue(),'失败后的测评\n全文'); await unchanged('感受失败保持收藏原文',before); await capture('writing-save-failed');
     await page.evaluate(()=>window.__workspaceFail=false); await button('关闭详情',detail()).click(); assert.equal(byId(await data(),'a').review,'失败后的测评\n全文');
@@ -251,7 +254,7 @@ async function writingSuite(currentMode) {
   await page.evaluate(({key,legacy,existing})=>{const value=JSON.parse(localStorage.getItem(key));value.items.find(item=>item.id==='a').impression=legacy;value.items.find(item=>item.id==='a').review=existing;localStorage.setItem(key,JSON.stringify(value));}, {key:currentMode==='bridge'?'qiyu.test.workspace.library':'qiyu.library.v1',legacy,existing});
   await page.reload(); await all();
   await check('旧长文和已有测评完整展示，资料折叠及未编辑关闭零写入', async()=>{
-    const before=await raw(); await button('查看旅程 A详情').click(); assert.equal(await short().inputValue(),''); assert.equal(await review().inputValue(),(legacy+'\n\n'+existing).replaceAll('\r\n','\n'));
+    const before=await raw(); await button('查看旅程 A详情').click(); await button('展开长文测评', detail()).click(); assert.equal(await short().inputValue(),''); assert.equal(await review().inputValue(),(legacy+'\n\n'+existing).replaceAll('\r\n','\n'));
     await button('展开作品资料',detail()).click(); await layout('legacy-facts-open'); await capture('legacy-facts-open'); await button('收起作品资料',detail()).click();
     assert.equal(await detail().locator('.detail-facts').isVisible(),false); await button('关闭详情',detail()).click(); await unchanged('旧长文浏览不拆分',before);
   });

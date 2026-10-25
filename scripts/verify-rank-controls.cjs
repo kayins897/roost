@@ -50,6 +50,7 @@ async function suite(currentMode) {
   await button('查看可见 Alpha详情').click(); const detail = dialog('可见 Alpha详情');
   const writing = detail.getByRole('textbox', { name:'一句话印象', exact:true }); await writing.fill('状态更新仍保留我的草稿');
   // a 为 want（计划游玩）：优先级入口经右键（本检查稍后），先在详情把通关进度改为已通关。
+  await button('更改通关进度', detail).click();
   await detail.locator('.completion-options').getByRole('button', { name:'已通关', exact:true }).click();
   assert.equal((await item('a')).completion, 'cleared'); assert.equal(await writing.inputValue(), '状态更新仍保留我的草稿');
   await detail.getByRole('combobox', { name:'我的评级', exact:true }).selectOption('SS');

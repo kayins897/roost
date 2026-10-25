@@ -53,7 +53,9 @@ async function suite(currentMode) {
     const detail = await open('both-a');
     assert.equal(await detail.getByRole('combobox', { name: '待体验优先级', exact: true }).inputValue(), 'A');
     assert.equal(await detail.getByRole('combobox', { name: '我的评级', exact: true }).inputValue(), 'S');
+    await button('更改当前游玩关系', detail).click();
     await detail.locator('.game-state-options').getByRole('button', { name: '计划游玩', exact: true }).click();
+    await button('更改通关进度', detail).click();
     await detail.locator('.completion-options').getByRole('button', { name: '已通关', exact: true }).click();
     await close(detail); assert.equal(JSON.stringify(await data()), before);
     assert.equal(await page.evaluate(() => window.__progressAttempts.length), 0);
