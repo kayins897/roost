@@ -128,6 +128,13 @@ async function exportSnapshot(name) {
   assert.equal(exported.items.find(item => item.id === 'legacy-game').originalTitle, 'Original From Backup');
   assertGamePlanningFields(exported.items.find(item => item.id === 'legacy-game'));
   checks.push('旧版备份导入→分钟记录编辑→原名、独立优先级/评级/顺序/长文保留→原生导出');
+  assert.equal(exported.items.find(item => item.id === 'legacy-game').experienceCategory, 'long-term');
+  await app.close(); app = null; await launch();
+  assert.equal(snapshot().items.find(item => item.id === 'legacy-game').experienceStatus, 'experienced');
+  assert.equal(snapshot().items.find(item => item.id === 'legacy-game').experienceCategory, 'long-term');
+  assert.equal(await page.getByRole('button', { name: '查看分钟记录游戏详情', exact: true }).getAttribute('data-game-state'), 'long-term');
+  checks.push('原生完整重启后长线分类与旧通关事实同时保留');
+
 
   await page.getByRole('navigation', { name: '作品分类' }).getByRole('button', { name: /游戏/ }).click();
   await showAll();

@@ -15,6 +15,7 @@ const stages = [
   { id: 'cover-finishes', label: '同图封面反光、方向与动态降级', script: 'verify-cover-finishes.cjs' },
   { id: 'ranks', label: '优先级与通关评级分组、折叠及手动排序', script: 'verify-ranks.cjs' },
   { id: 'rank-controls', label: '详情、右键、表单与批量等级入口', script: 'verify-rank-controls.cjs' },
+  { id: 'detail-bento', label: '游戏主次分类与详情Bento、保存失败和响应布局', script: 'verify-detail-bento.cjs' },
   { id: 'game-progress', label: '独立游玩关系、完成记录与精确撤销', script: 'verify-game-progress.cjs' },
   { id: 'tag-move', label: '标签跨组移动与原文保护', script: 'verify-tag-move.cjs' },
   { id: 'import-preview', label: '导入预览选择与去重说明', script: 'verify-import-preview.cjs' },

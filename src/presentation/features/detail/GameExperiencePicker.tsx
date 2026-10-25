@@ -10,15 +10,16 @@ interface Props<T extends string> {
   className: string;
   tone?: string;
   locked: boolean;
+  isCurrentExplicit?: boolean;
   onChange: (value: T) => boolean;
 }
 
 /** A local disclosure: selecting saves through the existing patch action. */
-export function GameExperiencePicker<T extends string>({ label, value, currentLabel, options, labels, className, tone, locked, onChange }: Props<T>) {
+export function GameExperiencePicker<T extends string>({ label, value, currentLabel, options, labels, className, tone, locked, isCurrentExplicit = true, onChange }: Props<T>) {
   const [open, setOpen] = useState(false), [error, setError] = useState('');
   const id = useId(), trigger = useRef<HTMLButtonElement>(null);
   function choose(next: T) {
-    if (next !== value && !onChange(next)) { setError('未能保存，请重试。'); return; }
+    if ((next !== value || !isCurrentExplicit) && !onChange(next)) { setError('未能保存，请重试。'); return; }
     setError(''); setOpen(false); trigger.current?.focus();
   }
   return <div className={`experience-picker ${className}`} onKeyDown={event => {

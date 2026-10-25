@@ -62,7 +62,7 @@ export function ContextMenu(props: Props) {
   // 双维度保存统一按结果处理：失败留在原位可重试，成功保持打开（等级行随资格重算出现/消失）。
   // 同值幂等按有效值比较——已是该关系/进度时点击不写库。
   const pickClassification = (value: GameExperienceClassification) => {
-    if (classificationFor(item) !== value && !props.onClassification(value)) return;
+    if ((classificationFor(item) !== value || item.experienceStatus === undefined) && !props.onClassification(value)) return;
   };
   const pickCompletion = (value: CompletionStatus) => {
     if (completionFor(item) !== value && !props.onCompletion(value)) return;

@@ -2,7 +2,7 @@ import { Heart, Pencil, Plus, RotateCcw } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { COMPLETION_LABELS, COMPLETION_STATUSES, completionFor, completionCountFor, undoCompletionRecord, type CompletionRecordUndo } from '../../../domain/gameProgress.ts';
 import type { MediaItem } from '../../../domain/types.ts';
-import { formatPlaytime } from '../../../domain/library.ts';
+import { formatPlaytime, GAME_PLAY_LABELS } from '../../../domain/library.ts';
 import { CompletionCountEditor } from './CompletionCountEditor.tsx';
 import { CompletionEvents } from './CompletionEvents.tsx';
 import { CompletionRecordForm } from './CompletionRecordForm.tsx';
@@ -29,7 +29,8 @@ export function GameProgressPanel({ item, onPatch, onEditTime, footprint }: { it
   return <>
     <section className="detail-bento-card bento-experience" aria-label="我的体验">
       <div className="detail-personal-heading"><h3>我的体验</h3>{!locked && <button className="icon-button" onClick={() => onPatch({ favorite: !item.favorite })} aria-label={item.favorite ? '取消喜欢' : '标为喜欢'}><Heart size={17} fill={item.favorite ? 'currentColor' : 'none'} /></button>}</div>
-      <GameExperiencePicker label="体验分类" value={classification} currentLabel={CLASSIFICATION_LABELS[classification]} options={CLASSIFICATIONS} labels={CLASSIFICATION_LABELS} className="engagement-picker" tone={`experience-color--${classification}`} locked={locked} onChange={value => onPatch(experienceClassificationPatch(value))} />
+      <GameExperiencePicker label="体验分类" isCurrentExplicit={item.experienceStatus !== undefined} value={classification} currentLabel={CLASSIFICATION_LABELS[classification]} options={CLASSIFICATIONS} labels={CLASSIFICATION_LABELS} className="engagement-picker" tone={`experience-color--${classification}`} locked={locked} onChange={value => onPatch(experienceClassificationPatch(value))} />
+      {item.experienceStatus === undefined && item.gamePlayState !== undefined && <p className="feature-help legacy-classification-note">旧分类：{GAME_PLAY_LABELS[item.gamePlayState]}。选择新分类后保留原始记录，不自动改写。</p>}
       <GameExperiencePicker label="通关进度" value={completion} currentLabel={COMPLETION_LABELS[completion]} options={COMPLETION_STATUSES} labels={COMPLETION_LABELS} className="completion-picker" tone={completion === 'cleared' ? 'game-state--cleared' : ''} locked={locked} onChange={value => onPatch({ completion: value })} />
       <div className="bento-ratings"><GameRating item={item} locked={locked} onPatch={onPatch} /></div>
     </section>

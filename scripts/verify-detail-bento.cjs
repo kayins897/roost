@@ -202,6 +202,7 @@ async function visualSuite(viewport) {
       if (id === 'portrait') {
         const impression = detail.locator('.bento-impression'), footprint = detail.locator('.bento-footprint');
         const a = await impression.boundingBox(), aFoot = await footprint.boundingBox();
+        if (viewport.width > 620) assert.ok(a.width > aFoot.width, '下方一句话印象比体验足迹更宽');
         const input = detail.getByRole('textbox', { name: '一句话印象', exact: true });
         await input.fill('输入后出现保存按钮'); await button('保存感受', detail).waitFor();
         const b = await impression.boundingBox(), bFoot = await footprint.boundingBox();
@@ -364,6 +365,19 @@ async function classificationSuite(currentMode) {
     for (const original of before.items) { const next = after.items.find(item => item.id === original.id); for (const field of Object.keys(original)) if (!['experienceStatus','experienceCategory','updatedAt'].includes(field)) assert.deepEqual(next[field], original[field], `${original.id}.${field}`); }
     assert.equal(await page.locator('.media-card.is-chosen').count(), 2); await button('退出多选').click();
   });
+  await check('折叠高级筛选仍显示客观条件，清除恢复结果；印象不随完成表单拉伸', async () => {
+    await showAll(); const toggle = button('筛选'); await toggle.click();
+    await button('明确未通关', page.locator('.completion-row')).click(); await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false'); assert.match(await toggle.innerText(), /1/);
+    const summary = page.getByLabel('当前启用的高级筛选', { exact: true }); assert.match(await summary.innerText(), /通关事实：明确未通关/);
+    await summary.getByRole('button', { name: /通关事实：/ }).click(); assert.equal(await summary.count(), 0); assert.equal(await page.locator('.media-card').count(), 4);
+    await toggle.click(); await button('明确未通关', page.locator('.completion-row')).click(); await toggle.click();
+    await button('全部清除', summary).click(); assert.equal(await summary.count(), 0); assert.equal(await page.locator('.media-card').count(), 4);
+    const detail = await open('portrait'), before = await detail.locator('.bento-impression').boundingBox();
+    await button('记录一次完成', detail).click(); const after = await detail.locator('.bento-impression').boundingBox();
+    assert.ok(Math.abs(before.height - after.height) <= 1, '完成表单不拉伸印象卡片');
+    await detail.locator('.completion-record-form').getByRole('button', { name: '取消', exact: true }).click(); await close(detail);
+  });
   await check('新增直接最终分类、刷新持久化、已通关二级未记录事实不丢卡', async () => {
     await button('收录作品').first().click(); const editor = page.getByRole('dialog', { name: '收录新作品', exact: true });
     await editor.getByRole('textbox', { name: '作品名称', exact: false }).fill('分类直达样例');
@@ -373,7 +387,8 @@ async function classificationSuite(currentMode) {
     assert.equal(saved.experienceStatus, 'experienced'); assert.equal(saved.experienceCategory, 'completed'); assert.equal(saved.completion, 'unknown'); assert.equal(saved.completionCount, undefined);
     await page.reload(); await showAll(); const before = await raw(), attempts = await saves();
     await button('待体验', filters()).click(); const categories = page.getByRole('group', { name: '已体验二级筛选', exact: true }); await button('已通关', categories).click();
-    assert.equal(await button('查看分类直达样例详情').count(), 1); await button('未分类', categories).click(); assert.equal(await button('查看便当无封面未知值详情').count(), 1);
+    assert.equal(await button('查看分类直达样例详情').count(), 1);
+    assert.equal(await page.getByRole('combobox', { name: '排序方式', exact: true }).locator('option:checked').innerText(), '评级'); await button('未分类', categories).click(); assert.equal(await button('查看便当无封面未知值详情').count(), 1);
     await unchanged('重载和二级筛选只读', before, attempts); await showAll(); await capture('classification-library');
     const preview = await open('portrait'); await capture('classification-detail'); await close(preview);
   });
