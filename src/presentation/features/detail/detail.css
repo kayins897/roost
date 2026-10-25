@@ -37,3 +37,100 @@
 @media(max-width:700px) { .detail-dialog-backdrop { padding: 12px; }:root[data-theme] .detail-dialog { max-height: calc(100dvh - 24px); border-radius: 16px; }.detail-dialog--facts-open .detail-columns { grid-template-columns: minmax(0,1fr); }.detail-personal,.detail-facts { padding: 22px; }.detail-dialog-heading { padding: 20px 22px; }.detail-facts { border-left: 0; border-top: 1px solid var(--line); }.detail-dialog-heading { flex-wrap: wrap; gap: 10px; }.detail-heading-actions { width: 100%; justify-content: space-between; }.detail-dialog-heading h2 { font-size: 21px; }.detail-dialog .detail-review-input { min-height: 210px; } }
 
 @media(pointer:coarse) { .detail-dialog .detail-statuses .status-option { min-height: 40px; padding: 10px 12px; } }
+
+/* Game-only Bento layout; other media and library cover materials stay unchanged. */
+:root[data-theme] .detail-dialog[data-category='game'] { width: min(1080px,100%); }
+.detail-dialog[data-category='game'] .detail-columns { grid-template-columns: minmax(0,1fr); }
+.detail-personal.detail-bento { display: grid; grid-template-columns: minmax(0,.88fr) minmax(0,1.12fr); grid-template-areas: 'cover experience' 'cover stats' 'impression footprint' 'review review'; gap: 14px; padding: 22px; align-items: stretch; }
+.detail-bento-card { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb,var(--surface-raised) 65%,var(--surface)); }
+.bento-cover { grid-area: cover; position: relative; min-height: 420px; padding: 0; overflow: hidden; background: var(--field); }
+.bento-cover .poster { position: absolute; inset: 0; width: 100%; height: 100%; background: var(--field); box-shadow: none; }
+.bento-cover .poster-image { width: 100%; height: 100%; object-fit: contain; transform: none; }
+.bento-cover-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); }
+.bento-cover-placeholder > span { font-size: 72px; font-weight: 500; opacity: .23; }
+.bento-cover-placeholder small { font-size: 12px; }
+.bento-experience { grid-area: experience; }
+.bento-experience .detail-personal-heading { margin-bottom: 14px; }
+.bento-experience .detail-personal-heading .icon-button { color: var(--muted); }
+.bento-experience .detail-personal-heading .icon-button[aria-label='取消喜欢'] { color: var(--purple); }
+.experience-current { width: 100%; display: flex; align-items: center; gap: 10px; padding: 0; text-align: left; color: var(--text); }
+.experience-current-label { color: var(--muted); font-size: 11px; font-weight: 400; }
+.experience-current > svg { margin-left: auto; color: var(--muted); transition: transform .16s; flex: 0 0 auto; }
+.experience-current[aria-expanded='true'] > svg { transform: rotate(180deg); }
+.experience-current:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 4px; }
+.engagement-picker .experience-current { flex-wrap: wrap; gap: 7px 12px; padding-bottom: 15px; }
+.engagement-picker .experience-current-label { flex-basis: 100%; }
+.engagement-picker .experience-current strong { color: var(--play-state-color,var(--text)); font-size: clamp(25px,2.4vw,30px); line-height: 1.35; font-weight: 600; letter-spacing: -.03em; }
+.completion-picker { padding-top: 12px; border-top: 1px solid var(--line); }
+.completion-picker .experience-current strong { color: var(--play-state-color,var(--text)); font-size: 13px; font-weight: 500; }
+.detail-dialog .experience-picker .detail-statuses { margin: 10px 0 14px; gap: 6px; }
+.experience-picker .detail-statuses[hidden] { display: none; }
+.detail-dialog .experience-picker .status-option { min-height: 32px; padding: 6px 9px; background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.detail-dialog .experience-picker .status-option.is-selected { color: var(--text); background: var(--accent-soft); border-color: var(--accent-line); outline: none; }
+.bento-ratings { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.bento-ratings > :is(.game-priority,.game-rating) { padding: 14px 0 0; margin: 14px 0 0; border: 0; border-top: 1px solid var(--line); min-width: 0; }
+.bento-ratings > section:only-child { grid-column: 1 / -1; }
+.bento-ratings :is(.game-priority h3,.rating-heading) { margin-bottom: 8px; }
+.bento-ratings h3 { font-size: 11px; font-weight: 500; color: var(--muted); }
+.bento-ratings h3 > svg,.bento-ratings .rating-finish { display: none; }
+.bento-ratings .rating-input-row { gap: 6px; }
+.bento-ratings .rating-input-row select { width: 100%; min-width: 0; padding: 6px 10px; font-size: 12px; }
+.bento-ratings .rating-help { font-size: 10px; line-height: 1.6; }
+.bento-ratings > .form-error { grid-column: 1 / -1; }
+.bento-stats { grid-area: stats; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; min-width: 0; }
+.bento-stat { min-height: 126px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+.bento-stat-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bento-stat-heading h3 { font-size: 12px; font-weight: 400; color: var(--muted); }
+.bento-stat-heading .text-button { padding: 0; color: var(--muted); }
+.bento-stat-value { font-size: clamp(23px,2.4vw,30px); font-weight: 600; line-height: 1.2; letter-spacing: -.035em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bento-stat-value small { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+.bento-stat-caption { color: var(--muted); font-size: 10px; }
+.bento-stat .completion-count-edit { width: 100%; min-width: 0; }
+.bento-stat .completion-count-edit input { width: min(88px,100%); min-width: 0; }
+.bento-impression { grid-area: impression; align-self: start; min-height: 204px; margin: 0; display: flex; flex-direction: column; }
+.bento-impression .detail-writing-heading label { font-size: 13px; }
+.detail-dialog .bento-impression .detail-one-line { border: 0; border-radius: 8px; padding: 14px 0; background: transparent; min-height: 58px; font-size: 15px; }
+.detail-dialog .bento-impression .detail-one-line:focus-visible { outline-offset: 3px; }
+.bento-writing-message { min-height: 28px; font-size: 11px; }
+.bento-writing-message .form-error { margin: 0; }
+.bento-impression .detail-writing-footer { margin-top: auto; min-height: 34px; flex-wrap: nowrap; gap: 6px; }
+.bento-impression .detail-writing-footer > span { font-size: 10px; }
+.bento-impression .detail-writing-footer .button { padding: 7px 9px; min-height: 32px; font-size: 11px; white-space: nowrap; }
+.bento-footprint { grid-area: footprint; display: flex; flex-direction: column; gap: 14px; }
+.bento-footprint-history { max-height: 230px; overflow: auto; scrollbar-width: thin; }
+.bento-footprint .detail-section { padding: 0; margin: 0; border: 0; }
+.bento-footprint .section-heading { margin-bottom: 14px; gap: 8px; }
+.bento-footprint .section-heading h3 { font-size: 13px; }
+.bento-footprint .time-edit-link { font-size: 11px; white-space: nowrap; }
+.bento-footprint .detail-placeholder { font-size: 12px; margin: 18px 0; }
+.bento-footprint .experience-entry { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.bento-footprint .experience-entry > div { flex-wrap: wrap; }
+.bento-footprint .experience-entry :is(p,small) { overflow-wrap: anywhere; }
+.bento-footprint .completion-actions { margin-top: auto; }
+.bento-footprint .completion-actions .button { padding: 7px 10px; min-height: 32px; font-size: 11px; }
+.bento-footprint .completion-record-form { min-width: 0; padding: 12px; }
+.bento-footprint :is(input,select,textarea) { max-width: 100%; min-width: 0; }
+.bento-review { grid-area: review; padding: 0; }
+.bento-review-toggle { width: 100%; display: flex; align-items: center; gap: 14px; padding: 19px 20px; color: var(--text); text-align: left; }
+.bento-review-toggle > span { font-size: 13px; font-weight: 600; }
+.bento-review-toggle > small { margin-left: auto; color: var(--muted); font-size: 11px; }
+.bento-review-toggle[aria-expanded='true'] > svg { transform: rotate(180deg); }
+.bento-review-body { padding: 0 20px 20px; }
+.bento-review-body[hidden] { display: none; }
+.detail-dialog .bento-review .detail-review-input { min-height: 200px; }
+.detail-dialog[data-category='game'] .detail-facts { border-left: 0; border-top: 1px solid var(--line); background: transparent; }
+@media(max-width:900px) {
+  .detail-personal.detail-bento { padding: 18px; gap: 12px; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); }
+  .detail-bento-card { padding: 16px; border-radius: 14px; }
+  .bento-cover,.bento-review { padding: 0; }
+  .bento-cover { min-height: 360px; }
+  .bento-stats { gap: 12px; }.bento-stat { padding: 14px; }
+  .bento-ratings { gap: 10px; }
+}
+@media(max-width:620px) {
+  .detail-personal.detail-bento { grid-template-columns: minmax(0,1fr); grid-template-areas: 'cover' 'experience' 'stats' 'impression' 'footprint' 'review'; padding: 14px; }
+  .bento-cover { min-height: 300px; height: 42dvh; max-height: 380px; }
+  .bento-stat { min-height: 130px; }.bento-impression { min-height: 200px; }
+  .bento-footprint-history { max-height: 260px; }
+  .bento-review-toggle { padding: 17px 16px; }.bento-review-body { padding: 0 16px 16px; }
+}

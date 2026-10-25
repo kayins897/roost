@@ -1,13 +1,17 @@
-import { Pencil, Plus, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { Heart, Pencil, Plus, RotateCcw } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { COMPLETION_LABELS, COMPLETION_STATUSES, completionFor, completionCountFor, engagementFor, ENGAGEMENT_LABELS, PLAY_ENGAGEMENTS, undoCompletionRecord, type CompletionRecordUndo } from '../../../domain/gameProgress.ts';
 import type { MediaItem } from '../../../domain/types.ts';
+import { formatPlaytime } from '../../../domain/library.ts';
 import { CompletionCountEditor } from './CompletionCountEditor.tsx';
 import { CompletionEvents } from './CompletionEvents.tsx';
 import { CompletionRecordForm } from './CompletionRecordForm.tsx';
+import { GameExperiencePicker } from './GameExperiencePicker.tsx';
+import { GameRating } from './GameRating.tsx';
+import { engagementIcon } from '../library/gameVisualState.ts';
 
 /** Current activity, completion, and explicitly recorded totals remain independent. */
-export function GameProgressPanel({ item, onPatch }: { item: MediaItem; onPatch: (patch: Partial<MediaItem>) => boolean }) {
+export function GameProgressPanel({ item, onPatch, onEditTime, footprint }: { item: MediaItem; onPatch: (patch: Partial<MediaItem>) => boolean; onEditTime: () => void; footprint: ReactNode }) {
   const locked = Boolean(item.removedAt);
   const engagement = engagementFor(item), completion = completionFor(item), count = completionCountFor(item);
   const [recording, setRecording] = useState(false);
@@ -21,26 +25,29 @@ export function GameProgressPanel({ item, onPatch }: { item: MediaItem; onPatch:
     if (onPatch(patch)) { setUndoable(null); setMessage('已撤销本次记录。'); }
     else setMessage('撤销未能保存，请重试。');
   }
-  return <section className="game-progress" aria-label="游玩与进度">
-    <div className="detail-statuses game-state-options" aria-label="当前游玩关系">
-      {PLAY_ENGAGEMENTS.map(value => <button key={value} className={`status-option ${engagement === value ? 'is-selected' : ''}`} aria-pressed={engagement === value} disabled={locked} onClick={() => { if (value !== engagement) setMessage(onPatch({ playEngagement: value }) ? '' : '当前关系保存失败，请重试。'); }}>{ENGAGEMENT_LABELS[value]}</button>)}
-      {engagement === 'unrecorded' && <span className="game-progress-unrecorded">当前关系未记录</span>}
+  return <>
+    <section className="detail-bento-card bento-experience" aria-label="我的体验">
+      <div className="detail-personal-heading"><h3>我的体验</h3>{!locked && <button className="icon-button" onClick={() => onPatch({ favorite: !item.favorite })} aria-label={item.favorite ? '取消喜欢' : '标为喜欢'}><Heart size={17} fill={item.favorite ? 'currentColor' : 'none'} /></button>}</div>
+      <GameExperiencePicker label="当前游玩关系" value={engagement} currentLabel={engagement === 'unrecorded' ? '当前关系未记录' : ENGAGEMENT_LABELS[engagement]} options={PLAY_ENGAGEMENTS} labels={ENGAGEMENT_LABELS} className="engagement-picker" tone={engagement === 'unrecorded' || engagement === 'inactive' ? '' : `game-state--${engagementIcon[engagement]}`} locked={locked} onChange={value => onPatch({ playEngagement: value })} />
+      <GameExperiencePicker label="通关进度" value={completion} currentLabel={COMPLETION_LABELS[completion]} options={COMPLETION_STATUSES} labels={COMPLETION_LABELS} className="completion-picker" tone={completion === 'cleared' ? 'game-state--cleared' : ''} locked={locked} onChange={value => onPatch({ completion: value })} />
+      <div className="bento-ratings"><GameRating item={item} locked={locked} onPatch={onPatch} /></div>
+    </section>
+    <div className="bento-stats" aria-label="游玩统计">
+      <section className="detail-bento-card bento-stat" aria-label="游玩时长"><div className="bento-stat-heading"><h3>游玩时长</h3>{!locked && <button className="text-button" onClick={onEditTime} aria-label="修改时长"><Pencil size={13} /></button>}</div><strong className="bento-stat-value">{item.playtimeMinutes === undefined ? '未记录' : formatPlaytime(item.playtimeMinutes)}</strong><span className="bento-stat-caption">累计游玩</span></section>
+      <section className="detail-bento-card bento-stat" aria-label="完成次数"><div className="bento-stat-heading"><h3>完成次数</h3>{!locked && !editingCount && <button className="text-button" onClick={() => setEditingCount(true)} aria-label="编辑次数"><Pencil size={13} /></button>}</div><strong className="bento-stat-value">{count === undefined ? '未记录' : <>{count}<small>次</small></>}</strong>
+        {editingCount && !locked ? <CompletionCountEditor count={count} onCancel={() => setEditingCount(false)} onSave={value => { if (!onPatch({ completionCount: value })) return false; setEditingCount(false); setMessage('累计完成次数已更新。'); return true; }} /> : <span className="bento-stat-caption">手动记录 · 不由日志推算</span>}
+        {count === 0 && completion === 'cleared' && <p className="feature-help">已通关，累计明确为 0；可自行修正。</p>}
+      </section>
     </div>
-    <div className="detail-statuses completion-options" aria-label="通关进度">
-      {COMPLETION_STATUSES.map(value => <button key={value} className={`status-option completion-option--${value} ${completion === value ? 'is-selected' : ''}`} aria-pressed={completion === value} disabled={locked} onClick={() => { if (value !== completion) setMessage(onPatch({ completion: value }) ? '' : '通关进度保存失败，请重试。'); }}>{COMPLETION_LABELS[value]}</button>)}
-    </div>
-    <div className="completion-count-row">
-      <span>累计完成<strong>{count === undefined ? '未记录' : `${count} 次`}</strong></span>
-      {!locked && (editingCount ? <CompletionCountEditor count={count} onCancel={() => setEditingCount(false)} onSave={value => { if (!onPatch({ completionCount: value })) return false; setEditingCount(false); setMessage('累计完成次数已更新。'); return true; }} /> : <button className="text-button" onClick={() => setEditingCount(true)}><Pencil size={13} />编辑次数</button>)}
-      <span className="feature-help">未记录与 0 次不同；不从日志或事件数推算。</span>
-    </div>
-    {count === 0 && completion === 'cleared' && <p className="feature-help">进度是已通关，累计次数为 0；两个字段独立保留，如需更正请手动修改。</p>}
-    {!locked && <div className="completion-actions">
-      {!recording && <button className="button button--secondary" onClick={() => setRecording(true)}><Plus size={14} />记录一次完成</button>}
-      {undoable && <button className="button button--ghost" onClick={undoRecord}><RotateCcw size={14} />撤销本次</button>}
-    </div>}
-    {recording && !locked && <CompletionRecordForm item={item} onPatch={onPatch} onCancel={() => setRecording(false)} onRecorded={receipt => { setUndoable(receipt); setRecording(false); setMessage('已记录一次完成。'); }} />}
-    <CompletionEvents item={item} onPatch={onPatch} />
-    {message && <p className="feature-help" role="status">{message}</p>}
-  </section>;
+    <section className="detail-bento-card bento-footprint" aria-label="体验足迹">
+      <div className="bento-footprint-history">{footprint}<CompletionEvents item={item} onPatch={onPatch} /></div>
+      {!locked && <div className="completion-actions">
+        {!recording && <button className="button button--secondary" onClick={() => setRecording(true)}><Plus size={14} />记录一次完成</button>}
+        {undoable && <button className="button button--ghost" onClick={undoRecord}><RotateCcw size={14} />撤销本次</button>}
+      </div>}
+      {recording && !locked && <CompletionRecordForm item={item} onPatch={onPatch} onCancel={() => setRecording(false)} onRecorded={receipt => { setUndoable(receipt); setRecording(false); setMessage('已记录一次完成。'); }} />}
+      {message && <p className="feature-help" role="status">{message}</p>}
+      {locked && <p className="feature-help">回收站中的记录只读，恢复后可编辑。</p>}
+    </section>
+  </>;
 }
