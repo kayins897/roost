@@ -1,4 +1,5 @@
 import { isValidPersonalGrade } from './library.ts';
+import { experienceCategoryFor } from './gameExperience.ts';
 import { completionFor, inPlanView } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
 import type { MediaItem } from './types.ts';
@@ -8,7 +9,7 @@ export type RankMode = 'priority' | 'rating';
 export type RankedGameGroup = { id: string; label: string; items: MediaItem[] };
 const orderKey = (mode: RankMode) => mode === 'priority' ? 'priorityOrder' : 'ratingOrder';
 const normalGame = (item: MediaItem) => item.category === 'game' && !item.hiddenAt && !item.removedAt;
-const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? inPlanView(item) : completionFor(item) === 'cleared');
+const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? inPlanView(item) : (completionFor(item) === 'cleared' || experienceCategoryFor(item) === 'completed'));
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 function rankId(item: MediaItem, mode: RankMode): string {
   const grade = mode === 'priority' ? item.playPriority : item.personalGrade;

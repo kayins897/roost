@@ -272,8 +272,8 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
     typeof item.creator === 'string' && typeof item.year === 'string' &&
     statuses.includes(item.status) && Array.isArray(item.tags) &&
     (item.gamePlayState === undefined || item.gamePlayState === 'replaying' || GAME_PLAY_STATES.includes(item.gamePlayState)) &&
-    (item.experienceStatus === undefined || isGameExperienceStatus(item.experienceStatus)) &&
-    (item.experienceCategory === undefined || isGameExperienceCategory(item.experienceCategory)) &&
+    (item.category !== 'game' || item.experienceStatus === undefined || isGameExperienceStatus(item.experienceStatus)) &&
+    (item.category !== 'game' || item.experienceCategory === undefined || isGameExperienceCategory(item.experienceCategory)) &&
     item.tags.every((tag: unknown) => typeof tag === 'string') &&
     (item.playtimeMinutes === undefined || (typeof item.playtimeMinutes === 'number' && Number.isSafeInteger(item.playtimeMinutes) && item.playtimeMinutes >= 0)) &&
     (item.personalGrade === undefined || isValidPersonalGrade(item.personalGrade)) &&
