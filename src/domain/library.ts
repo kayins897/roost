@@ -205,7 +205,8 @@ export function moveGameTag(items: MediaItem[], name: string, from: GameTagGroup
     const gameTags = Object.fromEntries(GAME_TAG_KEYS.map(key => {
       if (key === from) return [key, before[from].filter(tag => tag.toLocaleLowerCase() !== target)];
       if (key === to) return [key, normalizeTags([...before[to], source])];
-      return [key, before[key]];
+      // 未涉及的分组保持原始存储值（不归一化）；仅旧平铺格式（无 gameTags）经推导重建时统一规范化。
+      return [key, item.gameTags?.[key] ?? before[key]];
     })) as GameTagGroups;
     return { ...item, tags: flattenGameTags(gameTags), gameTags: { ...item.gameTags, ...gameTags } };
   });

@@ -27,20 +27,28 @@ export function EnrichSelected({ selectedGames, items, exclusions, onClose, onSy
   const [submitted, setSubmitted] = useState(false);
   const alive = useRef(true);
   const panel = useRef<HTMLElement>(null);
-  useDialogKeyboard(panel, onClose, { initialFocus: () => null });
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useDialogKeyboard(panel, requestClose, { initialFocus: () => null });
+  const busyRef = useRef(false); busyRef.current = busy;
+  // 仅卸载时取消自身进行中的请求；busy 翻转不触发 cleanup（依赖空数组 + ref 读取）。
+  useEffect(() => { alive.current = true; return () => { alive.current = false; if (busyRef.current) desktopBridge?.cancelSteamRequest(); }; }, []);
+  function requestClose() { if (busy) desktopBridge?.cancelSteamRequest(); onClose(); }
   // 候选与跳过：按唯一确切 Steam AppID 划分；同名、模糊或多 ID 冲突一律跳过并说明，不猜匹配。
   const { candidates, skipped } = useMemo(() => {
     const candidates: { item: MediaItem; appId: string }[] = []; const skipped: { item: MediaItem; reason: string }[] = [];
+    // 全库身份歧义预检查：同一 AppID 关联多件作品时无法唯一补齐，明确跳过（保存端仍会再约束）。
+    const appIdOwners = new Map<string, number>();
+    for (const item of items) if (item.category === 'game' && !item.removedAt) for (const id of appIdOf(item)) appIdOwners.set(id, (appIdOwners.get(id) ?? 0) + 1);
     for (const item of selectedGames) {
       const ids = appIdOf(item);
       if (item.removedAt) skipped.push({ item, reason: '已移入回收站' });
+      else if (item.hiddenAt) skipped.push({ item, reason: '已隐藏（本入口仅处理正常收藏）' });
       else if (ids.length === 0) skipped.push({ item, reason: '没有确切 Steam AppID' });
       else if (ids.length > 1) skipped.push({ item, reason: '关联多个 Steam AppID，需先在资料中确认' });
+      else if ((appIdOwners.get(ids[0]) ?? 0) > 1) skipped.push({ item, reason: `Steam ${ids[0]} 在收藏中关联多件作品，无法唯一补齐` });
       else candidates.push({ item, appId: ids[0] });
     }
     return { candidates, skipped };
-  }, [selectedGames]);
+  }, [selectedGames, items]);
   const rows: SteamSyncRow[] = useMemo(() => (games && phase === 'preview') ? planSteamSync(games, items, { updatePlaytime: false, exclusions }) : [], [games, items, exclusions, phase]);
   const updateRows = rows.filter(row => row.existingId && candidates.some(candidate => candidate.appId === row.appId));
   const chosen = updateRows.filter(row => row.kind === 'update' && choice.has(row.appId));

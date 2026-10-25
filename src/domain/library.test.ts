@@ -241,3 +241,10 @@ test('标签移动保留 gameTags 未知扩展组与个人字段', () => {
   assert.deepEqual((moved[0].gameTags as Record<string, unknown>).futureGroup, ['原样']);
   assert.equal(moved[0].impression, '个人印象');
 });
+
+test('标签移动保留未涉及分组的原始存储值（空白与大小写不归一）', () => {
+  const a: MediaItem = { ...make('a', []), gameTags: { gameplay: ['Action'], theme: [' History ', 'history'], scenario: [], other: [] }, tags: [] };
+  const moved = moveGameTag([a], 'Action', 'gameplay', 'scenario');
+  assert.deepEqual((moved[0].gameTags as NonNullable<MediaItem['gameTags']>).theme, [' History ', 'history'], '未涉及组逐字保留');
+  assert.deepEqual((moved[0].gameTags as NonNullable<MediaItem['gameTags']>).gameplay, []);
+});

@@ -221,7 +221,7 @@ export async function enrichSteamLibrary(value: unknown, options: SteamNetworkOp
   async function worker() {
     while (!options.signal?.aborted && cursor < games.length) {
       const index = cursor++; const game = games[index]; let fallbackCover: string | undefined;
-      if ((!game.creator || !game.year) && !detailsRateLimited) {
+      if ((!game.creator || !game.year || !game.originalTitle) && !detailsRateLimited) {
         try {
           const url = `https://store.steampowered.com/api/appdetails?appids=${game.appId}&l=schinese`;
           const details = parseSteamDetails(await jsonRequest(url, 'details', options), game.appId!);

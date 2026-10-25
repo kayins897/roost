@@ -9,11 +9,29 @@ import { enrichSteamLibrary, readSteamLibrary, SteamConnectionStore } from './st
 const ENTRY_URL = 'qiyu://app/index.html';
 const testing = process.env.QIYU_E2E === '1';
 app.setName('栖域');
+// 可见隔离演示模式：--demo（随包启动器传入）使用独立的 QIYU-Demo 数据目录与单实例锁，
+// 与正常模式/测试模式互不干扰；绝不回退真实 QIYU 目录。
+const demoMode = process.argv.includes('--demo');
+const demoSeed = () => path.join(app.getAppPath(), 'build', 'demo-library.json');
+function seedDemoLibrary(keepExisting: boolean): boolean {
+  const seedFile = demoSeed();
+  if (!fs.existsSync(seedFile)) return false;
+  if (keepExisting && fs.existsSync(path.join(dataDirectory, 'library.json'))) return true;
+  fs.copyFileSync(seedFile, path.join(dataDirectory, 'library.json'));
+  return true;
+}
 const dataDirectory = testing && process.env.QIYU_TEST_DATA_DIR
   ? path.resolve(process.env.QIYU_TEST_DATA_DIR)
+  : demoMode ? path.join(app.getPath('appData'), 'QIYU-Demo')
   : path.join(app.getPath('appData'), 'QIYU');
 fs.mkdirSync(dataDirectory, { recursive: true });
 app.setPath('userData', dataDirectory);
+if (demoMode && !testing) {
+  const libraryFile = path.join(dataDirectory, 'library.json');
+  if (!fs.existsSync(libraryFile)) {
+    if (!seedDemoLibrary(false)) { dialog.showErrorBox('栖域演示启动失败', '找不到随包演示数据（build/demo-library.json）。请重新解压完整目录后重试。'); app.quit(); }
+  }
+}
 protocol.registerSchemesAsPrivileged([{ scheme: 'qiyu', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 let mainWindow: BrowserWindow | null = null;
 function windowVisible() {
@@ -98,7 +116,7 @@ function registerIpc() {
     finally { metadataBusy = false; }
   });
   const handlers: Record<string, (value: unknown) => unknown> = {
-    'qiyu:info': () => ({ version: app.getVersion(), dataDirectory, windowVisible: windowVisible() }),
+    'qiyu:info': () => ({ version: app.getVersion(), dataDirectory, windowVisible: windowVisible(), ...(demoMode ? { demo: true } : {}) }),
     'qiyu:load': () => store.load(),
     'qiyu:save': value => {
       if (!value || typeof value !== 'object') throw new Error('保存请求无效');
@@ -114,6 +132,15 @@ function registerIpc() {
       catch (error) { event.returnValue = { ok: false, error: error instanceof Error ? error.message : '本机文件操作失败' }; }
     });
   }
+  ipcMain.handle('qiyu:demo-reset', event => {
+    if (!trusted(event) || !demoMode) return { ok: false, error: '演示重置仅在演示模式可用' };
+    try {
+      const libraryFile = path.join(dataDirectory, 'library.json');
+      if (fs.existsSync(libraryFile)) fs.renameSync(libraryFile, path.join(dataDirectory, `demo-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`));
+      if (!seedDemoLibrary(false)) return { ok: false, error: '找不到随包演示数据，请重新解压完整目录' };
+      return { ok: true, value: null };
+    } catch (error) { return { ok: false, error: error instanceof Error ? error.message : '演示重置失败' }; }
+  });
   ipcMain.on('qiyu:open-data', event => {
     if (!trusted(event)) return;
     fs.mkdirSync(dataDirectory, { recursive: true });
@@ -129,7 +156,7 @@ function externalLink(value: string) {
 }
 function createWindow() {
   mainWindow = new BrowserWindow({
-    title: '栖域', width: 1440, height: 960, minWidth: 880, minHeight: 640,
+    title: demoMode ? '栖域（演示数据）' : '栖域', width: 1440, height: 960, minWidth: 880, minHeight: 640,
     backgroundColor: '#08090b', show: false,
     ...(process.platform === 'win32' ? {
       titleBarStyle: 'hidden' as const,

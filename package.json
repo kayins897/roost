@@ -52,6 +52,7 @@
       "dist/**/*",
       "desktop-build/**/*",
       "build/icon.png",
+      "build/demo-library.json",
       "package.json"
     ],
     "win": {

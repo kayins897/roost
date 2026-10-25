@@ -5,7 +5,7 @@ import type { MediaItem, PersonalGrade } from '../../../domain/types.ts';
 
 // 多选工具栏的等级快捷设置：全部待体验→优先级、全部已通关→评级；
 // 混合状态提示改用「改状态」。选择候选只预览将更新数量，应用才写入。
-export function BulkGradeBar({ selectedGames, onApply }: { selectedGames: MediaItem[]; onApply: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean }) {
+export function BulkGradeBar({ selectedGames, visibleIds, onApply }: { selectedGames: MediaItem[]; visibleIds: ReadonlySet<string>; onApply: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean }) {
   const [grade, setGrade] = useState<PersonalGrade | 'clear' | ''>('');
   if (!selectedGames.length) return null;
   const allPlanned = selectedGames.every(item => priorityEditable(item));
@@ -16,6 +16,8 @@ export function BulkGradeBar({ selectedGames, onApply }: { selectedGames: MediaI
   const key = allPlanned ? 'playPriority' : 'personalGrade';
   const next = grade === 'clear' ? undefined : grade || undefined;
   const willChange = grade === '' ? -1 : selectedGames.filter(item => item[key] !== next).length;
+  const inView = selectedGames.filter(item => visibleIds.has(item.id)).length;
+  const outOfView = selectedGames.length - inView;
   return <span className="bulk-grade-bar">
     <label className="bulk-grade-field">统一{label}
       <select aria-label={`统一${label}`} value={grade} onChange={event => setGrade(event.target.value as PersonalGrade | 'clear' | '')}>
@@ -24,7 +26,8 @@ export function BulkGradeBar({ selectedGames, onApply }: { selectedGames: MediaI
         <option value="clear">清除{label}</option>
       </select>
     </label>
-    {grade !== '' && <small className="bulk-grade-count">{willChange ? `将更新 ${willChange} 款（共 ${selectedGames.length} 款）` : `所选 ${selectedGames.length} 款已是该等级`}</small>}
+    {grade !== '' && <small className="bulk-grade-count">{willChange ? `将更新 ${willChange} 款（共 ${selectedGames.length} 款）` : `所选 ${selectedGames.length} 款已是该等级`}{outOfView > 0 ? `；${outOfView} 款在当前结果之外` : ''}</small>}
+    {grade === '' && outOfView > 0 && <small className="bulk-grade-count">已选 ${selectedGames.length} 款：当前结果内 ${inView}、结果外 ${outOfView}</small>}
     <button className="button button--secondary" disabled={grade === '' || !willChange} onClick={() => { if (onApply(mode, next)) setGrade(''); }}>{willChange ? '应用等级' : '应用'}</button>
   </span>;
 }

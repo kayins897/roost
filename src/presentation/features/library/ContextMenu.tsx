@@ -19,18 +19,31 @@ export function ContextMenu(props: Props) {
     panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
     const dismiss = (event: PointerEvent) => { if (!panel.current?.contains(event.target as Node)) closeRef.current(); };
     const host = document.querySelector('.main-scroll');
-    // 菜单打开期间保存可能让作品移出当前列表（如待体验改已通关），内容高度缩短使 scrollTop
-    // 被钳制并触发 scroll——这类自身写入引起的布局调整不应中断内联设置。以内容高度为基准区分：
-    // 高度变化视为布局调整（更新基准、保持菜单）；高度不变的滚动才是用户主动离开。
-    let baseline = host?.scrollHeight ?? 0;
+    // 区分用户主动滚动与布局调整：只有带用户滚动信号（滚轮/触摸/滚动键）的 scroll 才关闭菜单；
+    // 保存导致的作品移出、列表缩短、scrollTop 钳制或排序重排触发的 scroll 一律保持菜单，
+    // 修复「无钳制的列表缩短后第一次主动滚动被误判为布局滚动」的审查问题。
+    let userScrolled = false;
+    const markUser = () => { userScrolled = true; };
+    const markKeys = (event: KeyboardEvent) => {
+      if (['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' '].includes(event.key) && !(event.target as HTMLElement)?.closest('input, textarea, select')) userScrolled = true;
+    };
     const scroll = () => {
-      const height = host?.scrollHeight ?? 0;
-      if (height !== baseline) { baseline = height; return; }
-      closeRef.current();
+      if (userScrolled) { userScrolled = false; closeRef.current(); }
     };
     const resize = () => closeRef.current();
-    document.addEventListener('pointerdown', dismiss); window.addEventListener('resize', resize); host?.addEventListener('scroll', scroll);
-    return () => { document.removeEventListener('pointerdown', dismiss); window.removeEventListener('resize', resize); host?.removeEventListener('scroll', scroll); if (oldFocus?.isConnected) oldFocus.focus(); };
+    document.addEventListener('pointerdown', dismiss);
+    window.addEventListener('wheel', markUser, { passive: true, capture: true });
+    window.addEventListener('touchmove', markUser, { passive: true, capture: true });
+    window.addEventListener('keydown', markKeys, true);
+    window.addEventListener('resize', resize); host?.addEventListener('scroll', scroll);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      window.removeEventListener('wheel', markUser, { capture: true } as EventListenerOptions);
+      window.removeEventListener('touchmove', markUser, { capture: true } as EventListenerOptions);
+      window.removeEventListener('keydown', markKeys, true);
+      window.removeEventListener('resize', resize); host?.removeEventListener('scroll', scroll);
+      if (oldFocus?.isConnected) oldFocus.focus();
+    };
   }, []);
   const run = (action: () => void) => { onClose(); action(); };
   // 双维度保存统一按结果处理：失败留在原位可重试，成功保持打开（等级行随资格重算出现/消失）。
