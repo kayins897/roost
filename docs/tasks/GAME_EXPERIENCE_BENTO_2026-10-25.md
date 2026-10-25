@@ -16,6 +16,7 @@
 3. 新增表单、详情原地展开、右键菜单和多选栏均直接选择最终分类；多选栏选择后一次保存，保持选择，可继续整理。优先级沿用 SSS / SS / S / A / B / C，不新增枚举。
 4. 原有通关事实、明确完成次数和事件、时间编辑、评级、印象和测评、标签、生命周期操作继续可用。通关事实移入高级筛选，收起后活动计数和可清除摘要仍可见。
 5. 居中 Bento：左上完整封面，右上体验、下方两统计；左下较宽印象、右下紧凑足迹；底部长评默认折叠。窄窗单列，图片 contain 保留原比例；无图简洁占位。印象输入/完成表单不造成印象卡片跳高。库封面倾斜保留。
+6. 复查修复：菜单方向键不再被误判为页面滚动，列表末件改分类引起滚动钳制仍留在菜单，第一次真正主区滚动正常关闭。Steam 新增预览与自动分类一致，清单导入保留既有 planned 兼容投影，新主次显式选择另行存储。
 
 ## 数据契约与兼容
 
@@ -39,22 +40,33 @@
 ## 主要修改文件
 
 - domain：`gameExperience.ts` / `types.ts` / `library.ts` / `gameProgress.ts` / `gamePlanning.ts` 及三个分类、分组、排序测试。
-- presentation：`App.tsx`、`app/useWorkspaceController.ts`、`features/editor/WorkEditor.tsx`、`SteamLibraryImport.tsx`。
+- presentation：`App.tsx`、`app/useWorkspaceController.ts`、`features/editor/WorkEditor.tsx`、`SteamLibraryImport.tsx`、`SteamConnect.tsx`。
 - 分类和卡片：`features/library/{experienceOptions,gameVisualState,MediaCard,ContextMenu,BulkGradeBar}.tsx/ts`，语义色 `styles/tokens.css`。
 - 详情：`features/detail/{DetailPanel,DetailCover,GameExperiencePicker,GameProgressPanel,PersonalWritingFields}.tsx`、`detail.css`；普通日志的紧凑/只读展现复用 `RecordEditors.tsx`。
 - 验证：`verify-detail-bento.cjs`、`verify-game-progress.cjs`、`verify-desktop.cjs` 和既有工作区/等级专项的分类适配（实际结果见下）。
 
 ## 验证与证据
 
+- 最终 `npm run test:workflow`：19 / 19 通过（2026-10-25 21:45–21:51，本地 Windows x64 / Edge + Electron 45）。被测分支 HEAD `6a2f366`，未提交范围仅本文档；运行时代码 `5578cca`，与免安装预览一致。报告：`evidence/workflow-v0424/2026-10-25T13-45-29-550Z-59888/validation.json`。下面各专项已在最终链重跑，不沿用前批 18 阶段结果。
 - `npm test`：206 / 206。
 - `npm run desktop:build`：TypeScript、Vite、Electron 主进程构建通过。
 - `node scripts/verify-detail-bento.cjs`：25 组，29 张实际运行截图，browser + 真实 LocalStorage / bridge + 真实 DesktopRepository 双模式。覆盖三种一级组合、空二级、五分类、右键/批量/新增、失败零写、事实互不覆盖、展开折叠、未知/0、倾斜及 1440/1000/390 窗口。
 - `node scripts/verify-game-progress.cjs`：18 组双模式，完成事件、计数、撤销、评级、同档排序、备份字段/编辑资格等通过。
-- `node scripts/verify-desktop.cjs`：原生 Electron 临时目录，新增及完整退出重启、分类/旧通关并存、备份往返、损坏恢复及原文备份。最终项数以 `evidence/source-validation.json` 为准。
-- 新领域测试另做严格 TypeScript 检查（工程默认不编译 tests）；非作者只读检查指出的排序标签、隐藏通关筛选条件两项已修正，并增加专项断言。
+- `node scripts/verify-desktop.cjs`：9 组原生 Electron 临时目录检查，新增及完整退出重启、分类/旧通关并存、备份往返、损坏恢复及原文备份。
+- 等级入口 20 组（包含真实键盘路径及第一次主区滚轮）、分级排序 23 组、主题 7 组、清单导入 9 组；实际 Windows 成品的批量导入 4 组、Steam 隔离模拟同步 7 组通过。Steam 测试为本机拦截的合成数据，不代表真实账号联网。
+- 新领域测试另做严格 TypeScript 检查（工程默认不编译 tests）；非作者只读检查指出的排序标签、隐藏通关筛选条件、键盘菜单及同步预览文案均已修正，并增加专项断言。
 - 证据 `evidence/detail-bento/validation.json`、`evidence/game-progress/validation.json`、`evidence/source-validation.json`；日志 `evidence/classification-*.log`。截图内封面为合成夹具，不含个人库。
 
-完整历史工作流与成品发布不是上述专项结果的同义词；本轮不沿用上一次的18阶段/ZIP结论冒充新版本验证。真实库、真实Steam网络同步、跨旧版本交替写入均未验证。其他媒体的产品分类不在本轮范围。
+真实库、真实Steam网络同步、跨旧版本交替写入均未验证。其他媒体的产品分类不在本轮范围。
+
+## 本地免安装预览
+
+- 目录：`交付/游戏分类与详情-20261025/QIYU-Preview/`（相对项目根）；双击 `启动演示.cmd` 打开隔离的虚构收藏。用户交付副本没有被自动化启动，保持首次使用状态。
+- 构建：`npm run pack` 通过，只生成 unpacked 免安装目录，无安装器；包版本仍为 0.4.24，候选标识 `game-experience-bento-20261025`。
+- 运行时代码提交：`5578ccafa83d5695820fb9d57a7a8c8e1d9cb424`；后续提交仅验证和文档。实际资产 `index-DAaq8l2o.js` / `index-CyN5KDCN.css`，`SOURCE.json` 保存来源。
+- 成品演示：`verify-demo-package.cjs` 在另一个全新副本执行真实 CMD 入口，8 / 8 通过；保存、完整退出重启、损坏失败保护均实际运行。证据 `evidence/demo-package-v0424/2026-10-25T13-41-10-886Z/validation.json`。
+- 一致性：`verify-package-assets.cjs` 对比 ASAR 内 13 个构建文件、外部 5 个演示/说明文件通过。外部本轮演示种子与验收说明跟踪于 `docs/tasks/classification-preview/`；ASAR 内基础演示种子未变，正常库读取不受影响。
+- ZIP、校验文件、库/详情/窄窗截图放在同一交付父目录；校验值以 `SHA256SUMS.txt` 为准。只提供预览，不覆盖 `交付/0.4.24` 或正式 release，不推送/发布。
 
 ## 人工验收（先用隔离演示）
 
