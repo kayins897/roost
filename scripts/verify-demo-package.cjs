@@ -37,6 +37,8 @@ async function launchEntry() {
   assert.ok(path.basename(profile).startsWith('qiyu-demo-'));
   assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'qiyu-demo.json'))).format, 'qiyu.demo.v1');
   await page.locator('.demo-mode-banner').waitFor(); assert.match(await page.locator('.demo-mode-banner').innerText(), /演示数据.*0\.4\.24/);
+  const layout = await page.evaluate(() => ({ banner: document.querySelector('.demo-mode-banner').getBoundingClientRect().toJSON(), main: document.querySelector('.main-panel').getBoundingClientRect().toJSON(), width: innerWidth }));
+  assert.ok(layout.banner.height < 80 && layout.main.width > layout.width * .8, 'demo notice must be a compact row, not a sidebar or an overlay');
   return info;
 }
 async function closeEntry() {

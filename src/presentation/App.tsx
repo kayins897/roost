@@ -70,7 +70,6 @@ function App() {
   const rankMode = section === 'game' && libraryView === 'library' ? gameFilter === 'plan' ? 'priority' as const : completionFilter === 'cleared' ? 'rating' as const : undefined : undefined;
   const demoInfo = desktopInfo?.demo === true;
   return <div className="app-shell" data-section={section}>
-    {demoInfo && <div className="demo-mode-banner" role="status">演示数据 · v{desktopInfo?.version} · 当前修改只保存在独立演示目录。同一“启动演示”入口会保留修改，不影响正式收藏。</div>}
     <WindowChrome />
     <AmbientScene animated={ambient.enabled} theme={appearance.effective} hue={ambient.hue} strength={ambient.strength} depth={ambient.depth} speed={ambient.speed} swirl={ambient.swirl} settings={ambient} />
     <aside id="library-navigation" className={`sidebar ${menuOpen ? 'sidebar--open' : ''}`}>
@@ -92,6 +91,7 @@ function App() {
     {menuOpen && <button className="mobile-dim" onClick={() => setMenuOpen(false)} aria-label="关闭菜单" />}
 
     <main className="main-panel">
+      {demoInfo && <div className="demo-mode-banner" role="status">演示数据 · v{desktopInfo?.version} · 当前修改只保存在独立演示目录。同一“启动演示”入口会保留修改，不影响正式收藏。</div>}
       <header className="topbar">
         <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMenuOpen(true)} aria-label="打开菜单" aria-expanded={menuOpen} aria-controls="library-navigation"><Menu size={21} /></button><label className="search-box global-search" data-material-glass="pane"><GlassLayers /><Search size={18} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索作品、开发商、印象或标签" aria-label="搜索收藏" />{query && <button className="search-clear" onClick={() => setQuery('')} title="清除搜索" aria-label="清除搜索"><X size={14} /></button>}</label></div>
         <div className="topbar-actions">
