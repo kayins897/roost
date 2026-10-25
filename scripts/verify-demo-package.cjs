@@ -16,7 +16,7 @@ const item = id => read().items.find(value => value.id === id);
 const button = (name, scope = page) => scope.getByRole('button', { name, exact: true });
 async function check(name, action) { await action(); report.checks.push({ name, passed: true }); console.log(`通过：${name}`); }
 async function poll(fn, expected, timeout = 15000) { const deadline = Date.now() + timeout; while (Date.now() < deadline) { try { if (await fn() === expected) return; } catch {} await sleep(100); } assert.equal(await fn(), expected); }
-async function freePort() { const server = net.createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); const port = server.address().port; await new Promise(resolve => server.close(resolve)); return port; }
+async function freePort() { const server = net.createServer(); await require('./test-loopback.cjs').listenLoopback(server); const port = server.address().port; await new Promise(resolve => server.close(resolve)); return port; }
 async function launchEntry() {
   const port = await freePort();
   const launcher = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${entry}" -VerifyPort ${port}"`], { cwd: bundle, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
