@@ -4,8 +4,10 @@ Upload
 } from 'lucide-react';
 import type { ChangeEvent,FormEvent } from 'react';
 import { emptyGameTags,flattenGameTags,GAME_TAG_KEYS,GAME_TAG_LABELS,gameTagsFor,MEDIA_LABELS,normalizePlatforms,normalizeTags,platformsFor,STATUS_LABELS } from '../../../domain/library.ts';
-import { completionFor, COMPLETION_LABELS, COMPLETION_STATUSES, engagementFor, ENGAGEMENT_LABELS, newGameProjection, PLAY_ENGAGEMENTS } from '../../../domain/gameProgress.ts';
-import type { CompletionStatus,GameTagGroupKey,GameTagGroups,MediaItem,MediaType,PlayEngagement,ProgressStatus } from '../../../domain/types.ts';
+import { completionFor, COMPLETION_LABELS, COMPLETION_STATUSES, newGameProjection } from '../../../domain/gameProgress.ts';
+import type { CompletionStatus,GameTagGroupKey,GameTagGroups,MediaItem,MediaType,ProgressStatus } from '../../../domain/types.ts';
+import { experienceClassificationPatch, type GameExperienceClassification } from '../../../domain/gameExperience.ts';
+import { CLASSIFICATIONS, CLASSIFICATION_LABELS, classificationFor } from '../library/experienceOptions.ts';
 import { GAME_GRADES } from '../../../domain/gameRating.ts';
 import { impressionError, IMPRESSION_MAX_LENGTH, personalWritingFor, personalWritingPatch, writingLength } from '../../../domain/personalWriting.ts';
 import { desktopInfo } from '../../../infrastructure/repository.ts';
@@ -40,8 +42,8 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     creator: initial?.creator ?? '',
     year: initial?.year ?? '',
     status: (initial?.status ?? 'want') as ProgressStatus,
-    engagement: (initial?.category === 'game' ? engagementFor(initial) : 'planned') as PlayEngagement | 'unrecorded',
-    engagementTouched: false,
+    classification: (initial?.category === 'game' ? classificationFor(initial) : 'unplayed') as GameExperienceClassification,
+    classificationTouched: false,
     completion: (initial?.category === 'game' ? completionFor(initial) : 'unknown') as CompletionStatus,
     completionTouched: false,
     playPriority: initial?.playPriority ?? '',
@@ -68,8 +70,8 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
   const [creator, setCreator] = fields('creator');
   const [year, setYear] = fields('year');
   const [status, setStatus] = fields('status');
-  const [engagement, setEngagement] = fields('engagement');
-  const [engagementTouched, setEngagementTouched] = fields('engagementTouched');
+  const [classification, setClassification] = fields('classification');
+  const [classificationTouched, setClassificationTouched] = fields('classificationTouched');
   const [completion, setCompletion] = fields('completion');
   const [completionTouched, setCompletionTouched] = fields('completionTouched');
   const [playPriority, setPlayPriority] = fields('playPriority');
@@ -107,10 +109,11 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     const now = new Date().toISOString();
     // v0.4.24：编辑只写新维度（未触碰时保留原值/推导）；新建构造旧轴兼容投影。
     const gameFields = type !== 'game' ? {} : initial?.category === 'game'
-      ? { ...(engagementTouched && engagement !== 'unrecorded' ? { playEngagement: engagement as PlayEngagement } : {}), ...(completionTouched ? { completion } : {}) }
-      : newGameProjection(engagement === 'unrecorded' ? 'planned' : engagement, completion);
+      ? { ...(completionTouched ? { completion } : {}) }
+      : newGameProjection('planned', completion);
     onSave({
       ...initial,
+      ...(type === 'game' && (classificationTouched || initial?.category !== 'game') ? experienceClassificationPatch(classification) : {}),
       id: initial?.id ?? crypto.randomUUID(), title: title.trim(), originalTitle: originalTitle.trim() || undefined, category: type, subcategory: subtype.trim(),
       platforms: type === 'game' ? normalizePlatforms(platformInput.split(/[,，、;；\n]+/)) : initial?.platforms,
       creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial?.category === 'game' ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : status,
@@ -137,7 +140,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
           <label className="form-field">作品名称 <span className="required">*</span><input autoFocus required placeholder="例如：艾尔登法环" maxLength={160} value={title} onChange={e => setTitle(e.target.value)} /></label>
           <label className="form-field">作品原名 <span className="field-note">可留空</span><input placeholder="例如：ELDEN RING" value={originalTitle} onChange={e => setOriginalTitle(e.target.value)} /></label>
           <div className="two-fields">
-            <label className="form-field">归属板块<select value={type} onChange={e => { const next = e.target.value as MediaType; setType(next); setSubtype(''); if (!initial) { setStatus('want'); setEngagement('planned'); setEngagementTouched(false); setCompletion('unknown'); setCompletionTouched(false); } }}>{categories.map(c => <option key={c} value={c}>{MEDIA_LABELS[c]}</option>)}</select></label>
+            <label className="form-field">归属板块<select value={type} onChange={e => { const next = e.target.value as MediaType; setType(next); setSubtype(''); if (!initial) { setStatus('want'); setClassification('unplayed'); setClassificationTouched(false); setCompletion('unknown'); setCompletionTouched(false); } }}>{categories.map(c => <option key={c} value={c}>{MEDIA_LABELS[c]}</option>)}</select></label>
             {type === 'game' ? <label className="form-field">拥有平台 <span className="field-note">可多选或以顿号分隔</span><input placeholder="Steam、Switch、PS5、TapTap、本地收藏" value={platformInput} onChange={e => setPlatformInput(e.target.value)} /><span className="platform-suggestions">{['Steam', 'Switch', 'PS5', 'TapTap', '本地收藏'].map(platform => { const current = normalizePlatforms(platformInput.split(/[,，、;；\n]+/)); const active = current.some(value => value.toLocaleLowerCase() === platform.toLocaleLowerCase()); return <button type="button" key={platform} className={active ? 'is-active' : ''} aria-pressed={active} onClick={() => { setDirty(true); setPlatformInput(active ? current.filter(value => value.toLocaleLowerCase() !== platform.toLocaleLowerCase()).join('、') : [...current, platform].join('、')); }}>{platform}</button>; })}</span></label> : <label className="form-field">子分类 <span className="field-note">可留空</span><input placeholder={type === 'screen' ? '电影 / 番剧 / 连续剧' : type === 'book' ? '专业书籍 / 严肃文学 / 网络小说' : '单曲 / 专辑'} value={subtype} onChange={e => setSubtype(e.target.value)} /></label>}
           </div>
           <div className="two-fields">
@@ -147,12 +150,12 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
           {type === 'game' ? <>
             <div className="two-fields game-time-mark-fields">
               <label className="form-field">累计游玩时长 <span className="field-note">小时 · 可留空</span><div className="time-field"><input type="number" min="0" max="100000" step="any" inputMode="decimal" placeholder="例如 42.5" value={playtimeHours} onChange={e => setPlaytimeHours(e.target.value)} /><span>h</span></div></label>
-              <label className="form-field">当前游玩关系<select aria-label="当前游玩关系" value={engagement === 'unrecorded' ? '' : engagement} onChange={e => { setEngagement(e.target.value as PlayEngagement); setEngagementTouched(true); }}><option value="" disabled={initial !== undefined}>未记录</option>{PLAY_ENGAGEMENTS.map(id => <option key={id} value={id}>{ENGAGEMENT_LABELS[id]}</option>)}</select></label>
+              <label className="form-field">体验分类<select aria-label="体验分类" value={classification} onChange={e => { setClassification(e.target.value as GameExperienceClassification); setClassificationTouched(true); }}>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{CLASSIFICATION_LABELS[value]}</option>)}</select></label>
               <label className="form-field">通关进度<select aria-label="通关进度" value={completion} onChange={e => { const next = e.target.value as CompletionStatus; setCompletion(next); setCompletionTouched(true); if (next !== 'cleared' && next !== 'not-applicable' && initial?.personalGrade === undefined) setPersonalGrade(''); }}>{COMPLETION_STATUSES.map(id => <option key={id} value={id}>{COMPLETION_LABELS[id]}</option>)}</select></label>
             </div>
-            {(type !== 'game' ? false : engagement === 'planned' || engagement === 'paused') && <label className="form-field">待体验优先级<select aria-label="待体验优先级" value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
+            {classification === 'unplayed' && <label className="form-field">待体验优先级<select aria-label="待体验优先级" value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
             {(completion === 'cleared' || completion === 'not-applicable' || initial?.personalGrade !== undefined) && <label className="form-field">通关评级<select aria-label="通关评级" value={personalGrade} onChange={event => setPersonalGrade(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
-            <p className="game-state-help">当前关系与通关进度独立，通关后也可以计划重玩或继续游玩。暂时搁置表示以后可能继续，已放弃表示不再计划游玩。时长和记录都会保留。</p>
+            <p className="game-state-help">分类表达你的体验意愿，与通关事实、完成次数和日志分开保存。已体验可以暂不设置二级分类；时长为空也可以标记已体验。</p>
             <div className="game-tag-editor"><div className="game-tag-editor-title">游戏标签 <span>四个维度，按需填写即可</span></div>
               {GAME_TAG_KEYS.map(key => <div className={`game-tag-edit-group tag-type--${key}`} key={key}>
                 <label className="form-field">{GAME_TAG_LABELS[key]}<input placeholder={key === 'scenario' ? '例如：刚需联机、需要沉浸、放松解压' : `用顿号分隔${GAME_TAG_LABELS[key]}标签`} value={gameTagInputs[key]} onChange={e => setGameTagInputs(current => ({ ...current, [key]: e.target.value }))} /></label>

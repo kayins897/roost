@@ -1,6 +1,6 @@
 import { Heart, Pencil, Plus, RotateCcw } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { COMPLETION_LABELS, COMPLETION_STATUSES, completionFor, completionCountFor, engagementFor, ENGAGEMENT_LABELS, PLAY_ENGAGEMENTS, undoCompletionRecord, type CompletionRecordUndo } from '../../../domain/gameProgress.ts';
+import { COMPLETION_LABELS, COMPLETION_STATUSES, completionFor, completionCountFor, undoCompletionRecord, type CompletionRecordUndo } from '../../../domain/gameProgress.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 import { formatPlaytime } from '../../../domain/library.ts';
 import { CompletionCountEditor } from './CompletionCountEditor.tsx';
@@ -8,12 +8,13 @@ import { CompletionEvents } from './CompletionEvents.tsx';
 import { CompletionRecordForm } from './CompletionRecordForm.tsx';
 import { GameExperiencePicker } from './GameExperiencePicker.tsx';
 import { GameRating } from './GameRating.tsx';
-import { engagementIcon } from '../library/gameVisualState.ts';
+import { experienceClassificationPatch } from '../../../domain/gameExperience.ts';
+import { CLASSIFICATIONS, CLASSIFICATION_LABELS, classificationFor } from '../library/experienceOptions.ts';
 
 /** Current activity, completion, and explicitly recorded totals remain independent. */
 export function GameProgressPanel({ item, onPatch, onEditTime, footprint }: { item: MediaItem; onPatch: (patch: Partial<MediaItem>) => boolean; onEditTime: () => void; footprint: ReactNode }) {
   const locked = Boolean(item.removedAt);
-  const engagement = engagementFor(item), completion = completionFor(item), count = completionCountFor(item);
+  const classification = classificationFor(item), completion = completionFor(item), count = completionCountFor(item);
   const [recording, setRecording] = useState(false);
   const [editingCount, setEditingCount] = useState(false);
   const [undoable, setUndoable] = useState<CompletionRecordUndo | null>(null);
@@ -28,7 +29,7 @@ export function GameProgressPanel({ item, onPatch, onEditTime, footprint }: { it
   return <>
     <section className="detail-bento-card bento-experience" aria-label="我的体验">
       <div className="detail-personal-heading"><h3>我的体验</h3>{!locked && <button className="icon-button" onClick={() => onPatch({ favorite: !item.favorite })} aria-label={item.favorite ? '取消喜欢' : '标为喜欢'}><Heart size={17} fill={item.favorite ? 'currentColor' : 'none'} /></button>}</div>
-      <GameExperiencePicker label="当前游玩关系" value={engagement} currentLabel={engagement === 'unrecorded' ? '当前关系未记录' : ENGAGEMENT_LABELS[engagement]} options={PLAY_ENGAGEMENTS} labels={ENGAGEMENT_LABELS} className="engagement-picker" tone={engagement === 'unrecorded' || engagement === 'inactive' ? '' : `game-state--${engagementIcon[engagement]}`} locked={locked} onChange={value => onPatch({ playEngagement: value })} />
+      <GameExperiencePicker label="体验分类" value={classification} currentLabel={CLASSIFICATION_LABELS[classification]} options={CLASSIFICATIONS} labels={CLASSIFICATION_LABELS} className="engagement-picker" tone={`experience-color--${classification}`} locked={locked} onChange={value => onPatch(experienceClassificationPatch(value))} />
       <GameExperiencePicker label="通关进度" value={completion} currentLabel={COMPLETION_LABELS[completion]} options={COMPLETION_STATUSES} labels={COMPLETION_LABELS} className="completion-picker" tone={completion === 'cleared' ? 'game-state--cleared' : ''} locked={locked} onChange={value => onPatch({ completion: value })} />
       <div className="bento-ratings"><GameRating item={item} locked={locked} onPatch={onPatch} /></div>
     </section>

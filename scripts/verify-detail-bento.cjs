@@ -24,16 +24,16 @@ const report = {
 const work = (id, title, extra = {}) => ({
   id, title, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '合成作者', year: '2026',
   status: 'want', gamePlayState: 'want', playEngagement: 'planned', completion: 'cleared',
-  playtimeMinutes: 73, completionCount: 2, playPriority: 'A', personalGrade: 'S',
+  experienceStatus: 'unplayed', playtimeMinutes: 73, completionCount: 2, playPriority: 'A', personalGrade: 'S',
   tags: [], gameTags: { gameplay: [], theme: [], scenario: [], other: [] },
   impression: '保留一句话印象', review: '合成长文第一段\n第二段保留尾空格  ', favorite: false, artwork: 'outer',
   createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', futureItem: { keep: id }, ...extra,
 });
 const fixture = { schemaVersion: 1, futureRoot: { keep: true }, items: [
   work('portrait', '便当纵图', { fixtureSize: [240, 360] }),
-  work('landscape', '便当横图', { fixtureSize: [480, 270], completion: 'not-applicable' }),
+  work('landscape', '便当横图', { fixtureSize: [480, 270], completion: 'not-applicable', experienceStatus: 'experienced', experienceCategory: 'long-term' }),
   work('zero', '便当方图零值', { fixtureSize: [320, 320], playtimeMinutes: 0, completionCount: 0, completion: 'not-cleared' }),
-  work('unknown', '便当无封面未知值', { playtimeMinutes: undefined, completionCount: undefined, completion: 'unknown' }),
+  work('unknown', '便当无封面未知值', { playtimeMinutes: undefined, completionCount: undefined, completion: 'unknown', experienceStatus: 'experienced' }),
 ] };
 const cards = ['.bento-cover', '.bento-experience', '.bento-stats', '.bento-impression', '.bento-footprint', '.bento-review'];
 let browser, context, page, server, base, mode, stage;
@@ -75,7 +75,7 @@ async function open(id) {
 }
 async function close(detail) { await button('关闭详情', detail).click(); await detail.waitFor({ state: 'hidden' }); }
 async function expand(detail, axis) {
-  const toggle = button(axis === 'engagement' ? '更改当前游玩关系' : '更改通关进度', detail);
+  const toggle = button(axis === 'engagement' ? '更改体验分类' : '更改通关进度', detail);
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
   await toggle.click(); assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
   const options = detail.locator(axis === 'engagement' ? '.game-state-options' : '.completion-options');
@@ -184,7 +184,7 @@ async function prepare(currentMode, viewport = { width: 1440, height: 1100 }) {
     if (new URL(url).origin === base || url.startsWith('data:')) return route.continue();
     report.blockedRequests.push(url); return route.abort();
   });
-  await page.goto(base); await button('全部游戏', page.locator('.library-views')).click();
+  await page.goto(base); await showAll();
 }
 async function visualSuite(viewport) {
   await prepare('browser', viewport);
@@ -223,11 +223,11 @@ async function behaviorSuite(currentMode) {
     const detail = await open('portrait'), before = await raw(), attempts = await saves();
     assert.equal(await detail.getByRole('combobox', { name: '待体验优先级', exact: true }).inputValue(), 'A');
     assert.equal(await detail.getByRole('combobox', { name: '我的评级', exact: true }).inputValue(), 'S');
-    for (const [axis, label] of [['engagement', '计划游玩'], ['completion', '已通关']]) {
+    for (const [axis, label] of [['engagement', '待体验'], ['completion', '已通关']]) {
       const options = await expand(detail, axis); await button(label, options).click();
     }
     await unchanged('两轴同值点击', before, attempts);
-    for (const [axis, label, field, value] of [['engagement', '游玩中', 'playEngagement', 'playing'], ['completion', '明确未通关', 'completion', 'not-cleared']]) {
+    for (const [axis, label, field, value] of [['engagement', '待续', 'experienceCategory', 'continue'], ['completion', '明确未通关', 'completion', 'not-cleared']]) {
       const original = await data(), options = await expand(detail, axis), oldValue = original.items.find(value => value.id === 'portrait')[field];
       await fail(true); await button(label, options).click();
       assert.equal(await options.isVisible(), true); assert.equal((await item('portrait'))[field], oldValue);
@@ -235,7 +235,7 @@ async function behaviorSuite(currentMode) {
       await unchanged(`${axis}失败不改收藏`, JSON.stringify(original)); await capture(`${axis}-failed`);
       await fail(false); await button(label, options).click();
       assert.equal((await item('portrait'))[field], value); assert.equal(await options.isVisible(), false);
-      preserve(original, await data(), 'portrait', [field, 'updatedAt']);
+      preserve(original, await data(), 'portrait', [field, ...(axis === 'engagement' ? ['experienceStatus'] : []), 'updatedAt']);
     }
     await close(detail);
   });
@@ -243,7 +243,7 @@ async function behaviorSuite(currentMode) {
     const before = await raw(), attempts = await saves();
     for (const id of ['unknown', 'zero']) {
       const detail = await open(id), stats = detail.locator('.bento-stats');
-      if (id === 'unknown') assert.match(await stats.innerText(), /未记录/);
+      if (id === 'unknown') { for (const name of ['游玩时长','完成次数']) assert.equal(await stats.getByRole('region', { name, exact: true }).locator('.bento-stat-value').innerText(), '未记录'); }
       else { assert.match(await stats.innerText(), /0\s*h/); assert.match(await stats.innerText(), /0\s*次/); }
       await button('编辑次数', detail).click();
       assert.equal(await detail.getByRole('textbox', { name: '累计完成次数', exact: true }).inputValue(), id === 'zero' ? '0' : '');
@@ -300,6 +300,85 @@ async function behaviorSuite(currentMode) {
   });
   await context.close(); context = null;
 }
+async function showAll() {
+  const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
+  for (const name of ['待体验','已体验']) { const target = button(name, filters); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+}
+async function classificationSuite(currentMode) {
+  await prepare(currentMode);
+  const filters = () => page.getByRole('group', { name: '按体验分类筛选', exact: true });
+  const ids = () => page.locator('.media-card').evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label')).sort());
+  await check('主类三个组合、禁止全空、删除重复导航，浏览旧库零写入', async () => {
+    const before = await raw(), attempts = await saves();
+    assert.equal(await button('全部游戏').count(), 0); assert.equal(await button('待体验计划').count(), 0);
+    assert.equal((await ids()).length, 4);
+    await button('已体验', filters()).click(); assert.equal((await ids()).length, 2);
+    await button('待体验', filters()).click(); assert.equal((await ids()).length, 2);
+    assert.equal(await button('待体验', filters()).getAttribute('aria-pressed'), 'true');
+    await button('已体验', filters()).click(); assert.equal((await ids()).length, 4);
+    await button('待体验', filters()).click(); assert.equal((await ids()).length, 2);
+    await button('已体验', filters()).click(); assert.equal((await ids()).length, 2);
+    assert.equal(await button('已体验', filters()).getAttribute('aria-pressed'), 'true');
+    await unchanged('三个主类筛选组合不改库', before, attempts); await showAll();
+  });
+  await check('无时长已体验、五分类唯一可切换、空二级合法、颜色一致且互异', async () => {
+    const detail = await open('unknown'), colors = [];
+    const labels = ['待续','可重玩','长线游玩','已通关','已放下'];
+    const values = ['continue','replayable','long-term','completed','put-aside'];
+    for (let index = 0; index < values.length; index++) {
+      const before = await data(), options = await expand(detail, 'engagement');
+      await button(labels[index], options).click(); const saved = await item('unknown');
+      assert.equal(saved.experienceStatus, 'experienced'); assert.equal(saved.experienceCategory, values[index]);
+      assert.equal(saved.playtimeMinutes, undefined); assert.equal(saved.completion, 'unknown');
+      preserve(before, await data(), 'unknown', ['experienceStatus','experienceCategory','updatedAt']);
+      colors.push(await detail.locator('.engagement-picker .experience-current strong').evaluate(node => getComputedStyle(node).color));
+    }
+    assert.equal(new Set(colors).size, 5, '五个已体验二级颜色应各不相同');
+    await button('更改体验分类', detail).click(); await button('已体验 · 未分类', detail.locator('.game-state-options')).click();
+    assert.equal((await item('unknown')).experienceStatus, 'experienced'); assert.equal((await item('unknown')).experienceCategory, undefined);
+    await close(detail); await showAll();
+    const card = button('查看便当无封面未知值详情'); assert.equal(await card.getAttribute('data-game-state'), 'unclassified');
+  });
+  await check('右键就地分类、失败可重试，长线与通关次数/等级并存', async () => {
+    const before = await data();
+    await button('查看便当纵图详情').click({ button: 'right' });
+    const menu = page.getByRole('menu', { name: '便当纵图快捷编辑', exact: true });
+    const categories = menu.getByRole('group', { name: '体验分类', exact: true });
+    await fail(true); await categories.getByRole('menuitemradio', { name: '长线游玩', exact: true }).click();
+    assert.equal(await menu.isVisible(), true); assert.equal((await item('portrait')).experienceStatus, 'unplayed');
+    await fail(false); await categories.getByRole('menuitemradio', { name: '长线游玩', exact: true }).click();
+    const saved = await item('portrait'); assert.equal(saved.experienceCategory, 'long-term'); assert.equal(saved.completion, 'cleared'); assert.equal(saved.completionCount, 2);
+    preserve(before, await data(), 'portrait', ['experienceStatus','experienceCategory','updatedAt']);
+    assert.equal(await page.getByRole('dialog').count(), 0, '快捷分类不打开额外弹窗');
+    await page.keyboard.press('Escape');
+    assert.equal(await button('查看便当纵图详情').getAttribute('data-game-state'), 'long-term');
+  });
+  await check('批量直接分类保持多选与事实，失败不写、不静默丢选', async () => {
+    const before = await data(); await button('批量编辑游戏').click();
+    await button('选择便当纵图').click(); await button('选择便当方图零值').click();
+    const select = page.getByRole('combobox', { name: '批量体验分类', exact: true });
+    await fail(true); await select.selectOption('replayable'); assert.equal(await page.locator('.selection-actionbar').isVisible(), true);
+    await unchanged('批量分类保存失败', JSON.stringify(before));
+    await fail(false); await select.selectOption('replayable'); const after = await data();
+    for (const id of ['portrait','zero']) { assert.equal(after.items.find(item => item.id === id).experienceCategory, 'replayable'); assert.equal(after.items.find(item => item.id === id).experienceStatus, 'experienced'); }
+    for (const original of before.items) { const next = after.items.find(item => item.id === original.id); for (const field of Object.keys(original)) if (!['experienceStatus','experienceCategory','updatedAt'].includes(field)) assert.deepEqual(next[field], original[field], `${original.id}.${field}`); }
+    assert.equal(await page.locator('.media-card.is-chosen').count(), 2); await button('退出多选').click();
+  });
+  await check('新增直接最终分类、刷新持久化、已通关二级未记录事实不丢卡', async () => {
+    await button('收录作品').first().click(); const editor = page.getByRole('dialog', { name: '收录新作品', exact: true });
+    await editor.getByRole('textbox', { name: '作品名称', exact: false }).fill('分类直达样例');
+    await editor.getByRole('combobox', { name: '体验分类', exact: true }).selectOption('completed');
+    await button('加入收藏', editor).click(); const detail = page.getByRole('dialog', { name: '分类直达样例详情', exact: true }); await detail.waitFor();
+    await close(detail); const saved = (await data()).items.find(item => item.title === '分类直达样例');
+    assert.equal(saved.experienceStatus, 'experienced'); assert.equal(saved.experienceCategory, 'completed'); assert.equal(saved.completion, 'unknown'); assert.equal(saved.completionCount, undefined);
+    await page.reload(); await showAll(); const before = await raw(), attempts = await saves();
+    await button('待体验', filters()).click(); const categories = page.getByRole('group', { name: '已体验二级筛选', exact: true }); await button('已通关', categories).click();
+    assert.equal(await button('查看分类直达样例详情').count(), 1); await button('未分类', categories).click(); assert.equal(await button('查看便当无封面未知值详情').count(), 1);
+    await unchanged('重载和二级筛选只读', before, attempts); await showAll(); await capture('classification-library');
+    const preview = await open('portrait'); await capture('classification-detail'); await close(preview);
+  });
+  await context.close(); context = null;
+}
 async function serve() {
   const index = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
   report.distAssets = [...index.matchAll(/(?:src|href)="((?:\.\/|\/)?assets\/[^\"]+\.(?:js|css))"/g)].map(match => ({ path: match[1], sha256: sha(fs.readFileSync(path.resolve(dist, match[1].replace(/^\//, '')))) }));
@@ -321,6 +400,7 @@ async function serve() {
     base = await serve(); browser = await chromium.launch({ channel: 'msedge', headless: true });
     for (const viewport of [{ width: 1440, height: 1100 }, { width: 1000, height: 800 }, { width: 390, height: 844 }]) await visualSuite(viewport);
     await behaviorSuite('browser'); await behaviorSuite('bridge');
+    await classificationSuite('browser'); await classificationSuite('bridge');
     assert.deepEqual(report.errors, []); assert.deepEqual(report.blockedRequests, []); report.passed = true;
   } catch (error) {
     report.failure = { stage, message: error.message, stack: error.stack }; process.exitCode = 1; console.error(error.stack);

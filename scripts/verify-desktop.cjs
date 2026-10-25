@@ -26,6 +26,10 @@ const fixtures = { schemaVersion: 1, items: [fixtureItem('legacy-game', 'game', 
 function assertGamePlanningFields(item) {
  for (const [field, value] of Object.entries(gamePlanningFields)) assert.equal(item[field], value, `原生往返应保留${field}`);
 }
+async function showAll() {
+  const group = page.getByRole('group', { name: '按体验分类筛选', exact: true });
+  for (const name of ['待体验','已体验']) { const button = group.getByRole('button', { name, exact: true }); if (await button.getAttribute('aria-pressed') !== 'true') await button.click(); }
+}
 async function launch() {
   app = await electron.launch({ executablePath, args: packaged ? [] : [root], env, timeout: 45000 });
   page = await app.firstWindow();
@@ -39,7 +43,7 @@ async function launch() {
   assert.deepEqual(await navigation.getByRole('button').evaluateAll(buttons => buttons.map(button => button.getAttribute('aria-label'))), ['游戏', '书籍', '影视', '音乐']);
   assert.equal(await navigation.getByRole('button', { name: '游戏', exact: true }).getAttribute('aria-current'), 'page');
   await page.waitForFunction(() => Boolean(window.qiyuDesktop));
-  await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click();
+  await showAll();
 }
 async function closeDetail() { await page.getByRole('button', { name: '关闭详情', exact: true }).click(); }
 async function importSnapshot(value) {
@@ -75,7 +79,7 @@ async function exportSnapshot(name) {
   await page.getByLabel(/作品名称/).fill('桌面新收藏');
   await page.getByLabel(/作品原名/).fill('Desktop Collection');
   await page.getByLabel(/累计游玩时长/).fill('1.25');
-  await page.getByRole('dialog', { name: '收录新作品', exact: true }).getByLabel('当前游玩关系').selectOption('planned');
+  await page.getByRole('dialog', { name: '收录新作品', exact: true }).getByLabel('体验分类', { exact: true }).selectOption('unplayed');
   await page.getByRole('dialog', { name: '收录新作品', exact: true }).getByLabel('通关进度').selectOption('cleared');
   await page.getByRole('textbox', { name: '一句话印象', exact: true }).fill('添加后关闭应用，仍应保留。');
   await page.getByRole('textbox', { name: '长文测评', exact: true }).fill('原生长文测评\n保存后退出重开，导出必须保留全部文字。');
@@ -86,14 +90,17 @@ async function exportSnapshot(name) {
   assert.equal(snapshot().items[0].personalGrade, 'SSS');
   assert.equal(snapshot().items[0].playtimeMinutes, 75);
   assert.ok(snapshot().items[0].coverUrl.startsWith('data:image/jpeg;base64,'));
+  await page.screenshot({ path: path.join(evidence, 'native-classification-detail.png') });
   await closeDetail();
+  assert.equal(snapshot().items[0].experienceStatus, 'unplayed', '明确待体验优先于正时长与通关记录');
   await app.close(); app = null;
   await launch();
   await page.getByRole('button', { name: '查看桌面新收藏详情', exact: true }).waitFor();
   assert.equal(snapshot().items[0].personalGrade, 'SSS');
   assert.equal(await page.getByRole('button', { name: '查看桌面新收藏详情', exact: true }).locator('.card-cover').getAttribute('data-finish'), 'prismatic');
   assert.equal(snapshot().items[0].review, '原生长文测评\n保存后退出重开，导出必须保留全部文字。');
-  checks.push('新增、分钟精度、上传封面、SSS评级、独立测评及退出重开保留');
+  assert.equal(snapshot().items[0].experienceStatus, 'unplayed');
+  checks.push('新增、手动主类优先、分钟精度、上传封面、SSS评级、独立测评及退出重开保留');
 
   await importSnapshot(fixtures);
   assertGamePlanningFields(snapshot().items.find(item => item.id === 'legacy-game'));
@@ -106,6 +113,13 @@ async function exportSnapshot(name) {
   await page.getByRole('button', { name: '保存修改', exact: true }).click();
   await page.getByRole('heading', { name: '分钟记录游戏', exact: true }).waitFor();
   assert.equal(snapshot().items.find(item => item.id === 'legacy-game').originalTitle, 'Original From Backup');
+  await page.getByRole('button', { name: '更改体验分类', exact: true }).click();
+  await page.locator('.game-state-options').getByRole('button', { name: '长线游玩', exact: true }).click();
+  assert.equal(snapshot().items.find(item => item.id === 'legacy-game').experienceCategory, 'long-term');
+  assert.equal(snapshot().items.find(item => item.id === 'legacy-game').gamePlayState, 'cleared');
+  assert.equal(snapshot().items.find(item => item.id === 'legacy-game').personalGrade, 'A');
+  checks.push('原生详情即时分类与通关事实/旧轴并存');
+
   assertGamePlanningFields(snapshot().items.find(item => item.id === 'legacy-game'));
   await closeDetail();
   const exported = await exportSnapshot('exported.json');
@@ -116,7 +130,8 @@ async function exportSnapshot(name) {
   checks.push('旧版备份导入→分钟记录编辑→原名、独立优先级/评级/顺序/长文保留→原生导出');
 
   await page.getByRole('navigation', { name: '作品分类' }).getByRole('button', { name: /游戏/ }).click();
-  await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click();
+  await showAll();
+  if (await page.getByRole('button', { name: '筛选', exact: true }).getAttribute('aria-expanded') !== 'true') await page.getByRole('button', { name: '筛选', exact: true }).click();
   await page.locator('.completion-row').getByRole('button', { name: '已通关', exact: true }).click();
   assert.equal(await page.locator('.media-gallery .media-card').count(), 1);
   await page.getByRole('textbox', { name: '搜索收藏', exact: true }).fill('Original From Backup');

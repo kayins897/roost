@@ -16,7 +16,7 @@ export function BulkGradeBar({ selectedGames, visibleIds, onApply }: { selectedG
   const selectionSummary = `已选 ${selectedGames.length} 款：当前结果内 ${inView}、${outOfView} 款在当前结果之外`;
   if (!allPlanned && !allGraded) {
     const anyEligible = selectedGames.some(item => priorityEditable(item) || gradeEditable(item));
-    return <span className="bulk-grade-hint">{selectionSummary}；{anyEligible ? '所选游戏的等级资格不一致，快捷设置不可用' : '所选游戏的当前关系/进度不适用等级设置'}；可用「改状态/进度」调整或单独编辑。</span>;
+    return <span className="bulk-grade-hint">{selectionSummary}；{anyEligible ? '所选游戏的等级资格不一致，快捷设置不可用' : '所选游戏的体验分类/通关事实不适用等级设置'}；可用「体验分类/改通关进度」调整或单独编辑。</span>;
   }
   const mode = allPlanned && allGraded ? chosenMode : allPlanned ? 'priority' : 'rating';
   const label = mode === 'priority' ? '待体验优先级' : '通关评级';

@@ -28,7 +28,7 @@ export function GameExperiencePicker<T extends string>({ label, value, currentLa
       <span className="experience-current-label">{label}</span><strong>{currentLabel}</strong>{!locked && <ChevronDown size={16} aria-hidden="true" />}
     </button>
     <div id={id} className={`detail-statuses ${className === 'engagement-picker' ? 'game-state-options' : 'completion-options'}`} aria-label={label} hidden={!open}>
-      {options.map(next => <button key={next} className={`status-option ${next === value ? 'is-selected' : ''}`} aria-pressed={next === value} onClick={() => choose(next)}>{labels[next]}</button>)}
+      {options.map(next => <button key={next} className={`status-option ${className === 'engagement-picker' ? `experience-color--${next}` : ''} ${next === value ? 'is-selected' : ''}`} aria-pressed={next === value} onClick={() => choose(next)}>{labels[next]}</button>)}
     </div>
     {error && <p className="form-error" role="alert">{error}</p>}
   </div>;

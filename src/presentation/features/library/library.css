@@ -25,3 +25,6 @@
 .context-grades { display: flex; gap: 4px; padding: 2px 0 8px; border-bottom: 1px solid var(--line); }
 .context-grades button { flex: 1; justify-content: center; min-width: 0; padding: 7px 2px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
 .context-grades button[aria-checked='true'] { background: var(--control-selected); color: var(--control-selected-ink); border-color: var(--control-selected-border); }
+
+.game-status-tabs > small { color: var(--muted); font-size: 11px; font-weight: 400; align-self: center; margin-left: 4px; }
+.experience-category-filters { flex-basis: 100%; margin-top: 8px; }

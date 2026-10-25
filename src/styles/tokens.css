@@ -174,3 +174,13 @@
 :is(.game-state--abandoned,.mark-tab--abandoned,.game-state-option--abandoned,[data-game-state="abandoned"]) { --play-state-color: var(--game-abandoned); }
 
 :is(.game-state--replaying,.mark-tab--replaying,.game-state-option--replaying,[data-game-state="replaying"]) { --play-state-color: var(--game-ongoing); }
+
+/* 游戏整理分类：五种已体验分类各用独立辅助色，客观通关标记仍独立。 */
+:is(.experience-color--unplayed,[data-game-state="unplayed"]) { --play-state-color: var(--game-want); }
+:is(.experience-color--unclassified,[data-game-state="unclassified"]) { --play-state-color: var(--muted); }
+:is(.experience-color--continue,[data-game-state="continue"]) { --play-state-color: var(--game-playing); }
+:is(.experience-color--replayable,[data-game-state="replayable"]) { --play-state-color: var(--game-ongoing); }
+:is(.experience-color--long-term,[data-game-state="long-term"]) { --play-state-color: #bf94e8; }
+:is(.experience-color--completed,[data-game-state="completed"]) { --play-state-color: var(--game-cleared); }
+:is(.experience-color--put-aside,[data-game-state="put-aside"]) { --play-state-color: var(--game-paused); }
+[class*="experience-color--"] { color: var(--play-state-color); }

@@ -11,8 +11,8 @@ const fixture = { schemaVersion: 1, futureRoot: { keep: true }, items: [
   work('book-finished', { category: 'book', subcategory: '文学', gamePlayState: undefined, status: 'finished' }),
   work('outside-priority', { playEngagement: 'playing', playPriority: 'A' }),
   work('na', { playEngagement: 'playing', completion: 'not-applicable' }),
-  work('both-a', { gamePlayState: 'cleared', status: 'finished', playEngagement: 'planned', personalGrade: 'S', playPriority: 'A', ratingOrder: 0 }),
-  work('both-b', { gamePlayState: 'want', playEngagement: 'planned', completion: 'cleared', personalGrade: 'S', playPriority: 'A', ratingOrder: 1 }),
+  work('both-a', { experienceStatus: 'unplayed', gamePlayState: 'cleared', status: 'finished', playEngagement: 'planned', personalGrade: 'S', playPriority: 'A', ratingOrder: 0 }),
+  work('both-b', { experienceStatus: 'unplayed', gamePlayState: 'want', playEngagement: 'planned', completion: 'cleared', personalGrade: 'S', playPriority: 'A', ratingOrder: 1 }),
   work('playing-cleared', { gamePlayState: 'playing', status: 'active', playEngagement: 'playing', completion: 'cleared', personalGrade: 'S', ratingOrder: 2 }),
 ] };
 let server, browser, context, page, mode, base;
@@ -44,7 +44,17 @@ async function prepare(currentMode) {
   page = await context.newPage(); page.setDefaultTimeout(10000);
   page.on('pageerror', error => report.errors.push(`${mode}: ${error.message}`));
   await page.route('**/*', route => route.request().url().startsWith(base) || route.request().url().startsWith('data:') ? route.continue() : route.abort());
-  await page.goto(base); await button('全部游戏', page.locator('.library-views')).click();
+  await page.goto(base); await showAll();
+}
+async function showAll() {
+  if (await button('返回收藏库').count()) await button('返回收藏库').click();
+  const allProgress = button('全部进度', page.locator('.completion-row')); if (await allProgress.count()) await allProgress.click();
+  const group = page.getByRole('group', { name: '按体验分类筛选', exact: true });
+  for (const name of ['待体验','已体验']) { const target = button(name, group); if (await target.getAttribute('aria-pressed') !== 'true') await target.click(); }
+}
+async function clearedFilter() {
+  const toggle = button('筛选'); if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  await button('已通关', page.locator('.completion-row')).click();
 }
 async function suite(currentMode) {
   await prepare(currentMode);
@@ -53,8 +63,8 @@ async function suite(currentMode) {
     const detail = await open('both-a');
     assert.equal(await detail.getByRole('combobox', { name: '待体验优先级', exact: true }).inputValue(), 'A');
     assert.equal(await detail.getByRole('combobox', { name: '我的评级', exact: true }).inputValue(), 'S');
-    await button('更改当前游玩关系', detail).click();
-    await detail.locator('.game-state-options').getByRole('button', { name: '计划游玩', exact: true }).click();
+    await button('更改体验分类', detail).click();
+    await detail.locator('.game-state-options').getByRole('button', { name: '待体验', exact: true }).click();
     await button('更改通关进度', detail).click();
     await detail.locator('.completion-options').getByRole('button', { name: '已通关', exact: true }).click();
     await close(detail); assert.equal(JSON.stringify(await data()), before);
@@ -97,7 +107,7 @@ async function suite(currentMode) {
   });
   await check('相同评级不同当前关系允许键盘移动与封面拖动', async () => {
     const detail = await open('playing-cleared'); await detail.getByRole('combobox', { name: '我的评级', exact: true }).selectOption('SS'); await close(detail);
-    await page.getByRole('button', { name: '已通关', exact: true }).click();
+    await clearedFilter();
     const moving = button('上移《进度示例 playing-cleared》'); assert.equal(await moving.isEnabled(), true); await moving.focus(); await moving.press('Enter');
     const rankGroup = page.locator('.ranked-gallery__group').filter({ has: page.getByText('个人评级 SS', { exact: true }) });
     const ids = () => rankGroup.locator('[data-rank-item]').evaluateAll(nodes => nodes.map(node => node.dataset.rankItem));
@@ -114,7 +124,7 @@ async function suite(currentMode) {
     page.once('dialog', dialog => dialog.accept()); await button('取消', editor).click();
   });
   await check('作品编辑资格一致；已完成书籍转游戏不擅自推断通关', async () => {
-    await button('全部游戏', page.locator('.library-views')).click();
+    await showAll();
     await button('查看进度示例 outside-priority详情').click({ button: 'right' });
     await page.getByRole('menu', { name: '进度示例 outside-priority快捷编辑', exact: true }).getByRole('menuitem', { name: '编辑作品资料', exact: true }).click();
     let editor = page.getByRole('dialog', { name: '编辑作品', exact: true });
@@ -131,12 +141,12 @@ async function suite(currentMode) {
     await close(page.getByRole('dialog', { name: '进度示例 book-finished详情', exact: true }));
   });
   await check('空结果清除筛选与隐藏/回收切换清除通关残留', async () => {
-    await page.getByRole('button', { name: '已通关', exact: true }).click();
+    await clearedFilter();
     await page.getByRole('textbox', { name: '搜索收藏', exact: true }).fill('必定没有任何匹配ZZZ');
     await button('清除筛选').click();
     assert.equal(await button('查看进度示例 unknown详情').count(), 1);
-    await page.getByRole('button', { name: '已通关', exact: true }).click();
-    await button('回收站').click(); await button('全部游戏', page.locator('.library-views')).click();
+    await clearedFilter();
+    await button('回收站').click(); await showAll();
     assert.equal(await button('查看进度示例 outside-priority详情').count(), 1);
   });
   await page.screenshot({ path: path.join(output, `${mode}-progress.png`) });
