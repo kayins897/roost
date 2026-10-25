@@ -7,7 +7,7 @@ import type { CompletionStatus,GameTagGroupKey,MediaItem,PlayEngagement } from '
 import './batch-edit.css';
 
 export type BatchAction = 'engagement' | 'completion' | 'add-tags' | 'remove-tags';
-type BatchPlanView = Pick<GameBatchEditPlan, 'input' | 'selectedIds' | 'selectedCount' | 'skippedCount' | 'timestamp' | 'items' | 'changedCount'> & { changes: { id: string; title: string; rankChange?: GameBatchEditPlan['changes'][number]['rankChange']; stateChange?: GameBatchEditPlan['changes'][number]['stateChange']; tagChanges?: GameBatchEditPlan['changes'][number]['tagChanges'] }[] };
+type BatchPlanView = Pick<GameBatchEditPlan, 'input' | 'selectedIds' | 'selectedCount' | 'skippedCount' | 'timestamp' | 'items' | 'changedCount'> & { kind: 'progress' | 'tags'; patch?: Partial<Pick<MediaItem, 'playEngagement' | 'completion'>>; changes: { id: string; title: string; rankChange?: GameBatchEditPlan['changes'][number]['rankChange']; stateChange?: GameBatchEditPlan['changes'][number]['stateChange']; tagChanges?: GameBatchEditPlan['changes'][number]['tagChanges'] }[] };
 export interface TagAssignment { group: GameTagGroupKey; name: string }
 interface Props { items: MediaItem[]; availableItems?: MediaItem[]; action: BatchAction; initialTag?: TagAssignment | null; onApply: (plan: BatchPlanView) => boolean; onClose: () => void }
 export function BatchEditBody({ items, availableItems = items, action, initialTag, onApply, onClose }: Props) {
@@ -23,9 +23,10 @@ export function BatchEditBody({ items, availableItems = items, action, initialTa
     if (action === 'engagement' || action === 'completion') {
       const patch = action === 'engagement' ? (engagement ? { playEngagement: engagement } : {}) : (completion ? { completion } : {});
       const result = createBatchProgressPatch(items, items.map(item => item.id), patch);
-      return { changedCount: result.changedCount, changes: result.changes, input: {} as GameBatchEditPlan['input'], selectedIds: items.map(item => item.id), selectedCount: items.length, skippedCount: 0, timestamp: '', items: result.items };
+      // patch 随计划上交：保存时由控制器在最新全库上重建，预览 items 仅含所选。
+      return { kind: 'progress', patch, changedCount: result.changedCount, changes: result.changes, input: {} as GameBatchEditPlan['input'], selectedIds: items.map(item => item.id), selectedCount: items.length, skippedCount: 0, timestamp: '', items: result.items };
     }
-    return createGameBatchEditPlan(items, items.map(item => item.id), { tags: { mode: action === 'add-tags' ? 'add' : 'remove', groups: { ...emptyGameTags(), [group]: names } } });
+    return { kind: 'tags', ...createGameBatchEditPlan(items, items.map(item => item.id), { tags: { mode: action === 'add-tags' ? 'add' : 'remove', groups: { ...emptyGameTags(), [group]: names } } }) };
   }, [items, action, engagement, completion, group, names]);
   const title = action === 'engagement' ? '更改当前关系' : action === 'completion' ? '更改通关进度' : action === 'add-tags' ? '添加标签' : '移除标签';
   function apply() {

@@ -1,5 +1,5 @@
 import { Bookmark, Clock3, EyeOff, Heart, Pencil, Star, Tag, Trash2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { GAME_GRADES } from '../../../domain/gameRating.ts';
 import { COMPLETION_LABELS, COMPLETION_STATUSES, completionFor, ENGAGEMENT_LABELS, engagementFor, gradeEditable, PLAY_ENGAGEMENTS, priorityEditable } from '../../../domain/gameProgress.ts';
 import type { CompletionStatus, MediaItem, PersonalGrade, PlayEngagement } from '../../../domain/types.ts';
@@ -14,6 +14,17 @@ export function ContextMenu(props: Props) {
   const panel = useRef<HTMLDivElement>(null);
   const { item, onClose } = props;
   const closeRef = useRef(onClose); closeRef.current = onClose;
+  // 实测自适配：渲染后按真实高度钳制，保证整菜单在视口内（矮窗口依赖自身滚动）。
+  const [position, setPosition] = useState({ left: Math.max(8, Math.min(props.menu.x, window.innerWidth - 248)), top: Math.max(8, Math.min(props.menu.y, window.innerHeight - 200)) });
+  useLayoutEffect(() => {
+    const node = panel.current; if (!node) return;
+    const height = node.getBoundingClientRect().height;
+    const width = node.getBoundingClientRect().width;
+    setPosition({
+      left: Math.max(8, Math.min(props.menu.x, window.innerWidth - width - 8)),
+      top: Math.max(8, props.menu.y + height > window.innerHeight - 8 ? window.innerHeight - height - 8 : props.menu.y),
+    });
+  }, [props.menu.x, props.menu.y]);
   useEffect(() => {
     const oldFocus = document.activeElement as HTMLElement | null;
     panel.current?.querySelector<HTMLButtonElement>('button')?.focus();
@@ -60,7 +71,7 @@ export function ContextMenu(props: Props) {
   const completion = isGame ? completionFor(item) : null;
   const canPriority = isGame && priorityEditable(item);
   const canGrade = isGame && gradeEditable(item);
-  return <div ref={panel} className="item-context-menu" role="menu" aria-label={`${item.title}快捷编辑`} style={{ left: Math.max(8, Math.min(props.menu.x, window.innerWidth - 248)), top: Math.max(8, Math.min(props.menu.y, window.innerHeight - (item.removedAt ? 170 : item.category === 'game' ? 660 : 290))) }} onKeyDown={event => {
+  return <div ref={panel} className="item-context-menu" role="menu" aria-label={`${item.title}快捷编辑`} style={{ left: position.left, top: position.top }} onKeyDown={event => {
     const buttons = [...(panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
     const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
     if (event.key === 'Escape') { event.stopPropagation(); onClose(); }

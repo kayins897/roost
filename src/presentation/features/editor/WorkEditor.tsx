@@ -115,7 +115,8 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
       platforms: type === 'game' ? normalizePlatforms(platformInput.split(/[,，、;；\n]+/)) : initial?.platforms,
       creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : status,
       gamePlayState: type === 'game' ? (initial ? initial.gamePlayState : (gameFields as { gamePlayState?: MediaItem['gamePlayState'] }).gamePlayState) : initial?.gamePlayState,
-      ...(type === 'game' ? { playEngagement: (gameFields as { playEngagement?: MediaItem['playEngagement'] }).playEngagement, completion: (gameFields as { completion?: MediaItem['completion'] }).completion } : {}),
+      // 未触碰的维度保留 initial 原值（gameFields 编辑分支只含 touched 键；'unknown' 为合法显式值不受 ?? 影响）。
+      ...(type === 'game' ? { playEngagement: (gameFields as { playEngagement?: MediaItem['playEngagement'] }).playEngagement ?? initial?.playEngagement, completion: (gameFields as { completion?: MediaItem['completion'] }).completion ?? initial?.completion } : {}),
       playtimeMinutes: type === 'game' ? hours !== undefined ? Math.round(hours * 60) : undefined : initial?.playtimeMinutes,
       tags: type === 'game' ? flattenGameTags(groupedTags) : normalizeTags(tags.split(/[,，、\n]+/)),
       gameTags: type === 'game' ? groupedTags : initial?.gameTags,

@@ -30,7 +30,7 @@ export const MediaCard = memo(function MediaCard({ item, onOpen, onMenu, variant
       <div className="card-foot">{gameState ? <div className="card-game-meta">
         <span className="card-playtime"><Clock3 size={14} /><strong>{item.playtimeMinutes === undefined ? '时长未记录' : formatPlaytime(item.playtimeMinutes)}</strong></span>
         {engagement && engagement !== 'unrecorded' && <span className={`card-game-state game-state--${ENGAGEMENT_ICON[engagement]}`}><GameStateIcon state={ENGAGEMENT_ICON[engagement]} size={12} />{ENGAGEMENT_SHORT[engagement]}</span>}
-        {completion === 'cleared' && <span className="card-completion-mark">已通关</span>}
+        {completion === 'cleared' && <span className="card-game-state game-state--cleared card-completion-mark"><GameStateIcon state="cleared" size={12} />已通关</span>}
       </div> : <StatusMark status={item.status} />}<span className="card-arrow"><ArrowUpRight size={16} /></span></div>
       {item.category === 'game' && item.personalGrade !== undefined && <div className="card-personal-rating"><Star size={11} /><strong>{item.personalGrade}</strong>{finish !== 'standard' && <span>{COVER_FINISH_LABELS[finish]}</span>}</div>}
       {engagement !== null && (engagement === 'planned' || engagement === 'paused') && item.playPriority !== undefined && <div className="card-personal-rating"><Bookmark size={11} /><strong>{item.playPriority}</strong><span>待体验优先级</span></div>}

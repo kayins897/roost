@@ -153,6 +153,9 @@ async function suite(currentMode) {
     const nav = page.getByRole('navigation', { name: '作品分类', exact: true });
     assert.deepEqual(await nav.getByRole('button').evaluateAll(buttons => buttons.map(button => button.getAttribute('aria-label'))), ['游戏', '书籍', '影视', '音乐']);
     assert.equal(await page.getByRole('button', { name: '收藏总览', exact: true }).count(), 0);
+    // v0.4.24 默认待体验计划视图：仅计划游玩+搁置（旅程 A、未选 D）；切全部后四件游戏齐。
+    assert.equal(await page.locator('.media-gallery .media-card').count(), 2);
+    await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click();
     assert.equal(await page.locator('.media-gallery .media-card').count(), 4);
     assert.equal(await toolbar().count(), 0);
     await unchanged('默认浏览不修改收藏字节', baseline);
@@ -244,6 +247,9 @@ async function suite(currentMode) {
     await page.locator('.game-filter-group.tag-type--scenario .tag-filter').filter({ hasText: '联机' }).click();
     assert.equal(await page.locator('.media-gallery .media-card').count(), 2); await expectSelected(3);
     await page.locator('.active-filter-summary').getByRole('button', { name: '全部清除', exact: true }).click();
+    // v0.4.24 默认待体验计划视图：仅计划游玩+搁置（旅程 A、未选 D）；切全部后四件游戏齐。
+    assert.equal(await page.locator('.media-gallery .media-card').count(), 2);
+    await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click();
     assert.equal(await page.locator('.media-gallery .media-card').count(), 4); await expectSelected(3);
     await page.getByRole('button', { name: '取消选择未选 D', exact: true }).click(); await expectSelected(2);
     await toolbar().getByRole('button', { name: '退出批量选择', exact: true }).click(); await unchanged('标签筛选及清除、取消选择均不写入收藏', beforeRaw);

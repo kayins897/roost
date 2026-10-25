@@ -275,7 +275,7 @@ test('仅原名缺失也会读取详情：来源有不同原名则补，相同�
   });
   assert.ok(hosts.filter(host => host === 'store.steampowered.com').length >= 1, '原名缺失触发详情请求');
   assert.equal(result.games[0].originalTitle, 'API 不同原名');
-  assert.equal(result.games[1].originalTitle, undefined, '来源无不同原名不虚构');
+  assert.equal(result.games[1].originalTitle, 'Same Title', '来源确认同名也记录，重读幂等');
 });
 
 test('公共封面跨域跳转被拦截，HTML冒充图片也不进入本地收藏', async () => {

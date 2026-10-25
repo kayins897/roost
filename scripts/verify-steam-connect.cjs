@@ -152,21 +152,23 @@ async function exportSnapshot() {
       await enrich();
       assert.equal(fs.readFileSync(dataFile, 'utf8'), baseline); assert.equal(fs.existsSync(previousFile), false);
       const requests = await network();
-      assert.equal(requests.filter(request => request.kind === 'details').length, 480, '完整本地资料应复用，不重复读取');
+      assert.equal(requests.filter(request => request.kind === 'details').length, 481, 'v0.4.24（N3-C）：恰一件原名缺失也读详情，其余完整本地资料复用');
       assert.equal(requests.filter(request => request.kind === 'cover').length, 480);
       assert.equal(await modal().locator('.steam-connect-cover img').count(), 481);
       await capture('steam-connect-dark'); await capture('steam-connect-light', 'light'); await capture('steam-connect-narrow', 'dark', true);
       await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.setMinimumSize(880, 640); window.setSize(1440, 960); });
     });
     await check('新增与补资料一次提交，完整备份并保留个人字段及更高本地分钟', async () => {
-      await modal().getByRole('button', { name: '保存选中的 479 款', exact: true }).click();
+      await modal().getByRole("button", { name: "保存选中的 480 款", exact: true }).click();
       await modal().waitFor({ state: 'detached' });
       const saved = readSnapshot(); assert.equal(saved.items.length, 481); assert.deepEqual(saved.futureRoot, fixture.futureRoot);
       const old = saved.items.find(entry => entry.id === 'existing-update');
       const expectedPersonal = ['title', 'status', 'gamePlayState', 'playtimeMinutes', 'tags', 'gameTags', 'impression', 'favorite', 'experienceEntries', 'futureItem', 'createdAt'];
       for (const field of expectedPersonal) assert.deepEqual(old[field], fixture.items[0][field]);
       assert.equal(old.creator, 'Fixture Developer'); assert.equal(old.year, '2024'); assert.match(old.coverUrl, /^data:image\/jpeg;base64,/);
-      assert.deepEqual(saved.items.find(entry => entry.id === 'existing-current'), fixture.items[1]);
+      // v0.4.24（N3-C）：enrich 会为缺失原名的既有作品补上来源原名，比较时剔除该补充字段。
+      const currentSaved = saved.items.find(entry => entry.id === 'existing-current');
+      assert.deepEqual(currentSaved && { ...currentSaved, originalTitle: undefined, updatedAt: undefined }, { ...fixture.items[1], originalTitle: undefined, updatedAt: undefined });
       assert.deepEqual(saved.items.find(entry => entry.id === 'ambiguous'), fixture.items[2]);
       const added = saved.items.find(entry => entry.externalIds?.some(ref => ref.provider === 'steam' && ref.id === '1003'));
       assert.equal(added.playtimeMinutes, 51); assert.equal(added.status, 'want'); assert.equal(added.favorite, false); assert.equal(added.impression, ''); assert.equal(added.experienceEntries, undefined);
@@ -182,6 +184,8 @@ async function exportSnapshot() {
       const beforePublic = (await network()).filter(request => request.kind !== 'owned').length;
       await enrich();
       const newPublic = (await network()).filter(request => request.kind !== 'owned').slice(beforePublic);
+      const idSet = new Set(newPublic.map(request => request.appId)); console.log('DEBUG newPublic:', newPublic.length, 'unique:', idSet.size, 'sample:', [...idSet].slice(0, 5).join(','), 'has1002:', idSet.has('1002'));
+      console.log('DEBUG lib1003:', JSON.stringify(readSnapshot().items.find(item => item.externalIds?.some(ref => ref.id === '1003'))?.originalTitle));
       assert.equal(newPublic.length, 2, '仅同名待确认项不能复用本地身份，480项已匹配资料均应复用');
       assert.ok(newPublic.every(request => request.appId === '1002'));
       assert.equal(await modal().getByRole('button', { name: '保存选中的 0 款', exact: true }).isDisabled(), true);

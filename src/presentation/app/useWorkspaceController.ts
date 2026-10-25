@@ -1,7 +1,7 @@
 import type { ChangeEvent } from 'react';
 import { useCallback,useEffect,useMemo,useRef } from 'react';
 import type { GameBatchEditPlan } from '../../domain/batchEdit.ts';
-import { createBulkGradePatch, createGameBatchEditPlan } from '../../domain/batchEdit.ts';
+import { createBatchProgressPatch, createBulkGradePatch, createGameBatchEditPlan } from '../../domain/batchEdit.ts';
 import type { MetadataCandidate } from '../../domain/catalog.ts';
 import { isImportExcluded } from '../../domain/importExclusions.ts';
 import { completionPatch, engagementPatch, gradeEditable, priorityEditable } from '../../domain/gameProgress.ts';
@@ -164,11 +164,19 @@ export function useWorkspaceController() {
     setSelectionIds(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }
   function startSelection() { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSelectionIds(new Set()); setAssignment(null); setSelecting(true); }); }
-  function applyBatchEdit(plan: Pick<GameBatchEditPlan, 'selectedIds' | 'input' | 'changedCount' | 'items'>) {
+  function applyBatchEdit(plan: Pick<GameBatchEditPlan, 'selectedIds' | 'input' | 'changedCount' | 'items'> & { kind?: 'progress' | 'tags'; patch?: Partial<Pick<MediaItem, 'playEngagement' | 'completion'>> }) {
     const current = snapshotRef.current;
-    const next = createGameBatchEditPlan(current.items, plan.selectedIds, plan.input);
-    if (!next.changedCount) { setToast('所选作品已符合本次设置，请返回调整。'); return false; }
-    if (!commit({ ...current, items: next.items }, `已更新 ${next.changedCount} 款游戏`)) return false;
+    // v0.4.24：双维度批量计划由组件经 createBatchProgressPatch 构造完整 items，直接提交；标签计划按最新库重建。
+    if (plan.kind === 'progress') {
+      // 组件预览 items 只含所选作品；保存必须在最新全库上重建，否则会以子集替换整库。
+      const rebuilt = createBatchProgressPatch(current.items, plan.selectedIds, plan.patch ?? {});
+      if (!rebuilt.changedCount) { setToast('所选作品已符合本次设置，请返回调整。'); return false; }
+      if (!commit({ ...current, items: rebuilt.items }, `已更新 ${rebuilt.changedCount} 款游戏`)) return false;
+    } else {
+      const next = createGameBatchEditPlan(current.items, plan.selectedIds, plan.input);
+      if (!next.changedCount) { setToast('所选作品已符合本次设置，请返回调整。'); return false; }
+      if (!commit({ ...current, items: next.items }, `已更新 ${next.changedCount} 款游戏`)) return false;
+    }
     setSelecting(false); setSelectionIds(new Set());
     return true;
   }

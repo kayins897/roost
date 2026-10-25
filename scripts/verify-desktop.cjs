@@ -75,7 +75,8 @@ async function exportSnapshot(name) {
   await page.getByLabel(/作品名称/).fill('桌面新收藏');
   await page.getByLabel(/作品原名/).fill('Desktop Collection');
   await page.getByLabel(/累计游玩时长/).fill('1.25');
-  await page.getByRole('dialog', { name: '收录新作品', exact: true }).getByLabel(/游玩状态/).selectOption('cleared');
+  await page.getByRole('dialog', { name: '收录新作品', exact: true }).getByLabel('当前游玩关系').selectOption('planned');
+  await page.getByRole('dialog', { name: '收录新作品', exact: true }).getByLabel('通关进度').selectOption('cleared');
   await page.getByRole('textbox', { name: '一句话印象', exact: true }).fill('添加后关闭应用，仍应保留。');
   await page.getByRole('textbox', { name: '长文测评', exact: true }).fill('原生长文测评\n保存后退出重开，导出必须保留全部文字。');
   await page.locator('input[type=file][accept="image/*"]').setInputFiles(path.join(root, 'build/icon.png'));
@@ -115,7 +116,8 @@ async function exportSnapshot(name) {
   checks.push('旧版备份导入→分钟记录编辑→原名、独立优先级/评级/顺序/长文保留→原生导出');
 
   await page.getByRole('navigation', { name: '作品分类' }).getByRole('button', { name: /游戏/ }).click();
-  await page.getByRole('button', { name: '已通关', exact: true }).click();
+  await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click();
+  await page.locator('.completion-row').getByRole('button', { name: '已通关', exact: true }).click();
   assert.equal(await page.locator('.media-gallery .media-card').count(), 1);
   await page.getByRole('textbox', { name: '搜索收藏', exact: true }).fill('Original From Backup');
   assert.equal(await page.locator('.media-gallery .media-card').count(), 1);

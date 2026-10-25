@@ -109,7 +109,7 @@ async function suite(currentMode) {
     await unchanged('优先级分档/折叠/多选/其他字段');
   });
   await check('已通关排序称评级，双向组序与同档手动顺序独立', async () => {
-    await page.locator('.game-status-tabs').getByRole('button', { name:'已通关', exact:true }).click();
+    await page.locator('.game-status-tabs').getByRole('button', { name:'全部游戏', exact:true }).click(); await page.locator('.completion-row').getByRole('button', { name:'已通关', exact:true }).click();
     assert.equal(await sort().locator('option[value="rank"]').textContent(), '评级');
     assert.deepEqual(await groupNames(), ['个人评级 SSS','个人评级 A']);
     assert.deepEqual(await groupIds(group('个人评级 SSS')), ['s','r']);
@@ -118,6 +118,7 @@ async function suite(currentMode) {
     await unchanged('评级分档升降序'); await capture('rating-ascending');
   });
   await check('标签区域移除重复搜索管理，分类点击/清除/更多/折叠仍可用', async () => {
+    await page.locator('.game-status-tabs').getByRole('button', { name:'全部游戏', exact:true }).click(); await page.locator('.completion-row').getByRole('button', { name:'全部进度', exact:true }).click();
     await allGames(); const panel = page.getByRole('region', { name:'标签筛选', exact:true });
     assert.equal(await panel.locator('input').count(), 0); assert.equal(await panel.getByRole('button', { name:'管理标签', exact:true }).count(), 0);
     assert.equal(await panel.getByText('查找标签', { exact:true }).count(), 0);

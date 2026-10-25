@@ -48,7 +48,8 @@ const detail = () => page.getByRole('dialog', { name: '旅程 A详情', exact: t
 const search = () => page.getByRole('textbox', { name: '搜索收藏', exact: true });
 const bar = () => page.locator('.selection-actionbar');
 async function all() { await button('全部游戏', page.locator('.library-views')).click(); await search().fill(''); }
-async function menu(title) { await button(`查看${title}详情`).click({ button: 'right' }); return page.getByRole('menu', { name: `${title}快捷编辑`, exact: true }); }
+async function menu(title) {
+  await page.keyboard.press("Escape").catch(() => {}); await page.waitForTimeout(60); await button(`查看${title}详情`).click({ button: 'right' }); return page.getByRole('menu', { name: `${title}快捷编辑`, exact: true }); }
 async function unchanged(name, before) { const after = await raw(); report.integrity.push({ mode, name, same: before === after, beforeSha256: sha(before), afterSha256: sha(after), beforeBytes: Buffer.byteLength(before), afterBytes: Buffer.byteLength(after) }); assert.equal(after, before, name); }
 async function capture(name) { await page.evaluate(() => document.fonts.ready); const file = `${mode}-${name}.png`; await page.screenshot({ path: path.join(output, file), animations: 'disabled', caret: 'hide' }); report.screenshots.push(file); }
 async function layout(name) {
@@ -127,9 +128,9 @@ async function suite(currentMode) {
     await button('编辑', detail().locator('.detail-facts')).click(); editor = page.getByRole('dialog', { name: '编辑作品', exact: true }); await editor.getByRole('textbox', { name: '发行年份', exact: true }).fill('1999'); const rawBefore = await raw(); await button('取消', editor).click(); await editor.waitFor({ state: 'hidden' }); assert.equal(await detail().isVisible(), true); await unchanged('取消资料编辑不写库', rawBefore); await button('关闭详情', detail()).click();
     await (await menu('旅程 A')).getByRole('menuitem', { name: '编辑作品资料', exact: true }).click(); editor = page.getByRole('dialog', { name: '编辑作品', exact: true }); await editor.getByRole('textbox', { name: '发行年份', exact: true }).fill('2026'); await capture('facts-editor-interactive'); await button('保存修改', editor).click(); await editor.waitFor({ state: 'hidden' }); assert.equal(await detail().isVisible(), true); assert.equal(byId(await data(), 'a').year, '2026'); await button('关闭详情', detail()).click();
   });
-  await check('右键快捷切换游玩状态，时长、个人记录与未知字段保持', async () => {
-    const before = await data(), m = await menu('旅程 A'); await m.getByRole('menuitem', { name: '持续游玩', exact: true }).click(); const after = await data();
-    preserve(before, after, ['a'], ['status', 'gamePlayState', 'updatedAt']); assert.equal(byId(after, 'a').gamePlayState, 'ongoing'); assert.equal(byId(after, 'a').playtimeMinutes, 73);
+  await check('右键改当前关系，时长、个人记录、旧轴与未知字段保持 (v0.4.24)', async () => {
+    const before = await data(), m = await menu('旅程 A'); await m.getByRole('menuitemradio', { name: '游玩中', exact: true }).click(); const after = await data();
+    preserve(before, after, ['a'], ['playEngagement', 'updatedAt']); assert.equal(byId(after, 'a').playEngagement, 'playing'); assert.equal(byId(after, 'a').gamePlayState, byId(before, 'a').gamePlayState, '旧轴冻结'); assert.equal(byId(after, 'a').playtimeMinutes, 73);
   });
   await check('隐藏与取消隐藏只影响可见性，不改游玩状态，也不建立导入排除', async () => {
     const before = await data(); await (await menu('同乐 B')).getByRole('menuitem', { name: '隐藏作品', exact: true }).click();
@@ -156,9 +157,11 @@ async function suite(currentMode) {
   });
   await check('跨搜索多选直接修改状态，无整张编辑表单与第二步预览', async () => {
     await beginSelection(); await choose('同乐 B'); await search().fill('稍后 D'); await choose('稍后 D'); assert.match(await bar().innerText(), /已选择 2 件/); await search().fill('');
-    const before = await data(); await button('改状态', bar()).click(); const dialog = page.getByRole('dialog', { name: '更改状态', exact: true });
+    // v0.4.24：批量改通关进度（新维度对话框），旧轴与通用 status 冻结。
+    const before = await data(); await button('改通关进度', bar()).click(); const dialog = page.getByRole('dialog', { name: '更改通关进度', exact: true });
     assert.equal(await button('预览修改', dialog).count(), 0); assert.equal(await dialog.getByRole('combobox').count(), 0); await button('已通关', dialog).click(); await apply(2, dialog); await dialog.waitFor({ state: 'hidden' });
-    const after = await data(); preserve(before, after, ['b', 'd'], ['status', 'gamePlayState', 'updatedAt']); for (const id of ['b', 'd']) assert.equal(byId(after, id).gamePlayState, 'cleared'); await capture('batch-state-applied');
+    const after = await data(); console.log('DEBUG before:', before.items.map(i => i.id).join(','), '| after:', after.items.map(i => i.id).join(',')); for (const id of ['b', 'd']) { const beforeItem = before.items.find(i => i.id === id); const afterItem = after.items.find(i => i.id === id); if (!afterItem) { console.log('DEBUG missing:', id); continue; } for (const key of new Set([...Object.keys(beforeItem), ...Object.keys(afterItem)])) if (!['completion','updatedAt'].includes(key) && JSON.stringify(beforeItem[key]) !== JSON.stringify(afterItem[key])) console.log('DEBUG diff', id, key, JSON.stringify(beforeItem[key]), '->', JSON.stringify(afterItem[key])); }
+    preserve(before, after, ['b', 'd'], ['completion', 'updatedAt']); for (const id of ['b', 'd']) assert.equal(byId(after, id).completion, 'cleared'); await capture('batch-state-applied');
   });
   await check('批量添加与移除指定分组标签，仅选择项改变，保留时长和未知分组', async () => {
     await beginSelection(); await choose('同乐 B'); await choose('稍后 D'); let before = await data(); await button('添加标签', bar()).click(); let dialog = page.getByRole('dialog', { name: '添加标签', exact: true });
@@ -168,9 +171,10 @@ async function suite(currentMode) {
     after = await data(); preserve(before, after, ['b'], ['tags', 'gameTags', 'updatedAt']); assert.deepEqual(byId(after, 'b').gameTags.scenario, ['周末']); assert.deepEqual(byId(after, 'd').gameTags.scenario, ['周末', '联机']);
   });
   await check('批量保存失败保留操作内容和选择，重试只修改明确所选项', async () => {
-    await beginSelection(); await choose('同乐 B'); await choose('深空 C'); const before = await data(), beforeRaw = await raw(); await button('改状态', bar()).click(); const dialog = page.getByRole('dialog', { name: '更改状态', exact: true }); await button('暂时搁置', dialog).click();
+    // v0.4.24：批量改当前关系（新维度），失败保留选择与操作、重试只改所选项。
+    await beginSelection(); await choose('同乐 B'); await choose('深空 C'); const before = await data(), beforeRaw = await raw(); await button('改当前关系', bar()).click(); const dialog = page.getByRole('dialog', { name: '更改当前关系', exact: true }); await button('暂时搁置', dialog).click();
     await page.evaluate(() => { window.__workspaceFail = true; }); await apply(2, dialog); await dialog.getByRole('alert').waitFor(); assert.equal(await button('暂时搁置', dialog).getAttribute('aria-pressed'), 'true'); assert.match(await bar().innerText(), /已选择 2 件/); await unchanged('批量失败原文不变', beforeRaw); await capture('batch-save-failure');
-    await page.evaluate(() => { window.__workspaceFail = false; }); await apply(2, dialog); await dialog.waitFor({ state: 'hidden' }); const after = await data(); preserve(before, after, ['b', 'c'], ['status', 'gamePlayState', 'updatedAt']); for (const id of ['b', 'c']) assert.equal(byId(after, id).gamePlayState, 'paused'); await exitSelection();
+    await page.evaluate(() => { window.__workspaceFail = false; }); await apply(2, dialog); await dialog.waitFor({ state: 'hidden' }); const after = await data(); preserve(before, after, ['b', 'c'], ['playEngagement', 'updatedAt']); for (const id of ['b', 'c']) assert.equal(byId(after, id).playEngagement, 'paused'); await exitSelection();
   });
   await check('普通标签管理计数及重命名仅作用普通库，隐藏与回收站记录逐字段保留', async () => {
     await (await menu('同乐 B')).getByRole('menuitem', { name: '隐藏作品', exact: true }).click(); await (await menu('稍后 D')).getByRole('menuitem', { name: '移到回收站', exact: true }).click(); const before = await data();
@@ -204,11 +208,11 @@ async function visual(theme, width) {
   });
   await check('底部多选栏位于可见窗口，宽窄窗口均可操作状态与标签并取消', async () => {
     await beginSelection(); await choose('旅程 A'); await choose('稍后 D');
-    assert.equal(await page.locator('.selection-toolbar').count(), 0, '不应残留第二条多选栏'); assert.equal(await bar().count(), 1); for (const name of ['全选当前结果','清空选择','退出多选','改状态','添加标签']) assert.equal(await button(name, bar()).count(), 1);
+    assert.equal(await page.locator('.selection-toolbar').count(), 0, '不应残留第二条多选栏'); assert.equal(await bar().count(), 1); for (const name of ['全选当前结果','清空选择','退出多选','改当前关系','改通关进度','添加标签']) assert.equal(await button(name, bar()).count(), 1);
     const geometry = await bar().boundingBox(); assert.ok(geometry.x >= -1 && geometry.y >= 0 && geometry.x + geometry.width <= width + 1 && geometry.y + geometry.height <= 1001, '底部操作栏必须完整位于可视区');
     assert.equal(await bar().evaluate(element => getComputedStyle(element).position), 'fixed'); await layout(`${theme}-${width}-selection`); await capture('selection-actions');
-    await button('改状态', bar()).click(); let dialog = page.getByRole('dialog', { name: '更改状态', exact: true }); await button('已通关', dialog).click(); assert.equal(await button('应用到 2 款', dialog).isEnabled(), true); await layout(`${theme}-${width}-batch-state`); await button('取消', dialog).click();
-    assert.match(await bar().innerText(), /已选择 2 件/); await button('添加标签', bar()).click(); dialog = page.getByRole('dialog', { name: '添加标签', exact: true }); await dialog.getByRole('combobox', { name: '标签分组', exact: true }).selectOption('scenario'); await dialog.getByRole('textbox', { name: '批量标签名称', exact: true }).fill('周末计划'); assert.equal(await button('应用到 2 款', dialog).isEnabled(), true); await layout(`${theme}-${width}-batch-tags`); await capture('batch-tags-controls'); await button('取消', dialog).click(); await button('清空选择', bar()).click(); assert.match(await bar().innerText(), /已选择 0 件/); assert.equal(await button('改状态', bar()).isDisabled(), true); const visibleCount = await page.locator('.media-gallery .media-card').count(); await button('全选当前结果', bar()).click(); assert.ok((await bar().innerText()).includes(`已选择 ${visibleCount} 件`), '全选应与当前筛选结果一致'); await capture('selection-merged-select-all'); await exitSelection(); assert.equal(await bar().count(), 0);
+    await button('改通关进度', bar()).click(); let dialog = page.getByRole('dialog', { name: '更改通关进度', exact: true }); await button('已通关', dialog).click(); assert.equal(await button('应用到 2 款', dialog).isEnabled(), true); await layout(`${theme}-${width}-batch-state`); await button('取消', dialog).click();
+    assert.match(await bar().innerText(), /已选择 2 件/); await button('添加标签', bar()).click(); dialog = page.getByRole('dialog', { name: '添加标签', exact: true }); await dialog.getByRole('combobox', { name: '标签分组', exact: true }).selectOption('scenario'); await dialog.getByRole('textbox', { name: '批量标签名称', exact: true }).fill('周末计划'); assert.equal(await button('应用到 2 款', dialog).isEnabled(), true); await layout(`${theme}-${width}-batch-tags`); await capture('batch-tags-controls'); await button('取消', dialog).click(); await button('清空选择', bar()).click(); assert.match(await bar().innerText(), /已选择 0 件/); assert.equal(await button('改当前关系', bar()).isDisabled(), true); const visibleCount = await page.locator('.media-gallery .media-card').count(); await button('全选当前结果', bar()).click(); assert.ok((await bar().innerText()).includes(`已选择 ${visibleCount} 件`), '全选应与当前筛选结果一致'); await capture('selection-merged-select-all'); await exitSelection(); assert.equal(await bar().count(), 0);
     mode = 'browser'; await unchanged(`${theme}-${width} 多选取消不写库`, baseline); mode = `${theme}-${width}`;
   });
   await context.close(); context = null;
