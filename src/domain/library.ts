@@ -1,4 +1,6 @@
-import type { GamePlayState, GameTagGroupKey, GameTagGroups, LibrarySnapshot, MediaItem, MediaType, PersonalGrade, ProgressStatus } from './types.ts';
+import { completionFor, engagementFor, inPlanView, isValidCompletionEvent, PLAY_ENGAGEMENTS, COMPLETION_STATUSES } from './gameProgress.ts';
+import type { GamePlayState, GameTagGroupKey, GameTagGroups, LibrarySnapshot, MediaItem, MediaType, PersonalGrade, ProgressStatus
+, CompletionStatus, PlayEngagement } from './types.ts';
 import { isValidImportExclusion } from './importExclusions.ts';
 
 export const MEDIA_LABELS: Record<MediaType, string> = {
@@ -120,6 +122,8 @@ export interface FilterParams {
   subcategory?: string;
   status?: ProgressStatus | 'all';
   gamePlayState?: GamePlayState | 'all';
+  gameEngagement?: PlayEngagement | 'all' | 'plan';
+  gameCompletion?: CompletionStatus | 'all';
   search?: string;
   tags?: string[];
   favoriteOnly?: boolean;
@@ -136,6 +140,14 @@ export function filterLibrary(items: MediaItem[], params: FilterParams): MediaIt
       : item.subcategory !== params.subcategory)) return false;
     if (params.favoriteOnly && !item.favorite) return false;
     if (params.status && params.status !== 'all' && item.status !== params.status) return false;
+    // v0.4.24 双维度筛选：当前关系（plan=计划+搁置）与通关进度独立 AND 组合。
+    if (item.category === 'game') {
+      if (params.gameEngagement && params.gameEngagement !== 'all') {
+        if (params.gameEngagement === 'plan') { if (!inPlanView(item)) return false; }
+        else if (engagementFor(item) !== params.gameEngagement) return false;
+      }
+      if (params.gameCompletion && params.gameCompletion !== 'all' && completionFor(item) !== params.gameCompletion) return false;
+    }
     if (gameState && gameState !== 'all' &&
       (item.category !== 'game' || gamePlayStateFor(item) !== gameState)) return false;
     if (params.tags?.some(tag => !tagsFor(item).some(t => t.toLocaleLowerCase() === tag.toLocaleLowerCase()))) return false;
@@ -272,6 +284,10 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
         ['started', 'progress', 'completed', 'note'].includes(entry.kind as string) && typeof entry.note === 'string' &&
         (entry.minutes === undefined || isMinutes(entry.minutes));
     }) && new Set(item.experienceEntries.map(entry => entry.id)).size === item.experienceEntries.length)) &&
+    (item.playEngagement === undefined || PLAY_ENGAGEMENTS.includes(item.playEngagement)) &&
+    (item.completion === undefined || COMPLETION_STATUSES.includes(item.completion)) &&
+    (item.completionCount === undefined || (typeof item.completionCount === 'number' && Number.isSafeInteger(item.completionCount) && item.completionCount >= 0)) &&
+    (item.completionEvents === undefined || (Array.isArray(item.completionEvents) && item.completionEvents.every((entry: unknown) => isValidCompletionEvent(entry)) && new Set(item.completionEvents.map(entry => entry.id)).size === item.completionEvents.length)) &&
     (item.gameTags === undefined || (item.gameTags && typeof item.gameTags === 'object' && GAME_TAG_KEYS.every(key =>
       Array.isArray(item.gameTags?.[key]) && item.gameTags[key].every((tag: unknown) => typeof tag === 'string')))) &&
     typeof item.impression === 'string' && (item.review === undefined || typeof item.review === 'string') && typeof item.favorite === 'boolean' &&

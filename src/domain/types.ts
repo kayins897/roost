@@ -4,6 +4,19 @@ export type ProgressStatus = 'want' | 'active' | 'finished' | 'paused';
  * replaying is a persisted legacy alias; current state controls offer ongoing instead. */
 export type GamePlayState = 'want' | 'playing' | 'cleared' | 'replaying' | 'ongoing' | 'paused' | 'abandoned';
 export type PersonalGrade = 'SSS' | 'SS' | 'S' | 'A' | 'B' | 'C';
+/** 独立于通关进度的当前游玩关系（v0.4.24 新维度；旧 gamePlayState 冻结为兼容来源）。 */
+export type PlayEngagement = 'planned' | 'playing' | 'paused' | 'inactive' | 'abandoned';
+/** 通关进度四值；unknown 同时用于旧库只读推导的缺省与用户显式覆盖"未确定"。 */
+export type CompletionStatus = 'unknown' | 'not-cleared' | 'cleared' | 'not-applicable';
+/** 用户明确记录的一次完成；日期保留原始精度，缺省表示实际发生日期未知。 */
+export interface CompletionEvent {
+  id: string;
+  /** YYYY / YYYY-MM / YYYY-MM-DD；不虚构精度。 */
+  occurredAt?: string;
+  /** 录入时间（ISO），仅用于展示排序，不冒充实际发生日期。 */
+  recordedAt: string;
+  note?: string;
+}
 export type GameTagGroupKey = 'gameplay' | 'theme' | 'scenario' | 'other';
 export type GameTagGroups = Record<GameTagGroupKey, string[]>;
 export type MetadataProvider = 'steam' | 'douban';
@@ -40,6 +53,14 @@ export interface MediaItem {
   status: ProgressStatus;
   /** Optional for backwards-compatible v0.1/v0.2 snapshots. */
   gamePlayState?: GamePlayState;
+  /** v0.4.24 当前游玩关系；undefined 时按旧 gamePlayState 只读推导。 */
+  playEngagement?: PlayEngagement;
+  /** v0.4.24 通关进度；undefined 时按旧轴推导，'unknown' 显式覆盖推导。 */
+  completion?: CompletionStatus;
+  /** 累计完成次数：undefined=未记录，0=明确零次，N=用户明确值；不从日志或事件数推算。 */
+  completionCount?: number;
+  /** 用户明确记录的完成事件；与普通体验日志相互独立。 */
+  completionEvents?: CompletionEvent[];
   /** For games, undefined means "not recorded", while 0 means zero hours. */
   playtimeMinutes?: number;
   /** User-authored grade, retained across status/category changes; undefined is unrated. */
