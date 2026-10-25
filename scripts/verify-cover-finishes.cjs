@@ -4,7 +4,7 @@ const http = require('node:http');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { chromium } = require('playwright');
-const root = path.resolve(__dirname, '..'), dist = path.join(root, 'dist');
+const root = path.resolve(__dirname, '..'), dist = path.resolve(process.env.QIYU_DETAIL_DIST || path.join(root, 'dist'));
 const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 const out = path.join(root, 'evidence', 'cover-finishes-v' + version.replaceAll('.', ''));
 fs.mkdirSync(out, { recursive: true });
@@ -27,6 +27,13 @@ let browser, context, page, server, baseline;
 async function check(name, run) { await run(); report.checks.push(name); console.log('PASS ' + name); }
 async function capture(name, locator = page) { const file = name + '.png'; await locator.screenshot({ path: path.join(out, file), animations: 'disabled' }); report.screenshots.push(file); return path.join(out, file); }
 const card = title => page.getByRole('button', { name: `查看${title}详情`, exact: true });
+async function showAll() {
+  const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
+  for (const name of ['待体验', '已体验']) {
+    const target = filters.getByRole('button', { name, exact: true });
+    if (await target.getAttribute('aria-pressed') !== 'true') await target.click();
+  }
+}
 async function point(target, x, y) { await target.scrollIntoViewIfNeeded(); const box = await target.locator('.card-cover').boundingBox(); await page.mouse.move(box.x + box.width * x, box.y + box.height * y); await page.waitForTimeout(300); }
 async function query(title) { await page.getByRole('textbox', { name: '搜索收藏', exact: true }).fill(title); }
 async function stableInfo(target) {
@@ -59,7 +66,7 @@ async function compare(name, a, b) { const x = await pngPixels(a), y = await png
   await page.route('**/*', route => route.request().url().startsWith(base) || route.request().url().startsWith('data:') ? route.continue() : route.abort());
   await page.goto(base + '/__init');
   baseline = await page.evaluate(async ({ fixture, svg, key }) => { const img = new Image(); await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))); }); for (const entry of fixture.items) { const canvas = document.createElement('canvas'); canvas.width = 240; canvas.height = 360; const ctx = canvas.getContext('2d'); if (entry.fixtureBright) { ctx.fillStyle = '#faf8f1'; ctx.fillRect(0, 0, 240, 360); ctx.drawImage(img, 40, 60, 160, 240); } else ctx.drawImage(img, 0, 0, 240, 360); entry.coverUrl = canvas.toDataURL('image/png'); } const raw = JSON.stringify(fixture); localStorage.setItem(key, raw); localStorage.setItem('qiyu.appearance.v1', JSON.stringify({ mode: 'dark' })); localStorage.setItem('qiyu.background.v1', JSON.stringify({ enabled: false, fluidEnabled: false, starsEnabled: false })); return raw; }, { fixture, svg, key });
-  await page.goto(base, { waitUntil: 'networkidle' }); await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click(); await page.evaluate(() => document.fonts.ready);
+  await page.goto(base, { waitUntil: 'networkidle' }); await showAll(); assert.equal(await page.getByRole('button', { name: /^查看.+详情$/ }).count(), fixture.items.length); await page.evaluate(() => document.fonts.ready);
   await check('同一 PNG 封面六档映射，SS 冷色线性镭射，SSS 棱彩锥形光谱，无网格网点', async () => {
     for (const grade of grades) { const target = card('深封面' + names[grade]); assert.equal(await target.locator('.card-cover').getAttribute('data-finish'), finish[grade]); }
     for (const grade of ['SS', 'SSS', 'S', 'A']) { const title = '深封面' + names[grade]; await query(title); const target = card(title); await point(target, .84, .2); const value = await material(target); assert.equal(value.depth, 'active'); assert.ok(value.foil.opacity >= .3); assert.ok(value.angle >= 38 && value.angle <= 52); assert.doesNotMatch(value.foil.background + value.foil.after, /repeating|radial-gradient|url\(/); assert.equal(value.foil.mask, 'none'); if (grade === 'SS') { assert.ok(value.foil.background.startsWith('linear-gradient')); assert.equal(value.foil.opacity, .52); } if (grade === 'SSS') { assert.ok(value.foil.background.startsWith('conic-gradient')); assert.equal(value.foil.opacity, .58); } report.reflections.push({ grade, ...value }); await capture(`${grade}-hover`, target); }
