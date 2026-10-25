@@ -10,11 +10,10 @@ export function BackToTop({ scrollRef, focusRef, onReturn }: { scrollRef: RefObj
     if (!element) return;
     const update = () => {
       setVisible(element.scrollTop > 320);
-      element.toggleAttribute('data-scrolled', element.scrollTop > 0);
     };
     update();
     element.addEventListener('scroll', update, { passive: true });
-    return () => { element.removeEventListener('scroll', update); element.removeAttribute('data-scrolled'); };
+    return () => element.removeEventListener('scroll', update);
   }, [scrollRef]);
   if (!visible) return null;
   function returnToTop() {

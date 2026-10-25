@@ -225,9 +225,28 @@ async function suite(value){await prepare(value);
  await context.close();context=null;
 }
 async function visual(){await prepare('browser');
- await check('顶部滚动渐隐、本地状态邻近版本、设置导出入口',async()=>{
+ await check('居中悬浮搜索、周围内容透出可点击、本地状态与设置导出',async()=>{
  const before=await raw(),attempts=await saves();assert.equal(await page.locator('.topbar .storage-marker,.topbar .top-icon').count(),0);assert.match(await page.locator('.sidebar-bottom').innerText(),new RegExp(`本地保存[\\s\\S]*v${version.replaceAll('.','\\.')}`));
- await button('列表视图').click();await page.setViewportSize({width:1440,height:820});const scroll=page.locator('.main-scroll');assert.equal(await scroll.evaluate(n=>getComputedStyle(n).maskImage),'none');await scroll.evaluate(n=>n.scrollTop=230);await page.waitForFunction(()=>document.querySelector('.main-scroll').hasAttribute('data-scrolled'));assert.equal(await scroll.evaluate(n=>getComputedStyle(n).maskImage),'none','不遮罩滚动祖先，保留内部玻璃采样');assert.equal(await page.locator('.topbar').evaluate(n=>getComputedStyle(n,'::after').height),'40px');await capture('scroll-fade');await scroll.evaluate(n=>n.scrollTop=0);await page.waitForFunction(()=>!document.querySelector('.main-scroll').hasAttribute('data-scrolled'));assert.equal(await page.locator('.topbar').evaluate(n=>getComputedStyle(n,'::after').content),'none');
+ await button('列表视图').click();
+ for(const width of [390,880,1440]){
+  await page.setViewportSize({width,height:820});const scroll=page.locator('.main-scroll');await scroll.evaluate(n=>n.scrollTop=0);
+  const search=page.locator('.global-search'), header=page.locator('.topbar');
+  const g=await page.evaluate(()=>{const box=s=>document.querySelector(s).getBoundingClientRect().toJSON();return {search:box('.global-search'),main:box('.main-panel'),header:box('.topbar'),scroll:box('.main-scroll'),after:getComputedStyle(document.querySelector('.topbar'),'::after').content};});
+  assert.ok(Math.abs(g.search.x+g.search.width/2-g.main.x-g.main.width/2)<2,`${width}: 搜索相对内容区居中`);
+  assert.ok(g.search.x>=g.main.x && g.search.right<=g.main.right,`${width}: 搜索位于窗口内`);
+  assert.equal(g.after,'none');assert.equal(await header.evaluate(n=>getComputedStyle(n).backdropFilter),'none');assert.equal(await header.evaluate(n=>getComputedStyle(n).pointerEvents),'none');
+  assert.ok(Math.abs(g.scroll.y-g.header.y)<1,`${width}: 内容滚动区延伸到搜索周围`);assert.equal(await scroll.evaluate(n=>getComputedStyle(n).maskImage),'none');
+  const menu=page.locator('.list-menu-button').first(),row=page.locator('.list-media-row').first(),targetY=g.search.y+g.search.height/2;
+  const menuBox=await menu.boundingBox();await scroll.evaluate((n,delta)=>{n.scrollTop+=delta;},menuBox.y+menuBox.height/2-targetY);
+  await page.waitForFunction(({y})=>Math.abs(document.querySelector('.list-menu-button').getBoundingClientRect().y+document.querySelector('.list-menu-button').getBoundingClientRect().height/2-y)<2,{y:targetY});
+  const hit=await row.evaluate((n,{xLeft,y})=>{const r=n.getBoundingClientRect(),menu=n.querySelector('.list-menu-button').getBoundingClientRect();const point=(x)=>({x,y,classes:document.elementsFromPoint(x,y).map(v=>v.className),row:document.elementFromPoint(x,y)?.closest('.list-media-row')===n,header:!!document.elementFromPoint(x,y)?.closest('.topbar')});return {left:point(Math.max(r.left+3,xLeft)),right:point(menu.x+menu.width/2)};},{xLeft:g.search.x-5,y:targetY});
+  report.layouts.push({name:`${width}-floating-header`,...g,hit});
+  for(const side of [hit.left,hit.right]){assert.equal(side.header,false,`${width}: 搜索外不拦截内容`);assert.equal(side.row,true,`${width}: 搜索两侧可命中真实作品行 ${JSON.stringify(side)}`);}
+  await capture(width+'-floating-search');
+  await menu.click();await page.getByRole('menu').waitFor();await page.keyboard.press('Escape');
+  const input=page.getByRole('textbox',{name:'搜索收藏',exact:true});await input.fill('便当纵图');assert.equal(await input.inputValue(),'便当纵图');await input.fill('');await scroll.evaluate(n=>n.scrollTop=0);
+ }
+ await page.setViewportSize({width:1440,height:820});
  await button('数据与设置').click();const settings=page.getByRole('dialog',{name:'数据与设置',exact:true});assert.match(await settings.evaluate(n=>getComputedStyle(n).backdropFilter),/blur\(20px\)/);const search=settings.getByRole('textbox',{name:'搜索设置',exact:true});await search.focus();assert.equal(await search.evaluate(n=>getComputedStyle(n).outlineStyle),'none');assert.equal(await settings.locator('.settings-search').evaluate(n=>getComputedStyle(n).outlineStyle),'solid');await button('数据与备份',settings).click();await capture('frosted-settings');const download=page.waitForEvent('download');await button('导出',settings.locator('.settings-card').filter({hasText:'导出收藏备份'})).click();const backup=await download;const exported=JSON.parse(fs.readFileSync(await backup.path(),'utf8'));assert.ok(Number.isFinite(Date.parse(exported.exportedAt)));delete exported.exportedAt;assert.deepEqual(exported,JSON.parse(before));await button('关闭',settings).click();await button('卡片视图').click();await page.setViewportSize({width:1440,height:1100});await unchanged('调整导航与导出不改收藏',before,attempts);
  });
  await check('多选/筛选/排序/收录统一磨砂、清晰选中和透明度降级',async()=>{

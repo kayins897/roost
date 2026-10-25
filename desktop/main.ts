@@ -6,7 +6,6 @@ import { LibraryStore } from './store.ts';
 import { assertDemoProfile, resolveLaunchMode } from './launchMode.ts';
 import { lookupMetadata } from './metadata.ts';
 import { enrichSteamLibrary, readSteamLibrary, SteamConnectionStore } from './steam.ts';
-import { observeWindowControls, registerWindowControls } from './windowControls.ts';
 
 const ENTRY_URL = 'qiyu://app/index.html';
 const runtime = (() => {
@@ -42,7 +41,7 @@ const store = new LibraryStore(dataDirectory);
 const steamConnection = new SteamConnectionStore(dataDirectory, safeStorage);
 let steamRequest: AbortController | null = null;
 function trusted(event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) {
-  return Boolean(mainWindow && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame && event.senderFrame.url === ENTRY_URL);
+  return mainWindow && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame && event.senderFrame.url === ENTRY_URL;
 }
 // 封面统一压缩为本地 JPEG data URL：超限或无法解析的图片返回 undefined，由调用方按"失败不阻塞元数据"处理。
 function coverToDataUrl(bytes: Uint8Array, maxWidth: number, maxHeight: number) {
@@ -55,7 +54,6 @@ function coverToDataUrl(bytes: Uint8Array, maxWidth: number, maxHeight: number) 
   return `data:image/jpeg;base64,${resized.toJPEG(76).toString('base64')}`;
 }
 function registerIpc() {
-  registerWindowControls(() => mainWindow, trusted);
   ipcMain.handle('qiyu:steam-state', event => {
     if (!trusted(event)) return { ok: false, error: '请求来源无效' };
     try { return { ok: true, value: steamConnection.state() }; }
@@ -113,7 +111,7 @@ function registerIpc() {
     finally { metadataBusy = false; }
   });
   const handlers: Record<string, (value: unknown) => unknown> = {
-    'qiyu:info': () => ({ version: app.getVersion(), dataDirectory, windowVisible: windowVisible(), customWindowControls: process.platform === 'win32', ...(demoMode ? { demo: true } : {}) }),
+    'qiyu:info': () => ({ version: app.getVersion(), dataDirectory, windowVisible: windowVisible(), ...(demoMode ? { demo: true } : {}) }),
     'qiyu:load': () => store.load(),
     'qiyu:save': value => {
       if (!value || typeof value !== 'object') throw new Error('保存请求无效');
@@ -148,13 +146,12 @@ function createWindow() {
     backgroundColor: '#08090b', show: false,
     ...(process.platform === 'win32' ? {
       titleBarStyle: 'hidden' as const,
-      frame: false,
+      titleBarOverlay: { color: '#00000000', symbolColor: '#e5e1dc', height: 32 },
     } : {}),
     icon: path.join(app.getAppPath(), 'build', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });
   mainWindow.once('ready-to-show', () => { if (!testing) mainWindow?.show(); });
-  observeWindowControls(mainWindow);
   mainWindow.on('show', publishWindowVisibility);
   mainWindow.on('hide', publishWindowVisibility);
   mainWindow.on('minimize', publishWindowVisibility);

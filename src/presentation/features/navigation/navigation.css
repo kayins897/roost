@@ -1,7 +1,16 @@
 .dock-stack { position: relative; flex: none; }
-/* Fade content at the scrollport edge instead of cutting a row directly under search. */
-.topbar { position: relative; z-index: 3; }
-.main-panel:has(> .main-scroll[data-scrolled]) > .topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -28px; height: 40px; pointer-events: none; background: linear-gradient(to bottom,color-mix(in srgb,var(--background) 65%,transparent),transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); -webkit-mask-image: linear-gradient(to bottom,transparent,#000 12px,transparent); mask-image: linear-gradient(to bottom,transparent,#000 12px,transparent); }
+/* Only the search capsule floats above content; the surrounding header is click-through. */
+.main-panel > .topbar { position: relative; z-index: 3; height: 80px; margin-bottom: -80px; padding: 16px 24px; justify-content: center; gap: 0; background: transparent; border: 0; backdrop-filter: none; pointer-events: none; }
+.main-panel > .topbar > .topbar-left { position: relative; flex: 0 1 620px; width: 100%; max-width: 620px; gap: 0; }
+.topbar .global-search, .topbar .mobile-menu { pointer-events: auto; }
+.main-panel > .main-scroll { scroll-padding-top: 92px; }
+.main-panel > .main-scroll::before { content: ''; display: block; height: 80px; }
+.main-panel > .topbar .mobile-menu { position: absolute; left: -44px; margin: 0; }
+@media(max-width:760px) {
+  .main-panel > .topbar { height: 74px; margin-bottom: -74px; padding: 14px 60px; }
+  .main-panel > .main-scroll::before { height: 74px; }
+  .main-panel > .main-scroll { scroll-padding-top: 86px; }
+}
 :root[data-theme] .sidebar-bottom .storage-marker { display: flex; justify-content: center; gap: 5px; margin-bottom: 4px; font-size: 10px; line-height: 1.4; }
 :root[data-theme] .sidebar-bottom .storage-marker--error { color: var(--danger); }
 .sidebar-bottom .storage-marker--error .live-dot { background: currentColor; }
@@ -14,5 +23,4 @@
 @media(max-height:240px) { .dock-back-top { width: 24px; height: 24px; top: calc(100% + 6px); }.dock-back-top svg { width: 14px; height: 14px; } }
 @media(prefers-reduced-motion:reduce) { .dock-back-top { transition: none; } }
 @media(prefers-reduced-transparency:reduce) { .dock-back-top { background: var(--glass-solid); backdrop-filter: none; } }
-@media(prefers-reduced-transparency:reduce) { .main-panel:has(> .main-scroll[data-scrolled]) > .topbar::after { -webkit-backdrop-filter: none; backdrop-filter: none; } }
 @supports not (backdrop-filter:blur(1px)) { .dock-back-top { background: var(--glass-solid); } }

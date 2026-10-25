@@ -9,7 +9,7 @@ const file = path.join(directory, 'library.json'), initial = JSON.stringify({ sc
 fs.mkdirSync(output, { recursive: true }); fs.writeFileSync(file, initial);
 const executablePath = process.argv[2] || path.join(root, 'node_modules/electron/dist/electron.exe');
 const env = { ...process.env, QIYU_E2E: '1', QIYU_TEST_DATA_DIR: directory }; delete env.ELECTRON_RUN_AS_NODE;
-const report = { passed: false, version, packaged: Boolean(process.argv[2]), isolatedDataOnly: true, checks: [], errors: [], captures: [], notes: ['仅操作本脚本启动的临时Electron窗口；Win32调用逐次核对原生句柄所属PID，不触碰用户实例。', '自定义按钮点击经过类型化IPC；另用WM_NCHITTEST验证拖动区、真实原生标题区双击。未模拟OS边缘拖动或Snap悬停菜单。'] };
+const report = { passed: false, version, packaged: Boolean(process.argv[2]), isolatedDataOnly: true, checks: [], errors: [], captures: [], notes: ['仅操作本脚本启动的临时Electron窗口；Win32调用逐次核对原生句柄所属PID，不触碰用户实例。', 'PrintWindow截图包含原生窗口控制区；拖动验证WM_NCHITTEST命中HTCAPTION，双击验证真实原生最大化。'] };
 let app, page, handle, processId;
 const nativeSource = `
 $ProgressPreference='SilentlyContinue'
@@ -83,7 +83,7 @@ async function capture(name) { const result = await native('capture', { output: 
 async function geometry() { return page.evaluate(() => {
  const bounds = element => { const r = element.getBoundingClientRect(); return { x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom }; };
  const overlay = navigator.windowControlsOverlay, chrome = document.querySelector('.window-chrome');
- return { width:innerWidth,height:innerHeight,overlayVisible:overlay?.visible,media:matchMedia('(display-mode: window-controls-overlay)').matches,chrome:bounds(chrome),drag:getComputedStyle(chrome).getPropertyValue('-webkit-app-region'),search:bounds(document.querySelector('.global-search')),main:bounds(document.querySelector('.main-panel')) };
+ return { customButtons:document.querySelectorAll('.window-caption-button,.window-caption-actions').length,width:innerWidth,height:innerHeight,overlayVisible:overlay?.visible,media:matchMedia('(display-mode: window-controls-overlay)').matches,chrome:bounds(chrome),drag:getComputedStyle(chrome).getPropertyValue('-webkit-app-region'),search:bounds(document.querySelector('.global-search')),main:bounds(document.querySelector('.main-panel')) };
  }); }
 (async () => { try {
  app = await electron.launch({ executablePath, args: process.argv[2] ? [] : [root], env, timeout:45000 }); page = await app.firstWindow();
@@ -91,39 +91,49 @@ async function geometry() { return page.evaluate(() => {
  ({ handle, processId } = await app.evaluate(({ BrowserWindow, app }) => ({ handle:BrowserWindow.getAllWindows()[0].getNativeWindowHandle().readBigUInt64LE().toString(), processId:process.pid })));
  await page.evaluate(() => localStorage.setItem('qiyu.background.v1', JSON.stringify({enabled:false,hue:268,paletteHue:268})));
  await page.reload(); await app.evaluate(({BrowserWindow}) => { const w=BrowserWindow.getAllWindows()[0]; w.show(); w.focus(); }); await page.bringToFront();
- await check('自定义玻璃控件与安全拖动区，顶部搜索和操作不重叠', async () => {
-  const g=await geometry(); report.initialGeometry=g; assert.equal(g.overlayVisible,false); assert.equal(g.drag,'drag'); assert.equal(g.chrome.height,42); assert.equal(g.chrome.width,g.width); assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
-  assert.equal(await page.locator('.window-caption-actions > .glass-material__effect').count(),0);for(const control of await page.locator('.window-caption-button').all()){const box=await control.boundingBox();assert.equal(box.width,box.height);assert.equal(await control.evaluate(n=>getComputedStyle(n).borderRadius),'50%');}
-  report.nativeHits=await native('inspect',{points:[{name:'drag',x:80,y:16}]});
-  assert.equal(report.nativeHits.hits.find(x=>x.name==='drag').hit,2);await page.getByRole('button',{name:'最小化窗口',exact:true}).hover();await capture('glass-minimize-hover.png');await page.getByRole('button',{name:'最大化窗口',exact:true}).hover();await capture('glass-maximize-hover.png');await page.getByRole('button',{name:'关闭窗口',exact:true}).hover();await capture('glass-close-hover.png');
+ await check('透明原生覆盖控件与安全拖动区，顶部搜索和操作不重叠', async () => {
+  const g=await geometry(); report.initialGeometry=g; assert.equal(g.overlayVisible,true); assert.equal(g.customButtons,0); assert.ok(Math.abs(g.search.x+g.search.width/2-g.main.x-g.main.width/2)<2); assert.equal(g.drag,'drag'); assert.ok(g.chrome.height>=30 && g.chrome.height<=34); assert.ok(g.chrome.width<g.width-80); assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
+  const slot=(g.width-g.chrome.width)/3, y=g.chrome.height/2;
+  report.nativeHits=await native('inspect',{points:[{name:'drag',x:80,y},{name:'minimize',x:g.chrome.width+slot*.5,y},{name:'maximize',x:g.chrome.width+slot*1.5,y},{name:'close',x:g.chrome.width+slot*2.5,y}]});
+  assert.equal(report.nativeHits.hits.find(x=>x.name==='drag').hit,2); await capture('native-transparent-title.png');
  });
  await check('原生标题区双击最大化与还原，安全区跟随尺寸变化', async () => {
   await native('double',{points:[{x:80,y:16}]}); await waitMaximized(true);
   const g=await geometry(); report.maximizedGeometry=g; assert.ok(g.search.y>=g.chrome.bottom); await capture('native-maximized.png');
   await native('double',{points:[{x:80,y:16}]}); await waitMaximized(false);
  });
- await check('玻璃按钮最大化还原、最小化，窗口仍允许缩放', async () => {
-  await page.getByRole('button',{name:'最大化窗口',exact:true}).click();await waitMaximized(true);await page.getByRole('button',{name:'还原窗口',exact:true}).click();await waitMaximized(false);
-  await page.getByRole('button',{name:'最小化窗口',exact:true}).click(); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMinimized()),true); await native('restore');
+ await check('原生最小化和还原，窗口仍允许边缘缩放', async () => {
+  await native('minimize'); assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isMinimized()),true); await native('restore');
   await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];w.show();w.focus();w.setSize(880,640);});
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isResizable()),true);
-  const g=await geometry(); report.minimumGeometry=g; assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
+  const g=await geometry(); report.minimumGeometry=g; assert.ok(Math.abs(g.search.x+g.search.width/2-g.main.x-g.main.width/2)<2); assert.ok(g.search.y>=g.chrome.bottom); assert.ok(g.main.bottom<=g.height+1);
   await page.getByRole('textbox',{name:'搜索收藏',exact:true}).fill('可以输入'); assert.equal(await page.getByRole('textbox',{name:'搜索收藏',exact:true}).inputValue(),'可以输入'); await capture('native-880.png');
  });
- await check('全屏隐藏控制区、退出恢复布局',async()=>{
-  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setFullScreen(true));await page.waitForFunction(()=>document.querySelector('.window-chrome').dataset.fullscreen==='true');assert.equal(await page.locator('.window-chrome').isVisible(),false);assert.equal((await page.locator('.main-panel').boundingBox()).y,0);
-  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setFullScreen(false));await page.waitForFunction(()=>document.querySelector('.window-chrome').dataset.fullscreen==='false');assert.equal(await page.locator('.window-chrome').isVisible(),true);const g=await geometry();assert.ok(g.search.y>=g.chrome.bottom);
+ await check('原生全屏与退出恢复，搜索遵守实际覆盖控件安全区',async()=>{
+  const before=await geometry();const initialBounds=await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];globalThis.__chromeFullscreenEvents=[];w.once('enter-full-screen',()=>globalThis.__chromeFullscreenEvents.push('enter'));w.once('leave-full-screen',()=>globalThis.__chromeFullscreenEvents.push('leave'));return w.getBounds();});
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setFullScreen(true));
+  let deadline=Date.now()+5000;while(Date.now()<deadline&&!await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()))await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()),true);
+  // Electron 45 on Windows retains WCO.visible and its 32px safe area in native fullscreen.
+  // Validate the actual advertised rectangle rather than assuming fullscreen clears it.
+  const full=await geometry(),fullRect=await page.evaluate(()=>navigator.windowControlsOverlay.getTitlebarAreaRect().toJSON());report.fullscreenGeometry={...full,overlayRect:fullRect};
+  assert.equal(full.customButtons,0);assert.ok(Math.abs(full.chrome.height-fullRect.height)<1);assert.ok(full.search.y>=full.chrome.bottom);assert.ok(full.main.bottom<=full.height+1);assert.ok(Math.abs(full.search.x+full.search.width/2-full.main.x-full.main.width/2)<2);
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setFullScreen(false));
+  deadline=Date.now()+5000;while(Date.now()<deadline&&await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()))await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isFullScreen()),false);
+  await page.waitForFunction(({width,height})=>innerWidth===width&&innerHeight===height,{width:before.width,height:before.height});
+  const restored=await geometry();report.restoredFullscreenGeometry=restored;assert.ok(restored.search.y>=restored.chrome.bottom);assert.equal(restored.chrome.height,before.chrome.height);assert.equal(restored.main.y,before.main.y);assert.deepEqual(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds()),initialBounds);assert.deepEqual(await app.evaluate(()=>globalThis.__chromeFullscreenEvents),['enter','leave']);
  });
  await check('小窗口设置搜索及关闭可点击，弹窗避开系统控制区', async () => {
   await page.getByRole('button',{name:'数据与设置',exact:true}).click(); const d=page.getByRole('dialog',{name:'数据与设置',exact:true}); const search=d.getByRole('textbox',{name:'搜索设置',exact:true});
   const g=await geometry(), b=await search.boundingBox(); assert.ok(b.y>=g.chrome.bottom); await search.fill('粒子'); assert.equal(await search.inputValue(),'粒子'); await page.screenshot({path:path.join(output,'settings-minimum.png')}); await d.getByRole('button',{name:'关闭',exact:true}).click(); await d.waitFor({state:'hidden'});
  });
- await check('正常关闭尊重beforeunload取消',async()=>{
+ await check('原生关闭尊重beforeunload取消，不强制销毁窗口',async()=>{
   await app.evaluate(({BrowserWindow})=>{globalThis.__chromeClosePrevented=false;BrowserWindow.getAllWindows()[0].webContents.once('will-prevent-unload',()=>{globalThis.__chromeClosePrevented=true;});});
-  await page.evaluate(()=>{window.__chromeBlockClose=event=>{event.preventDefault();event.returnValue=false;};window.addEventListener('beforeunload',window.__chromeBlockClose);});await page.getByRole('button',{name:'关闭窗口',exact:true}).click();const deadline=Date.now()+5000;while(Date.now()<deadline&&!await app.evaluate(()=>globalThis.__chromeClosePrevented))await new Promise(resolve=>setTimeout(resolve,50));assert.equal(await app.evaluate(()=>globalThis.__chromeClosePrevented),true);assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().length),1);await page.evaluate(()=>window.removeEventListener('beforeunload',window.__chromeBlockClose));
+  await page.evaluate(()=>{window.__chromeBlockClose=event=>{event.preventDefault();event.returnValue=false;};window.addEventListener('beforeunload',window.__chromeBlockClose);});await native('close');const deadline=Date.now()+5000;while(Date.now()<deadline&&!await app.evaluate(()=>globalThis.__chromeClosePrevented))await new Promise(resolve=>setTimeout(resolve,50));assert.equal(await app.evaluate(()=>globalThis.__chromeClosePrevented),true);assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().length),1);await page.evaluate(()=>window.removeEventListener('beforeunload',window.__chromeBlockClose));
  });
- await check('窗口交互不改写收藏，玻璃关闭按钮正常退出', async () => {
-  assert.equal(fs.readFileSync(file,'utf8'),initial); const closed=app.waitForEvent('close'); await page.getByRole('button',{name:'关闭窗口',exact:true}).click(); await closed; app=null; assert.equal(fs.readFileSync(file,'utf8'),initial);
+ await check('窗口交互不改写收藏，原生关闭正常退出', async () => {
+  assert.equal(fs.readFileSync(file,'utf8'),initial); const closed=app.waitForEvent('close'); await native('close'); await closed; app=null; assert.equal(fs.readFileSync(file,'utf8'),initial);
  });
  assert.deepEqual(report.errors,[]); report.passed=true;
 } catch(error) { report.failure={message:error.message,stack:error.stack}; process.exitCode=1; console.error(error.stack);

@@ -12,8 +12,6 @@ import type {
 
 export interface DesktopResult<T> { ok: boolean; value?: T; error?: string }
 export interface StoredRecord { snapshot: LibrarySnapshot | null; revision: string; error?: string }
-export type WindowCommand = 'minimize' | 'toggle-maximize' | 'close';
-export interface WindowState { maximized: boolean; minimized: boolean; fullscreen: boolean; focused: boolean }
 export type {
   LibrarySnapshot, MetadataCandidate, SteamImportGame,
   SteamConnectionState, SteamLibraryRequest, SteamLibraryResult,
@@ -21,10 +19,7 @@ export type {
 };
 
 export interface DesktopBridge {
-  getInfo(): { version: string; dataDirectory: string; windowVisible?: boolean; demo?: boolean; customWindowControls?: boolean };
-  getWindowState?(): DesktopResult<WindowState>;
-  windowCommand?(command: WindowCommand): void;
-  onWindowState?(listener: (state: WindowState) => void): () => void;
+  getInfo(): { version: string; dataDirectory: string; windowVisible?: boolean; demo?: boolean };
   onWindowVisibility?(listener: (visible: boolean) => void): () => void;
   loadLibrary(): DesktopResult<StoredRecord>;
   saveLibrary(snapshot: LibrarySnapshot, revision: string, allowRecovery: boolean): DesktopResult<{ revision: string }>;
