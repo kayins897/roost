@@ -254,6 +254,59 @@ async function planSuite(currentMode) {
   await page.keyboard.press('Escape'); await m.waitFor({ state: 'hidden' });
  });
  await context.close();
+ // 单独重开同一份61件合成库，确保键盘路径同样跨过整行缩短的滚动钳制边界，
+ // 不复用上面已经变成59件的结果，避免没有实际钳制却误报通过。
+ await prepare(currentMode);
+ let keyboardMenu;
+ await check('滚到底后菜单方向键选择待续，真实滚动钳制不关菜单且只改分类', async () => {
+  const before = await raw(), attempts = await saves();
+  await page.evaluate(() => { document.querySelector('.main-scroll').scrollTo(0, 1e6); });
+  await page.waitForTimeout(120);
+  const scrollBefore = await page.locator('.main-scroll').evaluate(host => ({ top: host.scrollTop, max: host.scrollHeight - host.clientHeight }));
+  assert.ok(scrollBefore.top > 0 && Math.abs(scrollBefore.top - scrollBefore.max) <= 1, '确实从主区底部开始');
+  const last = page.locator('.media-card').last(), label = await last.getAttribute('aria-label');
+  const id = 'p' + label.replace(/^查看计划作品 /, '').replace(/详情$/, '');
+  await last.click({ button: 'right' });
+  keyboardMenu = page.getByRole('menu', { name: `计划作品 ${id.slice(1)}快捷编辑`, exact: true });
+  await keyboardMenu.waitFor();
+  assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '待体验', exact: true }).evaluate(element => element === document.activeElement), true);
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '已体验 · 未分类', exact: true }).evaluate(element => element === document.activeElement), true);
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await keyboardMenu.getByRole('menuitemradio', { name: '待续', exact: true }).evaluate(element => element === document.activeElement), true);
+  await unchanged('菜单方向键只移动焦点', before, attempts);
+  const countBefore = await page.locator('.media-card').count();
+  assert.equal(countBefore, 61);
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(count => document.querySelectorAll('.media-card').length === count, countBefore - 1);
+  await page.waitForFunction(top => document.querySelector('.main-scroll').scrollTop < top, scrollBefore.top);
+  await page.waitForTimeout(120);
+  assert.equal(await keyboardMenu.isVisible(), true, '菜单内方向键不是主区域滚动，保存后钳制不应关闭菜单');
+  const updated = await item(id);
+  assert.equal(updated.experienceStatus, 'experienced'); assert.equal(updated.experienceCategory, 'continue');
+  assert.equal(updated.gamePlayState, 'want'); assert.equal(updated.playEngagement, undefined);
+  preserve(JSON.parse(before), await data(), [id], ['experienceStatus','experienceCategory','updatedAt']);
+  const scrollAfter = await page.locator('.main-scroll').evaluate(host => ({ top: host.scrollTop, max: host.scrollHeight - host.clientHeight }));
+  report.keyboardPlan ??= []; report.keyboardPlan.push({ mode, id, countBefore, countAfter: await page.locator('.media-card').count(), scrollBefore, scrollAfter });
+  await capture('plan-keyboard-classification');
+ });
+ await check('保存钳制后第一次真实主区滚轮仍关闭菜单且不写库', async () => {
+  assert.equal(await keyboardMenu.isVisible(), true);
+  const before = await raw(), attempts = await saves();
+  const host = page.locator('.main-scroll'), hostBox = await host.boundingBox(), menuBox = await keyboardMenu.boundingBox();
+  const point = { x: hostBox.x + 8, y: hostBox.y + hostBox.height / 2 };
+  assert.equal(point.x >= menuBox.x && point.x <= menuBox.x + menuBox.width && point.y >= menuBox.y && point.y <= menuBox.y + menuBox.height, false, '滚轮落点在菜单外的主区域');
+  assert.equal(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.main-scroll'), point), true);
+  const top = await host.evaluate(element => element.scrollTop);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.wheel(0, -320);
+  await page.waitForFunction(previous => document.querySelector('.main-scroll').scrollTop < previous, top);
+  await keyboardMenu.waitFor({ state: 'hidden' });
+  await unchanged('第一次主区域滚轮仅关闭菜单', before, attempts);
+  report.keyboardPlan.at(-1).firstWheel = { beforeTop: top, afterTop: await host.evaluate(element => element.scrollTop), menuClosed: true };
+  await capture('plan-first-wheel-dismiss');
+ });
+ await context.close();
 }
 (async () => { try {
  base = await serve(); browser = await chromium.launch({channel:'msedge',headless:true}); await suite('browser'); await suite('bridge'); await planSuite('browser'); await planSuite('bridge'); assert.deepEqual(report.errors, []); report.passed=true;
