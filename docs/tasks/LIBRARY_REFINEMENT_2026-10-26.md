@@ -25,7 +25,7 @@
 - `npm run desktop:build`：通过（包含TS类型检查、Vite、主进程构建）。
 - `node scripts/verify-library-refinement.cjs`：19组通过、14张实际截图。浏览器真实 LocalStorageRepository + DesktopRepository/合成内存桥双模式；分类矩阵、事实保护、失败/重试、列表80字/取消/持久化、收录/标签/回收/隐藏路线、390/1000/1440布局、同图五级反光、透镜创建释放。不是实际文件桥或真实Steam联网测试。
 - 非作者只读审查通过。独立探针确认列表正常离开仅一次保存、失败草稿保留；材质12次往返无滤镜残留；编辑器资格、弹窗焦点修复后复查通过。
-- 实际成品验证与包资源一致性结果待随包交付补记。入口 `scripts/verify-refinement-package.cjs <全新验收副本>`、`scripts/verify-package-assets.cjs <全新验收副本>`。
+- 实际 Windows 免安装成品6组通过：真实CMD/独立目录启动零写、右键双等级、列表印象落盘、Dock收录与回收导航、完成记录+1/撤销、同一入口关闭重启逐字读回（含playing枚举）。成品无页面错误。资源一致性13项ASAR内容+5项外部文件通过。成品运行代码提交 `716ce551d3c1a2e4cca3ca2a4c9f46f8905cb905`，测试脚本截取问题修复后完成语法检查及实测，脚本修复不改变运行代码。入口 `scripts/verify-refinement-package.cjs <全新验收副本>`、`scripts/verify-package-assets.cjs <全新验收副本>`。
 - 本轮没有套用前批206项单测或旧19阶段工作流的成绩。旧GUI脚本存在分类名称/资格/顶部入口断言需要适配，未重跑完整工作流；本轮新专项覆盖改动路径，未访问Steam网络。
 
 ## 文件与边界
@@ -41,5 +41,7 @@ UI：App 接线、workspaceController、WorkEditor、GameProgressPanel/GameRatin
 3. 运行上面的单测、构建和专项；需要完整工作流时先适配旧GUI断言，不能简单忽略失败。
 4. 变更留在独立分支，非作者审查/所有者验收后再安排主分支集成及发布；本轮没有该权限。
 5. 回退源码可检出前批分支；用户数据按上节备份方案回退，禁止重置/清库。
+
+本地交付目录：`交付/分类与列表优化-20261026`；ZIP：`Qiyu-NoInstall-0.4.24-library-refinement-20261026-x64.zip`。SHA256与构建一致性报告随包提供。新鲜交付副本从未启动，实际验证使用另一个合成演示副本。14张浏览器截图及7张Windows实际截图保留在交付目录“截图”。
 
 人工验收按随包“验收步骤.md”；Windows500款真实库的列表帧率尚未实机基准测试，减少动态效果时折射/卡面反光按既有设置降级。
