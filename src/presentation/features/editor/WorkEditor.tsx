@@ -106,15 +106,15 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     if (type === 'game' && hours !== undefined && (!Number.isFinite(hours) || hours < 0 || hours > 100000)) return;
     const now = new Date().toISOString();
     // v0.4.24：编辑只写新维度（未触碰时保留原值/推导）；新建构造旧轴兼容投影。
-    const gameFields = type !== 'game' ? {} : initial
+    const gameFields = type !== 'game' ? {} : initial?.category === 'game'
       ? { ...(engagementTouched && engagement !== 'unrecorded' ? { playEngagement: engagement as PlayEngagement } : {}), ...(completionTouched ? { completion } : {}) }
       : newGameProjection(engagement === 'unrecorded' ? 'planned' : engagement, completion);
     onSave({
       ...initial,
       id: initial?.id ?? crypto.randomUUID(), title: title.trim(), originalTitle: originalTitle.trim() || undefined, category: type, subcategory: subtype.trim(),
       platforms: type === 'game' ? normalizePlatforms(platformInput.split(/[,，、;；\n]+/)) : initial?.platforms,
-      creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : status,
-      gamePlayState: type === 'game' ? (initial ? initial.gamePlayState : (gameFields as { gamePlayState?: MediaItem['gamePlayState'] }).gamePlayState) : initial?.gamePlayState,
+      creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial?.category === 'game' ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : status,
+      gamePlayState: type === 'game' ? (initial?.category === 'game' ? initial.gamePlayState : (gameFields as { gamePlayState?: MediaItem['gamePlayState'] }).gamePlayState) : initial?.gamePlayState,
       // 未触碰的维度保留 initial 原值（gameFields 编辑分支只含 touched 键；'unknown' 为合法显式值不受 ?? 影响）。
       ...(type === 'game' ? { playEngagement: (gameFields as { playEngagement?: MediaItem['playEngagement'] }).playEngagement ?? initial?.playEngagement, completion: (gameFields as { completion?: MediaItem['completion'] }).completion ?? initial?.completion } : {}),
       playtimeMinutes: type === 'game' ? hours !== undefined ? Math.round(hours * 60) : undefined : initial?.playtimeMinutes,
@@ -150,7 +150,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
               <label className="form-field">当前游玩关系<select aria-label="当前游玩关系" value={engagement === 'unrecorded' ? '' : engagement} onChange={e => { setEngagement(e.target.value as PlayEngagement); setEngagementTouched(true); }}><option value="" disabled={initial !== undefined}>未记录</option>{PLAY_ENGAGEMENTS.map(id => <option key={id} value={id}>{ENGAGEMENT_LABELS[id]}</option>)}</select></label>
               <label className="form-field">通关进度<select aria-label="通关进度" value={completion} onChange={e => { const next = e.target.value as CompletionStatus; setCompletion(next); setCompletionTouched(true); if (next !== 'cleared' && next !== 'not-applicable' && initial?.personalGrade === undefined) setPersonalGrade(''); }}>{COMPLETION_STATUSES.map(id => <option key={id} value={id}>{COMPLETION_LABELS[id]}</option>)}</select></label>
             </div>
-            {(type !== 'game' ? false : engagement === 'planned' || engagement === 'paused' || (initial?.playPriority !== undefined && initial?.category === 'game')) && <label className="form-field">待体验优先级<select aria-label="待体验优先级" value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
+            {(type !== 'game' ? false : engagement === 'planned' || engagement === 'paused') && <label className="form-field">待体验优先级<select aria-label="待体验优先级" value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
             {(completion === 'cleared' || completion === 'not-applicable' || initial?.personalGrade !== undefined) && <label className="form-field">通关评级<select aria-label="通关评级" value={personalGrade} onChange={event => setPersonalGrade(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
             <p className="game-state-help">当前关系与通关进度独立，通关后也可以计划重玩或继续游玩。暂时搁置表示以后可能继续，已放弃表示不再计划游玩。时长和记录都会保留。</p>
             <div className="game-tag-editor"><div className="game-tag-editor-title">游戏标签 <span>四个维度，按需填写即可</span></div>

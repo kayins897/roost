@@ -43,7 +43,6 @@ export function useWorkspaceController() {
     selecting: false,
     selectionIds: ((() => new Set())()) as Set<string>,
     batchEditOpen: false,
-    enrichOpen: false,
     status: ('all') as ProgressStatus | 'all',
     gameFilter: ('plan') as PlayEngagement | 'all' | 'plan',
     completionFilter: ('all') as CompletionStatus | 'all',
@@ -81,7 +80,6 @@ export function useWorkspaceController() {
   const [selecting, setSelecting] = fields('selecting');
   const [selectionIds, setSelectionIds] = fields('selectionIds');
   const [batchEditOpen, setBatchEditOpen] = fields('batchEditOpen');
-  const [enrichOpen, setEnrichOpen] = fields('enrichOpen');
   useEffect(() => { setSelecting(false); setSelectionIds(new Set()); setBatchEditOpen(false); }, [section]);
   const [status, setStatus] = fields('status');
   const [gameFilter, setGameFilter] = fields('gameFilter');
@@ -166,6 +164,9 @@ export function useWorkspaceController() {
   function startSelection() { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSelectionIds(new Set()); setAssignment(null); setSelecting(true); }); }
   function applyBatchEdit(plan: Pick<GameBatchEditPlan, 'selectedIds' | 'input' | 'changedCount' | 'items'> & { kind?: 'progress' | 'tags'; patch?: Partial<Pick<MediaItem, 'playEngagement' | 'completion'>> }) {
     const current = snapshotRef.current;
+    const requested = new Set(plan.selectedIds);
+    const eligible = current.items.filter(item => requested.has(item.id) && item.category === 'game' && !item.removedAt);
+    if (!requested.size || eligible.length !== requested.size) { setToast('所选作品已变化，请关闭并重新检查选择；未更新任何作品。'); return false; }
     // v0.4.24：双维度批量计划由组件经 createBatchProgressPatch 构造完整 items，直接提交；标签计划按最新库重建。
     if (plan.kind === 'progress') {
       // 组件预览 items 只含所选作品；保存必须在最新全库上重建，否则会以子集替换整库。
@@ -180,20 +181,13 @@ export function useWorkspaceController() {
     setSelecting(false); setSelectionIds(new Set());
     return true;
   }
-  // 多选补齐 Steam 资料：复用现有同步链但固定 updatePlaytime:false——只补缺失元数据，
-  // 不读库存、不更新时长、不新增作品；保存前以最新快照重建补丁（applySteamSync 内部校验）。
-  function applyEnrichSync(games: SteamLibraryGame[], appIds: ReadonlySet<string>) {
-    const current = snapshotRef.current;
-    const result = applySteamSync(games, current.items, appIds, { updatePlaytime: false, exclusions: current.importExclusions });
-    if (!result.updated) { setToast('所选游戏没有需要补齐的资料。'); return false; }
-    return commit({ ...current, items: result.items }, `已补齐 ${result.updated} 款游戏的资料`);
-  }
   // 多选快捷定级：只传等级输入（不带状态）的纯等级补丁，不重写状态、不规范化旧别名；
   // 仅作用于当前状态与维度匹配（want→优先级 / cleared→评级）的所选游戏。成功后保持多选便于连续整理。
   function applyBulkGrade(mode: 'priority' | 'rating', value: NonNullable<MediaItem['playPriority']> | undefined) {
-    const eligible = snapshotRef.current.items.filter(item => selectionIds.has(item.id) && item.category === 'game' && !item.removedAt && (mode === 'priority' ? priorityEditable(item) : gradeEditable(item))).map(item => item.id);
-    if (!eligible.length) { setToast('所选游戏当前状态不适用该等级设置。'); return false; }
     const current = snapshotRef.current;
+    const selected = current.items.filter(item => selectionIds.has(item.id));
+    const eligible = selected.filter(item => item.category === 'game' && !item.removedAt && (mode === 'priority' ? priorityEditable(item) : gradeEditable(item))).map(item => item.id);
+    if (!eligible.length || eligible.length !== selectionIds.size) { setToast('所选作品并非全部适用该等级；未更新任何作品。'); return false; }
     const patch = createBulkGradePatch(current.items, eligible, mode, value);
     if (!patch.changedCount) { setToast('所选游戏已符合该等级，无需更新。'); return false; }
     return commit({ ...current, items: patch.items }, `已更新 ${patch.changedCount} 款游戏的${mode === 'priority' ? '待体验优先级' : '通关评级'}`);
@@ -213,11 +207,11 @@ export function useWorkspaceController() {
   function closeDetail() { guardDetail(() => { detailGuard.current = null; setSelectedId(null); }); }
   function openItem(id: string) { guardDetail(() => { detailGuard.current = null; setSelectedId(id); }); }
   function openEditor() { guardDetail(() => setEditor('new')); }
-  function navigate(next: Section) { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSection(next); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setStatus('all'); setGameFilter(next === 'game' ? 'plan' : 'all'); setLibraryView('library'); setContextMenu(null); setSubtypeFilter('all'); setSort(next === 'game' ? 'rank' : 'recent'); setQuery(''); setFiltersOpen(false); setMenuOpen(false); }); }
+  function navigate(next: Section) { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSection(next); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setStatus('all'); setGameFilter(next === 'game' ? 'plan' : 'all'); setCompletionFilterValue('all'); setLibraryView('library'); setContextMenu(null); setSubtypeFilter('all'); setSort(next === 'game' ? 'rank' : 'recent'); setQuery(''); setFiltersOpen(false); setMenuOpen(false); }); }
   function saveWork(item: MediaItem) {
     if (!items.some(existing => existing.id === item.id) && isImportExcluded(item, snapshotRef.current.importExclusions)) { setToast('这件作品已被移除，导入会跳过。未永久删除的作品可从回收站恢复。'); return; }
     if (updateItems(current => current.some(existing => existing.id === item.id) ? current.map(existing => existing.id === item.id ? item : existing) : [item, ...current], items.some(existing => existing.id === item.id) ? '作品已更新' : '已加入收藏库')) {
-      setEditor(null); setImportedDraft(null); setLibraryView('library'); setSection(item.category); setSelectedId(item.id); setStatus('all'); setGameFilter('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
+      setEditor(null); setImportedDraft(null); setLibraryView('library'); setSection(item.category); setSelectedId(item.id); setStatus('all'); setGameFilter('all'); setCompletionFilterValue('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
     }
   }
   function importBatch(additions: MediaItem[]) {
@@ -226,7 +220,7 @@ export function useWorkspaceController() {
     if (!accepted.length) { setToast('这些作品已在收藏库中，请重新检查清单。'); return false; }
     if (!commit({ ...current, items: [...accepted, ...current.items] }, `已新增 ${accepted.length} 件作品`, false, true)) return false;
     detailGuard.current = null; setSelectedId(null); setLibraryView('library'); setSelecting(false); setSelectionIds(new Set()); setSection(accepted[0].category);
-    setStatus('all'); setGameFilter('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
+    setStatus('all'); setGameFilter('all'); setCompletionFilterValue('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
     return true;
   }
   function syncSteam(games: SteamLibraryGame[], selectedAppIds: ReadonlySet<string>, options: SteamSyncOptions) {
@@ -235,7 +229,7 @@ export function useWorkspaceController() {
     if (!result.added && !result.updated) { setToast('所选游戏无需更新，请重新检查预览。'); return false; }
     if (!commit({ ...current, items: result.items }, `Steam：新增 ${result.added} 款，更新 ${result.updated} 款`, false, true)) return false;
     detailGuard.current = null; setSelectedId(null); setLibraryView('library'); setSelecting(false); setSelectionIds(new Set()); setSection('game');
-    setStatus('all'); setGameFilter('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
+    setStatus('all'); setGameFilter('all'); setCompletionFilterValue('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
     return true;
   }
   function lifecycleAction(action: 'hide' | 'unhide' | 'trash' | 'restore' | 'delete', ids: string[]) {
@@ -249,7 +243,7 @@ export function useWorkspaceController() {
     }
   }
   function changeLibraryView(next: LibraryView, plan = false) {
-    guardDetail(() => { setLibraryView(next); setGameFilter(plan ? 'plan' : 'all'); setSort(plan ? 'rank' : 'recent'); setQuery(''); setStatus('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSelecting(false); setSelectionIds(new Set()); setSelectedId(null); setContextMenu(null); });
+    guardDetail(() => { setLibraryView(next); setCompletionFilterValue('all'); setGameFilter(plan ? 'plan' : 'all'); setSort(plan ? 'rank' : 'recent'); setQuery(''); setStatus('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSelecting(false); setSelectionIds(new Set()); setSelectedId(null); setContextMenu(null); });
   }
   function assignTag(group: GameTagGroupKey, name: string) {
     setTagManager(false); changeLibraryView('library'); startSelection(); setAssignment({ group, name }); setToast('请选择需要添加「' + name + '」的作品，再点底部「添加标签」');
@@ -311,7 +305,7 @@ export function useWorkspaceController() {
         ? `备份包含 ${content.items.length} 件作品。将以此备份恢复收藏库，确定继续吗？`
         : `备份包含 ${content.items.length} 件作品。导入会替换当前 ${items.length} 件作品，确定继续吗？`;
       if (!window.confirm(confirmation)) return;
-      if (commit({ ...content, items: content.items }, '备份导入成功', true)) { detailGuard.current = null; setSelectedId(null); setLibraryView('library'); setSelecting(false); setSelectionIds(new Set()); setBatchEditOpen(false); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSubtypeFilter('all'); setGameFilter('all'); setStatus('all'); setQuery(''); setSort('recent'); setSection('game'); setSettings(false); }
+      if (commit({ ...content, items: content.items }, '备份导入成功', true)) { detailGuard.current = null; setSelectedId(null); setLibraryView('library'); setSelecting(false); setSelectionIds(new Set()); setBatchEditOpen(false); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSubtypeFilter('all'); setGameFilter('all'); setCompletionFilterValue('all'); setStatus('all'); setQuery(''); setSort('recent'); setSection('game'); setSettings(false); }
     } catch (error) { setToast(`导入失败：${error instanceof Error ? error.message : '文件无法读取'}`); }
   }
   function clearDemo() {
@@ -325,5 +319,5 @@ export function useWorkspaceController() {
   }
 
   
-  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, enrichOpen, setEnrichOpen, applyEnrichSync, status, setStatus, gameFilter, setGameFilter, completionFilter, setCompletionFilter, patchEngagement, patchCompletion, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
+  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, completionFilter, setCompletionFilter, patchEngagement, patchCompletion, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
 }

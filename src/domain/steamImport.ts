@@ -1,6 +1,6 @@
 import { emptyGameTags, flattenGameTags, GAME_TAG_KEYS, isValidSnapshot, normalizePlatforms, normalizeTags } from './library.ts';
 import type { ExternalId, GameTagGroups, MediaItem, MediaType, ProgressStatus
-, PlayEngagement } from './types.ts';
+, CompletionStatus, PlayEngagement } from './types.ts';
 import { isImportExcluded } from './importExclusions.ts';
 
 export const STEAM_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
@@ -264,7 +264,7 @@ export function previewSteamImport(games: SteamImportGame[], existing: MediaItem
 
 /** No play history, completion state or metadata is guessed from ownership or recorded duration. */
 /** v0.4.24：游戏的 initialEngagement 提供时写入 playEngagement，旧轴按关系投影；未提供保持旧行为。 */
-export function createSteamImportItems(games: SteamImportGame[], initialStatus: ProgressStatus = 'want', initialEngagement?: PlayEngagement): MediaItem[] {
+export function createSteamImportItems(games: SteamImportGame[], initialStatus: ProgressStatus = 'want', initialEngagement?: PlayEngagement, initialCompletion?: CompletionStatus): MediaItem[] {
   const now = new Date().toISOString();
   const result: MediaItem[] = games.map(game => {
     const category = game.category ?? 'game';
@@ -276,7 +276,7 @@ export function createSteamImportItems(games: SteamImportGame[], initialStatus: 
     return {
     id: crypto.randomUUID(), title: game.title, category, subcategory: game.subcategory ?? (defaultSteam ? 'Steam' : ''),
     ...(category === 'game' ? { ...(platforms ? { platforms: [...platforms] } : {}), gamePlayState: initialEngagement === 'playing' ? 'playing' as const : (initialEngagement === 'paused' || initialEngagement === 'inactive') ? 'paused' as const : initialEngagement === 'abandoned' ? 'abandoned' as const : initialEngagement === 'planned' ? 'want' as const : initialStatus === 'finished' ? 'cleared' as const : initialStatus === 'active' ? 'playing' as const : initialStatus === 'paused' ? 'paused' as const : 'want' as const,
-      ...(initialEngagement !== undefined ? { playEngagement: initialEngagement } : {}), gameTags: groups } : {}),
+      ...(initialEngagement !== undefined ? { playEngagement: initialEngagement } : {}), ...(initialCompletion !== undefined ? { completion: initialCompletion } : {}), gameTags: groups } : {}),
     creator: game.creator ?? '', year: game.year ?? '', status: initialStatus, tags: category === 'game' ? flattenGameTags(groups) : [...(game.tags ?? [])],
     impression: '', favorite: false, artwork: 'default', createdAt: now, updatedAt: now,
     ...(game.originalTitle ? { originalTitle: game.originalTitle } : {}),

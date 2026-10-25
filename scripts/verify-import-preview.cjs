@@ -10,7 +10,7 @@ const fixture = { schemaVersion: 1, importExclusions: [{ provider: 'steam', id: 
   work('lib1', '库中作品X', { externalIds: [{ provider: 'steam', id: '100' }] }),
   work('lib2', '同名作品Y'),
 ] };
-const manifest = ['全新 Beta', '库中作品X | https://store.steampowered.com/app/100/ | 30', '同名作品Y', '双胞 Gamma', '双胞 Gamma', '排除 Delta | https://store.steampowered.com/app/555/ | 0', '全新 Epsilon', '全新 Zeta'].join('\n');
+const manifest = ['全新 Beta', '来源不同名称 | https://store.steampowered.com/app/100/ | 30', '同名作品Y', '双胞 Gamma', '双胞 Gamma', '排除 Delta | https://store.steampowered.com/app/555/ | 0', '全新 Epsilon', '全新 Zeta'].join('\n');
 let baseline = JSON.stringify(fixture);
 let browser, server, base, context, page, mode, stage;
 const raw = () => page.evaluate(key => localStorage.getItem(key), mode === 'bridge' ? 'qiyu.test.import.library' : 'qiyu.library.v1');
@@ -23,8 +23,10 @@ async function prepare(currentMode) {
   await context.addInitScript(({ initial, mode }) => {
     const key = mode === 'bridge' ? 'qiyu.test.import.library' : 'qiyu.library.v1', set = Storage.prototype.setItem;
     if (!localStorage.getItem(key)) set.call(localStorage, key, initial);
+    window.__importFail = false;
+    Storage.prototype.setItem = function(name, value) { if (name === key && window.__importFail) throw new DOMException('隔离模拟保存失败', 'QuotaExceededError'); return set.call(this, name, value); };
     set.call(localStorage, 'qiyu.background.v1', JSON.stringify({ enabled: false, hue: 33 }));
-    if (mode === 'bridge') { let revision = 'import-0', count = 0; window.qiyuDesktop = { getInfo: () => ({ version: 'test', dataDirectory: 'ISOLATED', windowVisible: true }), loadLibrary: () => ({ ok: true, value: { snapshot: JSON.parse(localStorage.getItem(key)), revision } }), saveLibrary: (snapshot, expected) => { if (expected !== revision) return { ok: false, error: '隔离修订号冲突' }; set.call(localStorage, key, JSON.stringify(snapshot)); revision = `import-${++count}`; return { ok: true, value: { revision } }; }, onWindowVisibility: () => () => {}, openDataDirectory: () => {} }; }
+    if (mode === 'bridge') { let revision = 'import-0', count = 0; window.qiyuDesktop = { getInfo: () => ({ version: 'test', dataDirectory: 'ISOLATED', windowVisible: true }), loadLibrary: () => ({ ok: true, value: { snapshot: JSON.parse(localStorage.getItem(key)), revision } }), saveLibrary: (snapshot, expected) => { if (window.__importFail) return { ok: false, error: '隔离模拟保存失败' }; if (expected !== revision) return { ok: false, error: '隔离修订号冲突' }; set.call(localStorage, key, JSON.stringify(snapshot)); revision = `import-${++count}`; return { ok: true, value: { revision } }; }, onWindowVisibility: () => () => {}, openDataDirectory: () => {} }; }
   }, { initial: baseline, mode });
   page = await context.newPage(); page.setDefaultTimeout(12000);
   page.on('pageerror', error => report.errors.push({ stage, message: error.message }));
@@ -45,6 +47,7 @@ async function suite(currentMode) {
   await prepare(currentMode);
   await check('分类筛选计数正确，当前结果全选半选与隐藏已选计数', async () => {
     const dlg = await openAndParse();
+    assert.match(await dlg.locator('.steam-import-row').filter({ hasText: '来源不同名称' }).innerText(), /已收藏：库中作品X/);
     const filters = dlg.locator('.steam-import-filter'); // 清单内重复仅标记第二行，第一行双胞 Gamma 属可新增（故可新增=4）
     for (const [label, count] of [['全部', '8'], ['可新增', '4'], ['库中重复', '2'], ['清单内重复', '1'], ['已移除跳过', '1']]) {
       assert.ok(await filters.filter({ hasText: label }).first().innerText().then(text => text.includes(count)), `${label} 计数应含 ${count}`);
@@ -54,12 +57,16 @@ async function suite(currentMode) {
     await capture('filters-counts');
     const current = dlg.locator('input[aria-label="全选当前结果"]');
     assert.equal(await current.isChecked(), true, '当前结果初始全选');
+    await current.uncheck(); assert.equal(await current.isChecked(), false);
+    await current.check(); assert.equal(await current.isChecked(), true, '真实点击当前结果全选恢复所选');
     await dlg.locator('input[aria-label="导入 全新 Beta"]').uncheck();
     assert.equal(await current.isChecked(), false);
     assert.equal(await current.evaluate(node => node.indeterminate), true, '半选状态');
     await dlg.getByRole('textbox', { name: '查找清单中的作品' }).fill('Epsilon');
     await dlg.locator('.steam-import-hidden').waitFor();
     assert.ok((await dlg.locator('.steam-import-hidden').innerText()).includes('2 件已选'), '隐藏已选计数');
+    await dlg.getByRole('textbox', { name: '查找清单中的作品', exact: true }).fill('NO_MATCH_ZZZ');
+    assert.equal(await current.isDisabled(), true); assert.match(await dlg.innerText(), /没有匹配名称/);
     // 清空搜索、切回全部：选择保持（Beta 仍未选），导入选中 2 件。
     await dlg.getByRole('textbox', { name: '查找清单中的作品' }).fill('');
     await filters.filter({ hasText: '全部' }).first().click();
@@ -67,9 +74,13 @@ async function suite(currentMode) {
     assert.ok((await button('导入选中的 3 件', dlg).count()) >= 1);
     // 重复项不可选。
     await filters.filter({ hasText: '库中重复' }).first().click();
-    assert.equal(await dlg.locator('input[aria-label="导入 库中作品X"]').isDisabled(), true);
+    assert.equal(await dlg.locator('input[aria-label="导入 来源不同名称"]').isDisabled(), true);
     assert.equal(await dlg.locator('input[aria-label="导入 同名作品Y"]').isDisabled(), true);
     await filters.filter({ hasText: '可新增' }).first().click();
+    const beforeFailure = await raw(); await page.evaluate(() => window.__importFail = true);
+    await button('导入选中的 3 件', dlg).click();
+    assert.equal(await raw(), beforeFailure); await dlg.waitFor();
+    await page.evaluate(() => window.__importFail = false);
     await button('导入选中的 3 件', dlg).click();
     await dlg.waitFor({ state: 'hidden' });
     const after = await data();

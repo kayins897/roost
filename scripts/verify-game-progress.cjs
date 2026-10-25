@@ -8,6 +8,8 @@ const work = (id, extra = {}) => ({ id, title: `进度示例 ${id}`, category: '
 const fixture = { schemaVersion: 1, futureRoot: { keep: true }, items: [
   work('unknown', { completion: 'not-cleared', playtimeMinutes: 3600 }),
   work('zero', { completionCount: 0 }),
+  work('book-finished', { category: 'book', subcategory: '文学', gamePlayState: undefined, status: 'finished' }),
+  work('outside-priority', { playEngagement: 'playing', playPriority: 'A' }),
   work('na', { playEngagement: 'playing', completion: 'not-applicable' }),
   work('both-a', { gamePlayState: 'cleared', status: 'finished', playEngagement: 'planned', personalGrade: 'S', playPriority: 'A', ratingOrder: 0 }),
   work('both-b', { gamePlayState: 'want', playEngagement: 'planned', completion: 'cleared', personalGrade: 'S', playPriority: 'A', ratingOrder: 1 }),
@@ -108,6 +110,32 @@ async function suite(currentMode) {
     await editor.getByRole('combobox', { name: '通关进度', exact: true }).selectOption('cleared'); assert.equal(await editor.getByRole('combobox', { name: '通关评级', exact: true }).count(), 1);
     await editor.getByRole('combobox', { name: '通关进度', exact: true }).selectOption('not-applicable'); assert.equal(await editor.getByRole('combobox', { name: '通关评级', exact: true }).count(), 1);
     page.once('dialog', dialog => dialog.accept()); await button('取消', editor).click();
+  });
+  await check('作品编辑资格一致；已完成书籍转游戏不擅自推断通关', async () => {
+    await button('全部游戏', page.locator('.library-views')).click();
+    await button('查看进度示例 outside-priority详情').click({ button: 'right' });
+    await page.getByRole('menu', { name: '进度示例 outside-priority快捷编辑', exact: true }).getByRole('menuitem', { name: '编辑作品资料', exact: true }).click();
+    let editor = page.getByRole('dialog', { name: '编辑作品', exact: true });
+    assert.equal(await editor.getByRole('combobox', { name: '待体验优先级', exact: true }).count(), 0);
+    await button('取消', editor).click(); await close(page.getByRole('dialog', { name: '进度示例 outside-priority详情', exact: true }));
+    assert.equal((await item('outside-priority')).playPriority, 'A');
+    await button('书籍').click(); await button('查看进度示例 book-finished详情').click({ button: 'right' });
+    await page.getByRole('menu', { name: '进度示例 book-finished快捷编辑', exact: true }).getByRole('menuitem', { name: '编辑作品资料', exact: true }).click();
+    editor = page.getByRole('dialog', { name: '编辑作品', exact: true });
+    await editor.getByRole('combobox', { name: '归属板块', exact: true }).selectOption('game');
+    assert.equal(await editor.getByRole('combobox', { name: '通关进度', exact: true }).inputValue(), 'unknown');
+    await button('保存修改', editor).click();
+    const changed = await item('book-finished'); assert.equal(changed.category, 'game'); assert.equal(changed.completion, 'unknown'); assert.equal(changed.playEngagement, 'planned'); assert.equal(changed.status, 'want');
+    await close(page.getByRole('dialog', { name: '进度示例 book-finished详情', exact: true }));
+  });
+  await check('空结果清除筛选与隐藏/回收切换清除通关残留', async () => {
+    await page.getByRole('button', { name: '已通关', exact: true }).click();
+    await page.getByRole('textbox', { name: '搜索收藏', exact: true }).fill('必定没有任何匹配ZZZ');
+    await button('清除筛选').click();
+    assert.equal(await button('查看进度示例 unknown详情').count(), 1);
+    await page.getByRole('button', { name: '已通关', exact: true }).click();
+    await button('回收站').click(); await button('全部游戏', page.locator('.library-views')).click();
+    assert.equal(await button('查看进度示例 outside-priority详情').count(), 1);
   });
   await page.screenshot({ path: path.join(output, `${mode}-progress.png`) });
   assert.equal(report.errors.length, 0); await context.close();
