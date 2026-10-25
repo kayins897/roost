@@ -19,11 +19,12 @@ async function poll(fn, expected, timeout = 15000) { const deadline = Date.now()
 async function freePort() { const server = net.createServer(); await require('./test-loopback.cjs').listenLoopback(server); const port = server.address().port; await new Promise(resolve => server.close(resolve)); return port; }
 async function launchEntry() {
   const port = await freePort();
-  const launcher = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${entry}" -VerifyPort ${port}"`], { cwd: bundle, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const launcher = spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `""${entry}" -VerifyPort ${port}"`], { cwd: bundle, env, windowsHide: true, windowsVerbatimArguments: true, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = ''; launcher.stderr.on('data', data => log += data);
   await poll(async () => { try { return (await fetch(`http://127.0.0.1:${port}/json/version`)).ok; } catch { return false; } }, true, 45000).catch(error => { throw new Error(`${error.message}\n启动器：${log}`); });
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
   const context = browser.contexts()[0]; page = context.pages()[0] || await context.waitForEvent('page');
+  page.setDefaultTimeout(15000);
   page.on('pageerror', error => report.errors.push(error.message));
   await page.getByRole('heading', { name: '游戏', exact: true }).waitFor();
   await poll(() => page.evaluate(() => window.qiyuDesktop.getInfo().windowVisible), true);

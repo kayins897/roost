@@ -234,7 +234,8 @@ async function screenshot(name) {
       await source(JSON.stringify(gameManifest));
       const gamesSummary = await modal().locator('.steam-import-summary').innerText();
       assert.match(gamesSummary, /2\s*件可新增/); assert.match(gamesSummary, /0\s*件重复/); assert.match(gamesSummary, /0\s*行未识别/);
-      assert.equal(await modal().getByRole('combobox', { name: '新增作品的初始状态', exact: true }).inputValue(), 'want');
+      assert.equal(await modal().getByRole('combobox', { name: '新增游戏的当前关系', exact: true }).inputValue(), 'planned');
+      assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).inputValue(), 'unknown');
       assert.equal(await stored(), beforeGames, '游戏清单预览不写入收藏');
       await modal().getByRole('button', { name: '导入选中的 2 件', exact: true }).click();
       await modal().waitFor({ state: 'detached' });
@@ -248,6 +249,7 @@ async function screenshot(name) {
         assert.equal(game.playtimeMinutes, expected.playtimeMinutes); assert.deepEqual(game.platforms, expected.platforms);
         assert.deepEqual(game.externalIds, expected.externalIds);
         assert.equal(game.status, 'want'); assert.equal(game.gamePlayState, 'want');
+        assert.equal(game.playEngagement, 'planned'); assert.equal(game.completion, 'unknown');
         assert.equal(game.impression, ''); assert.equal(game.favorite, false); assert.equal(game.experienceEntries, undefined);
       }
       assert.ok(isValidSnapshot(withGames));

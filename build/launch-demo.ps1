@@ -34,7 +34,8 @@ try {
         $arguments += '--remote-debugging-address=127.0.0.1'
         $arguments += ('--remote-debugging-port=' + $VerifyPort)
     }
-    Start-Process -FilePath $executable -ArgumentList $arguments -WorkingDirectory $bundleDirectory -WindowStyle Hidden | Out-Null
+    # This is the interactive application requested by the user, not a background helper.
+    Start-Process -FilePath $executable -ArgumentList $arguments -WorkingDirectory $bundleDirectory -WindowStyle Normal | Out-Null
 } catch {
     [Console]::Error.WriteLine($_.Exception.Message)
     Add-Type -AssemblyName System.Windows.Forms
