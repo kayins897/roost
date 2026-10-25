@@ -5,8 +5,8 @@ import { GAME_GRADES } from './gameRating.ts';
 import { isValidSnapshot } from './library.ts';
 import type { MediaItem } from './types.ts';
 
-// 两维度独立：默认合成作品是“已通关且计划重玩”，可用于两套排序的共同断言。
-const item = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '', year: '', status: 'want', gamePlayState: 'want', completion: 'cleared', tags: ['自己的标签'], impression: '旧印象', review: '长文测评', favorite: true, artwork: 'default', playtimeMinutes: 150, createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra });
+// 显式待体验可规划重玩；客观已通关及正时长独立保留，可用于两套排序的共同断言。
+const item = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '', year: '', status: 'want', gamePlayState: 'want', experienceStatus: 'unplayed', completion: 'cleared', tags: ['自己的标签'], impression: '旧印象', review: '长文测评', favorite: true, artwork: 'default', playtimeMinutes: 150, createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra });
 const ids = (items: MediaItem[]) => items.map(work => work.id);
 const groupIds = (items: MediaItem[], mode: RankMode, group: string) => ids(groupRankedGames(items, mode).find(entry => entry.id === group)!.items);
 
@@ -22,12 +22,12 @@ test('计划和评级分别读取六档等级，未设置另成组，不推断�
   assert.equal(JSON.stringify(data), raw); assert.equal(Object.hasOwn(data[0], 'playPriority'), false);
 });
 
-test('暂时搁置始终位于优先级最后分区，保留原优先级且不影响个人评级分组', () => {
+test('旧搁置按原优先级分组，不另设末档，保留原等级且不影响个人评级分组', () => {
   const data = [item('paused-top', { gamePlayState: 'paused', status: 'paused', playPriority: 'SSS', personalGrade: 'A' }), item('want-low', { playPriority: 'C' }), item('old-paused', { gamePlayState: undefined, status: 'paused', playPriority: 'SS' })];
-  const groups = groupRankedGames(data, 'priority');
-  assert.equal(groups.at(-1)?.id, 'paused'); assert.equal(groups.at(-1)?.label, '以后再说 · 暂时搁置');
-  assert.deepEqual(ids(groups.at(-1)!.items), ['paused-top', 'old-paused']); assert.deepEqual(groupIds(data, 'priority', 'SSS'), []);
-  assert.deepEqual(groupIds(data, 'rating', 'A'), ['paused-top']); assert.equal(data[0].playPriority, 'SSS');
+  const raw = JSON.stringify(data), groups = groupRankedGames(data, 'priority');
+  assert.equal(groups.at(-1)?.id, 'unranked'); assert.equal(groups.some(group => group.id === 'paused'), false);
+  assert.deepEqual(groupIds(data, 'priority', 'SSS'), ['paused-top']); assert.deepEqual(groupIds(data, 'priority', 'SS'), ['old-paused']); assert.deepEqual(groupIds(data, 'priority', 'C'), ['want-low']);
+  assert.deepEqual(groupIds(data, 'rating', 'A'), ['paused-top']); assert.equal(data[0].playPriority, 'SSS'); assert.equal(JSON.stringify(data), raw);
 });
 
 test('分组过滤非游戏、隐藏及回收记录，不让其他收藏参与排序', () => {
@@ -70,10 +70,15 @@ test('评级排序只处理同状态同评级，未知个人资料与未选组�
   assert.equal(JSON.stringify(data), raw); assert.equal(isValidSnapshot({ schemaVersion: 1, items: moved.items }), true);
 });
 
-test('暂停逻辑末档内部可排序，跨原优先级不改优先级值', () => {
-  const data = [item('a', { gamePlayState: 'paused', status: 'paused', playPriority: 'SSS' }), item('b', { gamePlayState: 'paused', status: 'paused', playPriority: 'C' })];
-  const moved = moveGameWithinRank(data, 'b', 'a', 'priority');
-  assert.equal(moved.changedCount, 2); assert.deepEqual(groupIds(moved.items, 'priority', 'paused'), ['b', 'a']); assert.deepEqual(moved.items.map(work => work.playPriority), ['SSS', 'C']);
+test('旧搁置按原优先级同档可排序，跨档零修改且保留未知字段与旧轴', () => {
+  const data = [item('a', { gamePlayState: 'paused', status: 'paused', playPriority: 'SSS' }), { ...item('b', { gamePlayState: 'paused', status: 'paused', playPriority: 'C' }), futureItem: { keep: true } }, item('c', { gamePlayState: 'paused', status: 'paused', playPriority: 'C' })];
+  const raw = JSON.stringify(data), crossRank = moveGameWithinRank(data, 'b', 'a', 'priority');
+  assert.equal(crossRank.changedCount, 0); assert.equal(crossRank.items, data);
+  const moved = moveGameWithinRank(data, 'c', 'b', 'priority');
+  assert.equal(moved.changedCount, 2); assert.deepEqual(groupIds(moved.items, 'priority', 'C'), ['c', 'b']); assert.deepEqual(groupIds(moved.items, 'priority', 'SSS'), ['a']);
+  assert.deepEqual(moved.items.map(work => work.playPriority), ['SSS', 'C', 'C']); assert.equal(moved.items[0], data[0]);
+  for (let index = 0; index < data.length; index++) { const { priorityOrder: _old, ...before } = data[index], { priorityOrder: _new, ...after } = moved.items[index]; assert.deepEqual(after, before); }
+  assert.equal(JSON.stringify(data), raw);
 });
 
 test('旧replaying与ongoing显式计划重玩后可排序，存储枚举仍保持原值', () => {
@@ -118,7 +123,7 @@ test('拖动只写当前分档视图成员，不改同档但不在视图中的�
   assert.equal(moveGameWithinRank(rating, 'outside-na', 'first', 'rating').changedCount, 0);
   const priority = [
     item('first', { playPriority: 'A' }),
-    item('outside', { playPriority: 'A', playEngagement: 'playing', priorityOrder: 55 }),
+    item('outside', { playPriority: 'A', experienceStatus: 'experienced', playEngagement: 'playing', priorityOrder: 55 }),
     item('last', { playPriority: 'A' }),
   ];
   const reordered = moveGameWithinRank(priority, 'last', 'first', 'priority');
