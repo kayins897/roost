@@ -165,7 +165,10 @@ export function recordCompletion(item: MediaItem, input: CompletionRecordInput, 
     if (countBefore === undefined) return null; // 未知累计不得隐式 +1
     countAfter = countBefore + 1;
     if (!validCount(countAfter)) return null;
-  } else if (input.countChoice === 'start-at-one') countAfter = 1;
+  } else if (input.countChoice === 'start-at-one') {
+    if (countBefore !== undefined) return null; // 只允许未知累计明确从本次开始；旧草稿不能重置后来录入的累计。
+    countAfter = 1;
+  }
   else if (input.countChoice === 'set') {
     if (!validCount(input.countValue)) return null;
     countAfter = input.countValue;

@@ -169,6 +169,7 @@ test('精确累计值和零值可保存，拒绝溢出、分数和非法录入�
     if (countValue !== undefined) assert.equal(removeCompletionEvent(make({ completionEvents: [{ id: 'a', recordedAt: now }] }), 'a', countValue), null);
   }
   assert.equal(recordCompletion(make({ completionCount: Number.MAX_SAFE_INTEGER }), { eventId: 'overflow', countChoice: 'increment', markCleared: false }, now), null);
+  assert.equal(recordCompletion(make({ completionCount: 3 }), { eventId: 'stale', countChoice: 'start-at-one', markCleared: false }, now), null, '未知累计的旧草稿不能重置后来录入的总数');
   assert.equal(recordCompletion(item, { eventId: 'date', countChoice: 'keep', markCleared: false }, 'bad'), null);
 });
 
