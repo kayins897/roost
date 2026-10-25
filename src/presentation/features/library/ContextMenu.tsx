@@ -1,14 +1,14 @@
 import { Bookmark, Clock3, EyeOff, Heart, Pencil, Star, Tag, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { GAME_GRADES } from '../../../domain/gameRating.ts';
-import { COMPLETION_LABELS, COMPLETION_STATUSES, completionFor, gradeEditable, priorityEditable } from '../../../domain/gameProgress.ts';
-import type { CompletionStatus, MediaItem, PersonalGrade } from '../../../domain/types.ts';
+import { gradeEditable, priorityEditable } from '../../../domain/gameProgress.ts';
+import type { MediaItem, PersonalGrade } from '../../../domain/types.ts';
 import type { GameExperienceClassification } from '../../../domain/gameExperience.ts';
 import { CLASSIFICATIONS, CLASSIFICATION_LABELS, classificationFor } from './experienceOptions.ts';
 import './library.css';
 
 export interface ItemMenu { id: string; x: number; y: number }
-interface Props { menu: ItemMenu; item: MediaItem; onClose: () => void; onClassification: (value: GameExperienceClassification) => boolean; onCompletion: (value: CompletionStatus) => boolean; onGrade: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean; onQuick: (mode: 'time' | 'tags') => void; onEdit: () => void; onFavorite: () => void; onHide: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void }
+interface Props { menu: ItemMenu; item: MediaItem; onClose: () => void; onClassification: (value: GameExperienceClassification) => boolean; onGrade: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean; onQuick: (mode: 'time' | 'tags') => void; onEdit: () => void; onFavorite: () => void; onHide: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void }
 
 // 待体验/已通关在菜单内附等级行。保存失败时菜单留在原位供重试，成功按约定关闭或就地展示等级行，
 // 避免"菜单已关、误以为已保存"。
@@ -66,13 +66,9 @@ export function ContextMenu(props: Props) {
   const pickClassification = (value: GameExperienceClassification) => {
     if ((classificationFor(item) !== value || item.experienceStatus === undefined) && !props.onClassification(value)) return;
   };
-  const pickCompletion = (value: CompletionStatus) => {
-    if (completionFor(item) !== value && !props.onCompletion(value)) return;
-  };
   const pickGrade = (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => { if (props.onGrade(mode, value)) onClose(); };
   const isGame = item.category === 'game' && !item.removedAt;
   const classification = isGame ? classificationFor(item) : null;
-  const completion = isGame ? completionFor(item) : null;
   const canPriority = isGame && priorityEditable(item);
   const canGrade = isGame && gradeEditable(item);
   return <div ref={panel} className="item-context-menu" role="menu" aria-label={`${item.title}快捷编辑`} style={{ left: position.left, top: position.top }} onKeyDown={event => {
@@ -92,8 +88,7 @@ export function ContextMenu(props: Props) {
     <strong>{item.title}</strong>
     {item.removedAt ? <><button role="menuitem" onClick={() => run(props.onRestore)}>恢复作品</button><button role="menuitem" className="is-danger" onClick={() => run(props.onDelete)}><Trash2 size={14} />永久删除</button></> : <>
       {isGame && <><span className="menu-section-label">体验分类</span><div className="context-states" role="group" aria-label="体验分类">{CLASSIFICATIONS.map(value => <button className={`experience-color--${value}`} role="menuitemradio" aria-checked={classification === value} key={value} onClick={() => pickClassification(value)}>{CLASSIFICATION_LABELS[value]}</button>)}</div>
-        <span className="menu-section-label">通关进度</span><div className="context-states" role="group" aria-label="通关进度">{COMPLETION_STATUSES.map(value => <button role="menuitemradio" aria-checked={completion === value} key={value} onClick={() => pickCompletion(value)}>{COMPLETION_LABELS[value]}</button>)}</div>
-        {canPriority && <div className="context-rank" role="group" aria-label="待体验优先级"><span className="menu-section-label"><Bookmark size={11} />待体验优先级</span><div className="context-grades">{GAME_GRADES.map(grade => <button role="menuitemradio" aria-checked={item.playPriority === grade} key={grade} onClick={() => pickGrade('priority', grade)}>{grade}</button>)}<button role="menuitemradio" aria-checked={item.playPriority === undefined} onClick={() => pickGrade('priority', undefined)}>未设置</button></div></div>}
+        {canPriority && <div className="context-rank" role="group" aria-label="游玩优先级"><span className="menu-section-label"><Bookmark size={11} />游玩优先级</span><div className="context-grades">{GAME_GRADES.map(grade => <button role="menuitemradio" aria-checked={item.playPriority === grade} key={grade} onClick={() => pickGrade('priority', grade)}>{grade}</button>)}<button role="menuitemradio" aria-checked={item.playPriority === undefined} onClick={() => pickGrade('priority', undefined)}>未设置</button></div></div>}
         {canGrade && <div className="context-rank" role="group" aria-label="通关评级"><span className="menu-section-label"><Star size={11} />通关评级</span><div className="context-grades">{GAME_GRADES.map(grade => <button role="menuitemradio" aria-checked={item.personalGrade === grade} key={grade} onClick={() => pickGrade('rating', grade)}>{grade}</button>)}<button role="menuitemradio" aria-checked={item.personalGrade === undefined} onClick={() => pickGrade('rating', undefined)}>未设置</button></div></div>}
         <button role="menuitem" onClick={() => run(() => props.onQuick('time'))}><Clock3 size={14} />修改时长</button></>}
       <button role="menuitem" onClick={() => run(() => props.onQuick('tags'))}><Tag size={14} />编辑标签</button><button role="menuitem" onClick={() => run(props.onEdit)}><Pencil size={14} />编辑作品资料</button><button role="menuitem" onClick={() => run(props.onFavorite)}><Heart size={14} />{item.favorite ? '取消喜欢' : '标为喜欢'}</button><button role="menuitem" onClick={() => run(props.onHide)}><EyeOff size={14} />{item.hiddenAt ? '取消隐藏' : '隐藏作品'}</button><button role="menuitem" className="is-danger" onClick={() => run(props.onTrash)}><Trash2 size={14} />移到回收站</button>

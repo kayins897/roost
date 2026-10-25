@@ -11,16 +11,21 @@
 :root[data-theme] .media-card--grid .card-cover[data-depth='active'] .poster-image { transform: translate(var(--cover-x,0px),var(--cover-y,0px)) scale(1.055); }
 /* Continuous, local colour sheen: no tiled texture or decorative points. */
 .cover-foil { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; mix-blend-mode: hard-light; transition: opacity .22s; background-size: 180% 180%; background-position: var(--cover-light-x,62%) var(--cover-light-y,38%); }
-.media-card--grid .card-cover[data-depth='active'] > .cover-foil { opacity: .38; }
-.media-card--grid .card-cover[data-depth='active'] > .cover-foil--holographic { opacity: .52; }
-.media-card--grid .card-cover[data-depth='active'] > .cover-foil--prismatic { opacity: .58; }
-.cover-foil--silver { background-image: linear-gradient(var(--cover-angle,45deg),transparent 12%,#73859b 36%,#d0dce9 52%,#f3f6fb 62%,#8c9eaf 75%,transparent 92%); }
-.cover-foil--gold { background-image: linear-gradient(var(--cover-angle,45deg),transparent 12%,#9b7942 36%,#e1c58f 52%,#fff1ce 62%,#b79357 75%,transparent 92%); }
-/* SS: broad cool metallic bands. SSS: the first edition's sweeping spectrum. */
-.cover-foil--holographic { background-image: linear-gradient(var(--cover-angle,45deg),#25345f 0%,#526fb4 18%,#9fdff3 32%,#e7f6ff 42%,#5b8dbd 51%,#7053bb 64%,#a2c3ec 78%,#293961 100%); background-size: 250% 250%; }
-.cover-foil--prismatic { background-image: conic-gradient(from var(--cover-angle,45deg) at var(--cover-light-x,62%) var(--cover-light-y,38%),#8d3bc4,#3b78db,#4ac7ac,#e6c165,#e84a8f,#8d3bc4); background-size: 160% 160%; }
-.cover-foil--holographic::after,.cover-foil--prismatic::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(var(--cover-angle,45deg),transparent 30%,#ffffff16 43%,#ffffff80 55%,#ffffff16 65%,transparent 78%); }
-.cover-foil--prismatic::after { background: linear-gradient(var(--cover-angle,45deg),transparent 22%,#fff5dd18 39%,#fff7df8c 53%,#ffffff14 66%,transparent 82%); }
+.media-card--grid .card-cover[data-depth='active'] > .cover-foil { opacity: .52; }
+.media-card--grid .card-cover[data-depth='active'] > .cover-foil--foil { opacity: .74; }
+.media-card--grid .card-cover[data-depth='active'] > .cover-foil--holographic { opacity: .72; }
+.media-card--grid .card-cover[data-depth='active'] > .cover-foil--prismatic { opacity: .80; }
+/* B/A: stamped metal, a narrow hot edge between dark and light metal. */
+.cover-foil--silver { background-image: linear-gradient(var(--cover-angle,45deg),transparent 8%,#6e7583 27%,#d7dce6 42%,#ffffff 48%,#59616e 52%,#c5ccd5 60%,transparent 85%); }
+.cover-foil--gold { background-image: linear-gradient(var(--cover-angle,45deg),transparent 8%,#82501d 27%,#e1ad48 42%,#fff1b0 48%,#76501d 52%,#e8c365 60%,transparent 85%); }
+/* S: broad curved blue foil. Smooth, finite bands rather than a tiled texture. */
+.cover-foil--foil { background-image: radial-gradient(ellipse at var(--cover-light-x,62%) var(--cover-light-y,38%),transparent 10%,#e6f8ff 24%,#538de4 32%,#173b7b 40%,#afd8ff 47%,transparent 63%),linear-gradient(var(--cover-angle,45deg),#25417755 15%,#a5ceff88 45%,#365a9977 70%,transparent); background-size: 150% 150%; }
+/* SS: directional rainbow diffraction; SSS: a full rotating colour spectrum. */
+.cover-foil--holographic { background-image: linear-gradient(var(--cover-angle,45deg),#2747b9 0%,#42d6d2 17%,#f9c2ed 32%,#fff4c7 44%,#6c72e7 53%,#ef74b9 68%,#66e0c4 83%,#455dcc 100%); background-size: 230% 230%; }
+.cover-foil--prismatic { background-image: conic-gradient(from var(--cover-angle,45deg) at var(--cover-light-x,62%) var(--cover-light-y,38%),#fb4187,#fbc64d,#5cf0a1,#39adff,#8547f3,#fb4187); background-size: 140% 140%; }
+.cover-foil::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(var(--cover-angle,45deg),transparent 33%,#ffffff08 42%,#ffffffa3 52%,#ffffff0d 59%,transparent 73%); }
+.cover-foil--foil::after { background: linear-gradient(var(--cover-angle,45deg),transparent 22%,#a8d9ff20 40%,#d5edffb3 52%,transparent 72%); }
+.cover-foil--prismatic::after { background: linear-gradient(var(--cover-angle,45deg),transparent 20%,#fff5dd20 39%,#fff7dfb3 53%,#ffffff18 66%,transparent 83%); }
 /* 45deg is the normal: the visible band runs from top-left to bottom-right. */
 :root[data-theme] .media-card--grid .card-cover .card-cover-shine { background: linear-gradient(var(--cover-angle,45deg),transparent 38%,#ffffff12 49%,#ffffff45 60%,#ffffff12 71%,transparent 82%); opacity: 0; }
 :root[data-theme] .media-card--grid .card-cover[data-depth='active'] .card-cover-shine { opacity: 1; }

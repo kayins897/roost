@@ -1,16 +1,16 @@
 import type { GameExperienceCategory, GameExperienceStatus, MediaItem } from './types.ts';
 
 export const EXPERIENCE_STATUSES: readonly GameExperienceStatus[] = ['unplayed', 'experienced'];
-export const EXPERIENCE_CATEGORIES: readonly GameExperienceCategory[] = ['continue', 'replayable', 'completed', 'put-aside'];
+export const EXPERIENCE_CATEGORIES: readonly GameExperienceCategory[] = ['playing', 'continue', 'replayable', 'completed', 'put-aside'];
 export const EXPERIENCE_STATUS_LABELS: Record<GameExperienceStatus, string> = { unplayed: '新作开荒', experienced: '已体验' };
 export const EXPERIENCE_CATEGORY_LABELS: Record<GameExperienceCategory, string> = {
-  continue: '未完待续', replayable: '新游戏+', 'long-term': '新游戏+', completed: '收官完结', 'put-aside': '暂时搁置',
+  playing: '游玩中', continue: '未完待续', replayable: '新游戏+', 'long-term': '新游戏+', completed: '收官完结', 'put-aside': '暂时搁置',
 };
 /** 表现层映射至现有游戏语义色；领域不依赖 CSS 或具体色值。 */
 export type GameExperienceTone = 'want' | 'playing' | 'ongoing' | 'cleared' | 'paused';
 export const EXPERIENCE_STATUS_TONES: Record<GameExperienceStatus, GameExperienceTone> = { unplayed: 'want', experienced: 'playing' };
 export const EXPERIENCE_CATEGORY_TONES: Record<GameExperienceCategory, GameExperienceTone> = {
-  continue: 'playing', replayable: 'ongoing', 'long-term': 'ongoing', completed: 'cleared', 'put-aside': 'paused',
+  playing: 'playing', continue: 'playing', replayable: 'ongoing', 'long-term': 'ongoing', completed: 'cleared', 'put-aside': 'paused',
 };
 
 export function isGameExperienceStatus(value: unknown): value is GameExperienceStatus {

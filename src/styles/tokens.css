@@ -179,6 +179,7 @@
 :is(.experience-color--unplayed,[data-game-state="unplayed"]) { --play-state-color: var(--game-want); }
 :is(.experience-color--unclassified,[data-game-state="unclassified"]) { --play-state-color: var(--muted); }
 :is(.experience-color--continue,[data-game-state="continue"]) { --play-state-color: var(--game-playing); }
+:is(.experience-color--playing,[data-game-state="playing"]) { --play-state-color: #ee95a5; }
 :is(.experience-color--replayable,[data-game-state="replayable"]) { --play-state-color: var(--game-ongoing); }
 :is(.experience-color--long-term,[data-game-state="long-term"]) { --play-state-color: #bf94e8; }
 :is(.experience-color--completed,[data-game-state="completed"]) { --play-state-color: var(--game-cleared); }

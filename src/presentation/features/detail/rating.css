@@ -3,7 +3,7 @@
 .rating-heading { justify-content: space-between; margin-bottom: 13px; }.rating-heading h3,.rating-finish { display: inline-flex; align-items: center; gap: 6px; }
 .rating-input-row select { padding: 8px 12px; min-width: 125px; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; }
 .rating-help { font-size: 11px; color: var(--muted); line-height: 1.8; }.game-rating > .rating-help { margin: 12px 0 0; }
-.rating-finish { font-size: 11px; color: var(--muted); }.rating-finish--silver { color: var(--foil-silver); }.rating-finish--gold { color: var(--foil-gold); }.rating-finish--holographic,.rating-finish--prismatic { color: var(--foil-holographic); }
+.rating-finish { font-size: 11px; color: var(--muted); }.rating-finish--silver { color: var(--foil-silver); }.rating-finish--gold { color: var(--foil-gold); }.rating-finish--foil { color: #a8ceff; }.rating-finish--holographic,.rating-finish--prismatic { color: var(--foil-holographic); }
 .card-personal-rating { display: flex; align-items: center; gap: 4px; margin-top: 7px; font-size: 10px; color: var(--muted); }.card-personal-rating strong { color: var(--text); font-weight: 600; }.card-personal-rating > span { margin-left: 3px; }
 .game-progress{display:grid;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
 .game-progress-unrecorded{font-size:11px;color:var(--muted);align-self:center}

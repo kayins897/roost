@@ -12,7 +12,7 @@ function files(directory) {
   const archive = path.join(bundle, 'resources', 'app.asar');
   const source = JSON.parse(fs.readFileSync(path.join(bundle, 'SOURCE.json')));
   const classificationPreview = source.candidate === 'game-experience-bento-20261025';
-  const previewDirectory = classificationPreview ? 'classification-preview' : 'v0424-preview';
+  const previewDirectory = source.candidate === 'library-refinement-20261026' ? 'library-refinement-preview' : classificationPreview ? 'classification-preview' : 'v0424-preview';
   const assets = [...files(path.join(root, 'dist')), ...files(path.join(root, 'desktop-build')), path.join(root, 'build', 'icon.png'), path.join(root, 'build', 'demo-library.json')];
   const checks = assets.map(file => {
     const relative = path.relative(root, file);

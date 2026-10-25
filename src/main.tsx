@@ -10,6 +10,7 @@ import './presentation/components/controls.css';
 import './presentation/features/library/cover-material.css';
 import './presentation/features/glass/material.css';
 import './presentation/features/glass/action-material.css';
+import './presentation/features/library/list-layout.css';
 import './presentation/components/selects.css';
 
 initializeAppearance();

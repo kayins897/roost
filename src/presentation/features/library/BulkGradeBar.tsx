@@ -16,15 +16,15 @@ export function BulkGradeBar({ selectedGames, visibleIds, onApply }: { selectedG
   const selectionSummary = `已选 ${selectedGames.length} 款：当前结果内 ${inView}、${outOfView} 款在当前结果之外`;
   if (!allPlanned && !allGraded) {
     const anyEligible = selectedGames.some(item => priorityEditable(item) || gradeEditable(item));
-    return <span className="bulk-grade-hint">{selectionSummary}；{anyEligible ? '所选游戏的等级资格不一致，快捷设置不可用' : '所选游戏的体验分类/通关事实不适用等级设置'}；可用「体验分类/改通关进度」调整或单独编辑。</span>;
+    return <span className="bulk-grade-hint">{selectionSummary}；{anyEligible ? '所选游戏的等级资格不一致，快捷设置不可用' : '所选游戏的体验分类不适用等级设置'}；可用「体验分类」调整或单独编辑。</span>;
   }
   const mode = allPlanned && allGraded ? chosenMode : allPlanned ? 'priority' : 'rating';
-  const label = mode === 'priority' ? '待体验优先级' : '通关评级';
+  const label = mode === 'priority' ? '游玩优先级' : '通关评级';
   const key = mode === 'priority' ? 'playPriority' : 'personalGrade';
   const next = grade === 'clear' ? undefined : grade || undefined;
   const willChange = grade === '' ? -1 : selectedGames.filter(item => item[key] !== next).length;
   return <span className="bulk-grade-bar">
-    {allPlanned && allGraded && <label className="bulk-grade-field">设置维度<select aria-label="批量等级维度" value={mode} onChange={event => { setChosenMode(event.target.value as 'priority' | 'rating'); setGrade(''); }}><option value="priority">待体验优先级</option><option value="rating">通关评级</option></select></label>}
+    {allPlanned && allGraded && <label className="bulk-grade-field">设置维度<select aria-label="批量等级维度" value={mode} onChange={event => { setChosenMode(event.target.value as 'priority' | 'rating'); setGrade(''); }}><option value="priority">游玩优先级</option><option value="rating">通关评级</option></select></label>}
     <label className="bulk-grade-field">统一{label}
       <select aria-label={`统一${label}`} value={grade} onChange={event => setGrade(event.target.value as PersonalGrade | 'clear' | '')}>
         <option value="">选择…</option>

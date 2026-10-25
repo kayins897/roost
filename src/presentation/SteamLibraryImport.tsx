@@ -4,8 +4,7 @@ import { useEffect,useMemo,useRef,useState } from 'react';
 import { formatPlaytime,MEDIA_LABELS } from '../domain/library.ts';
 import type { SteamImportResult } from '../domain/steamImport.ts';
 import { createSteamImportItems,parseSteamImport,previewSteamImport,STEAM_IMPORT_MAX_BYTES } from '../domain/steamImport.ts';
-import type { ExternalId,MediaItem,MediaType,CompletionStatus,ProgressStatus } from '../domain/types.ts';
-import { COMPLETION_LABELS, COMPLETION_STATUSES } from '../domain/gameProgress.ts';
+import type { ExternalId,MediaItem,MediaType,ProgressStatus } from '../domain/types.ts';
 import { STATUS_LABELS } from '../domain/library.ts';
 import { experienceClassificationPatch, type GameExperienceClassification } from '../domain/gameExperience.ts';
 import { CLASSIFICATIONS, CLASSIFICATION_LABELS } from './features/library/experienceOptions.ts';
@@ -31,7 +30,6 @@ export function SteamLibraryImport({ items, exclusions, onClose, onImport }: {
   const [initialStatus, setInitialStatus] = useState<ProgressStatus>('want');
   // v0.4.24：游戏清单的初态按当前游玩关系选择（非游戏沿用通用状态）。
   const [initialClassification, setInitialClassification] = useState<GameExperienceClassification | 'auto'>('auto');
-  const [initialCompletion, setInitialCompletion] = useState<CompletionStatus>('unknown');
   const dialog = useRef<HTMLElement>(null);
   const source = useRef<HTMLTextAreaElement>(null);
   const currentToggle = useRef<HTMLInputElement>(null);
@@ -90,7 +88,7 @@ export function SteamLibraryImport({ items, exclusions, onClose, onImport }: {
     setError(''); setSubmitted(true);
     try {
       // Re-evaluate against the latest props before creating records; duplicates never enter a save.
-      const additions = createSteamImportItems(chosen.map(row => row.game), initialStatus, category === 'game' ? 'planned' : undefined, category === 'game' ? initialCompletion : undefined);
+      const additions = createSteamImportItems(chosen.map(row => row.game), initialStatus, category === 'game' ? 'planned' : undefined, category === 'game' ? 'unknown' : undefined);
       const classified = additions.map(item => item.category === 'game' && initialClassification !== 'auto' ? { ...item, ...experienceClassificationPatch(initialClassification) } : item);
       if (onImport(classified)) onClose();
       else { setSubmitted(false); setError('保存未完成，预览和选择已保留。请处理收藏库保存提示后重试'); }
@@ -103,7 +101,7 @@ export function SteamLibraryImport({ items, exclusions, onClose, onImport }: {
       <div className="modal-heading"><div><h2>批量导入作品</h2><p>先检查清单，只把选中的新作品加入收藏。</p></div><button type="button" className="icon-button" aria-label="关闭批量导入" onClick={requestClose}><X size={19} /></button></div>
       {discard && <div className="steam-import-discard" role="alert"><p>本次清单尚未导入，关闭后将丢弃这份预览。</p><div><button type="button" className="button button--ghost" onClick={() => setDiscard(false)}>继续整理</button><button type="button" className="button button--ghost" onClick={onClose}>放弃本次清单</button></div></div>}
       <div className="steam-import-source">
-        <div className="steam-import-options"><label className="form-field">文本清单的板块<select aria-label="文本清单的板块" value={category} disabled={reading || submitted} onChange={event => { setCategory(event.target.value as MediaType); setParsed(null); setSelection(new Set()); setError(''); }}><option value="game">Steam 游戏</option><option value="screen">影视</option><option value="book">书籍</option><option value="music">音乐</option></select></label>{category === 'game' ? <><label className="form-field">新增游戏的体验分类<select aria-label="新增游戏的体验分类" value={initialClassification} disabled={submitted} onChange={event => setInitialClassification(event.target.value as GameExperienceClassification | 'auto')}><option value="auto">自动识别 · 无记录先待体验</option>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{CLASSIFICATION_LABELS[value]}</option>)}</select></label><label className="form-field">新增游戏的通关进度<select aria-label="新增游戏的通关进度" value={initialCompletion} disabled={submitted} onChange={event => setInitialCompletion(event.target.value as CompletionStatus)}>{COMPLETION_STATUSES.map(value => <option key={value} value={value}>{COMPLETION_LABELS[value]}</option>)}</select></label></> : <label className="form-field">新增作品的初始状态<select aria-label="新增作品的初始状态" value={initialStatus} disabled={submitted} onChange={event => setInitialStatus(event.target.value as ProgressStatus)}>{(['want','active','finished','paused'] as const).map(value => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</select></label>}</div>
+        <div className="steam-import-options"><label className="form-field">文本清单的板块<select aria-label="文本清单的板块" value={category} disabled={reading || submitted} onChange={event => { setCategory(event.target.value as MediaType); setParsed(null); setSelection(new Set()); setError(''); }}><option value="game">Steam 游戏</option><option value="screen">影视</option><option value="book">书籍</option><option value="music">音乐</option></select></label>{category === 'game' ? <><label className="form-field">新增游戏的体验分类<select aria-label="新增游戏的体验分类" value={initialClassification} disabled={submitted} onChange={event => setInitialClassification(event.target.value as GameExperienceClassification | 'auto')}><option value="auto">自动识别 · 无记录先新作开荒</option>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{CLASSIFICATION_LABELS[value]}</option>)}</select></label></> : <label className="form-field">新增作品的初始状态<select aria-label="新增作品的初始状态" value={initialStatus} disabled={submitted} onChange={event => setInitialStatus(event.target.value as ProgressStatus)}>{(['want','active','finished','paused'] as const).map(value => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</select></label>}</div>
         <label className="form-field">作品清单<textarea ref={source} rows={5} maxLength={STEAM_IMPORT_MAX_BYTES} value={text} disabled={reading || submitted} placeholder={category === 'game' ? '每行一个游戏名称，也支持：\n游戏名称 | https://store.steampowered.com/app/…/ | 游玩分钟\n或粘贴 GetOwnedGames / 栖域批量 JSON 清单' : '每行一个作品名称\n详细资料可选择或粘贴栖域批量 JSON 清单'} onChange={event => { setText(event.target.value); setParsed(null); setSelection(new Set()); setError(''); setDiscard(false); }} /></label>
         <div className="steam-import-source-actions"><label className="button button--ghost steam-import-file"><FileUp size={16} />选择文件<input type="file" accept=".json,.txt,application/json,text/plain" aria-label="选择清单文件" disabled={reading || submitted} onChange={event => { void readFile(event); }} /></label><button type="button" className="button button--primary" disabled={reading || submitted || !text.trim()} onClick={() => parse(text)}><ListPlus size={16} />{reading ? '读取中…' : '生成预览'}</button></div>
         <p className="steam-import-hint">支持 JSON / TXT，最多 2 MB、2000 件。栖域批量清单会使用文件中各作品的板块；完整收藏备份请到“数据与设置”导入。</p>

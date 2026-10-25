@@ -69,7 +69,7 @@ export function gradeEditable(item: MediaItem): boolean {
 export function priorityEditable(item: MediaItem): boolean {
   if (item.category !== 'game') return false;
   const category = experienceCategoryFor(item);
-  return experienceStatusFor(item) === 'unplayed' || category === 'continue' || category === 'replayable';
+  return experienceStatusFor(item) === 'unplayed' || category === 'playing' || category === 'continue' || category === 'replayable';
 }
 
 /** 完成事件实际日期：YYYY / YYYY-MM / YYYY-MM-DD，日历合法（含闰年），不补精度。 */

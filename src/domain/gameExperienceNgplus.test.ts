@@ -18,6 +18,7 @@ const now = '2026-10-25T18:00:00.000Z';
 const cases: { value: GameExperienceClassification; priority: boolean; rating: boolean }[] = [
   { value: 'unplayed', priority: true, rating: false },
   { value: 'unclassified', priority: false, rating: false },
+  { value: 'playing', priority: true, rating: false },
   { value: 'continue', priority: true, rating: false },
   { value: 'replayable', priority: true, rating: true },
   { value: 'long-term', priority: true, rating: true },
@@ -44,7 +45,7 @@ function preserve(before: MediaItem, after: MediaItem, allowed: readonly string[
 }
 
 test('long-term只读合并且新旧筛选同义；加载、普通保存和Steam同步不偷偷改写旧分类', () => {
-  assert.deepEqual(EXPERIENCE_CATEGORIES, ['continue', 'replayable', 'completed', 'put-aside']);
+  assert.deepEqual(EXPERIENCE_CATEGORIES, ['playing', 'continue', 'replayable', 'completed', 'put-aside']);
   assert.equal(isGameExperienceCategory('long-term'), true);
   const legacy = withUnknown(make('legacy', 'long-term'));
   const canonical = make('canonical', 'replayable'), unrelated = make('unrelated', 'put-aside');

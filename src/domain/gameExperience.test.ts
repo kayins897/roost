@@ -20,7 +20,7 @@ const make = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({
   favorite: false, artwork: 'default', createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra,
 });
 const ids = (items: MediaItem[]) => items.map(item => item.id);
-const categories: GameExperienceCategory[] = ['continue', 'replayable', 'completed', 'put-aside'];
+const categories: GameExperienceCategory[] = ['playing', 'continue', 'replayable', 'completed', 'put-aside'];
 const classifications: GameExperienceClassification[] = ['unplayed', 'unclassified', ...categories];
 function preserveExcept(before: MediaItem, after: MediaItem, allowed: readonly string[]) {
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
@@ -38,22 +38,22 @@ const withFacts = (id: string, extra: Partial<MediaItem> = {}) => ({
   futureItem: { keep: ['未知扩展字段'] },
 });
 
-test('体验一级两值、二级四个单选与空值严格校验，旧long-term仍可读取', () => {
+test('体验一级两值、二级五个单选与空值严格校验，旧long-term仍可读取', () => {
   assert.deepEqual(EXPERIENCE_STATUSES, ['unplayed', 'experienced']);
   assert.deepEqual(EXPERIENCE_STATUS_LABELS, { unplayed: '新作开荒', experienced: '已体验' });
   assert.deepEqual(EXPERIENCE_CATEGORIES, categories);
-  assert.deepEqual(EXPERIENCE_CATEGORY_LABELS, { continue: '未完待续', replayable: '新游戏+', 'long-term': '新游戏+', completed: '收官完结', 'put-aside': '暂时搁置' });
+  assert.deepEqual(EXPERIENCE_CATEGORY_LABELS, { playing: '游玩中', continue: '未完待续', replayable: '新游戏+', 'long-term': '新游戏+', completed: '收官完结', 'put-aside': '暂时搁置' });
   assert.equal(isGameExperienceCategory('long-term'), true);
   for (const value of ['unplayed', 'experienced']) assert.equal(isGameExperienceStatus(value), true);
   for (const value of categories) assert.equal(isGameExperienceCategory(value), true);
-  for (const value of [undefined, null, true, 1, {}, [], '', 'playing', 'cleared', 'Experienced']) {
+  for (const value of [undefined, null, true, 1, {}, [], '', 'cleared', 'Experienced']) {
     assert.equal(isGameExperienceStatus(value), false);
     assert.equal(isGameExperienceCategory(value), false);
   }
   assert.deepEqual(experienceCategoryPatch(undefined), { experienceCategory: undefined }, '可明确清空二级');
   assert.throws(() => experienceStatusPatch('invalid' as never), /不支持/);
   assert.throws(() => experienceCategoryPatch('cleared' as never), /不支持/);
-  assert.throws(() => experienceClassificationPatch('playing' as never), /不支持/);
+  assert.throws(() => experienceClassificationPatch('invalid' as never), /不支持/);
 });
 
 test('显式一级始终优先于正时长、通关、次数、新旧活动证据；阅读不改原文', () => {
@@ -203,7 +203,7 @@ test('schemaVersion1接受可选分类与未知扩展，拒绝未知分类枚举
   for (const experienceStatus of [undefined, 'unplayed', 'experienced'] as const) {
     for (const experienceCategory of [undefined, ...categories, 'long-term'] as const) assert.equal(isValidSnapshot({ schemaVersion: 1, items: [make('valid', { experienceStatus, experienceCategory })] }), true, '残存二级兼容读取，不自动清理');
   }
-  for (const value of [null, true, 1, {}, [], '', 'playing', 'cleared', 'future']) {
+  for (const value of [null, true, 1, {}, [], '', 'cleared', 'future']) {
     for (const field of ['experienceStatus', 'experienceCategory']) assert.equal(isValidSnapshot({ schemaVersion: 1, items: [{ ...legacy, [field]: value }] }), false, `${field}=${JSON.stringify(value)}`);
   }
 });

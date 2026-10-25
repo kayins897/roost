@@ -9,14 +9,14 @@ const pages = [
   { id: 'background', label: '背景与配色', icon: Palette, search: '动态 流体 星河 粒子 密度 视差 幅度 明暗 环境光 色相 香槟金 深海蓝 极光绿 紫罗兰 绛红 色深 流速 涡旋 扭曲 笔刷 半径' },
   { id: 'glass', label: '导航玻璃', icon: Droplets, search: '玻璃材质 液态 磨砂 模糊 折射 色散 透镜 深度 弹性 Dock 搜索框' },
   { id: 'buttons', label: '操作按钮', icon: SlidersHorizontal, search: '按钮 毛玻璃 模糊 透明 不透明度' },
-  { id: 'data', label: '数据与备份', icon: Archive, search: 'Steam 游戏库 同步 连接 导出 导入 收藏 JSON 备份 本机 目录 清除 演示' },
+  { id: 'data', label: '数据与备份', icon: Archive, search: 'Steam 游戏库 同步 连接 隐藏 恢复 导出 导入 收藏 JSON 备份 本机 目录 清除 演示' },
 ] as const;
 type PageId = typeof pages[number]['id'];
-type Props = { ambient: AmbientControls; glass: GlassControls; hasDemos: boolean; onClose: () => void; onSteam: () => void; onExport: () => void; onImport: () => void; onClearDemo: () => void; onNotice: (text: string) => void };
+type Props = { ambient: AmbientControls; glass: GlassControls; hasDemos: boolean; onClose: () => void; onSteam: () => void; onHidden: () => void; onExport: () => void; onImport: () => void; onClearDemo: () => void; onNotice: (text: string) => void };
 function DataRow({ title, description, icon, children }: { title: string; description: string; icon: ReactNode; children: ReactNode }) {
   return <div className="settings-card settings-choice"><div className="settings-row-icon">{icon}</div><div><h4>{title}</h4><p>{description}</p></div>{children}</div>;
 }
-export function SettingsDialog({ ambient, glass, hasDemos, onClose, onSteam, onExport, onImport, onClearDemo, onNotice }: Props) {
+export function SettingsDialog({ ambient, glass, hasDemos, onClose, onSteam, onExport, onImport, onClearDemo, onNotice, onHidden }: Props) {
   const [section, setSection] = useState<PageId>('background');
   const [search, setSearch] = useState(''), [resetDone, setResetDone] = useState(false);
   const term = search.trim().toLocaleLowerCase();
@@ -31,6 +31,7 @@ export function SettingsDialog({ ambient, glass, hasDemos, onClose, onSteam, onE
           {page.id === 'buttons' && <ActionGlassSettings glass={glass} />}
           {page.id === 'data' && <>
             <DataRow title="Steam 游戏库" description="读取库存与时长，预览后同步，保留个人记录。" icon={<Link2 size={19} />}><button className="button button--secondary" onClick={onSteam}>连接 Steam</button></DataRow>
+            <DataRow title="已隐藏作品" description="查看和恢复以前隐藏的作品，保留全部个人记录。" icon={<Archive size={19} />}><button className="button button--secondary" onClick={onHidden}>查看</button></DataRow>
             <DataRow title="导出收藏备份" description="包括作品、标签、印象、测评和已上传封面。" icon={<Download size={19} />}><button className="button button--secondary" onClick={onExport}>导出</button></DataRow>
             <DataRow title="导入收藏备份" description="从栖域 v1 JSON 恢复，替换当前收藏。" icon={<Upload size={19} />}><button className="button button--secondary" onClick={onImport}>导入</button></DataRow>
             {desktopInfo && desktopBridge && <DataRow title="本机数据目录" description="查看收藏数据与本机备份文件。" icon={<FolderOpen size={19} />}><button className="button button--secondary" onClick={() => { try { desktopBridge?.openDataDirectory(); } catch (error) { onNotice(`打开目录失败：${error instanceof Error ? error.message : '请稍后重试'}`); } }}>打开目录</button></DataRow>}
