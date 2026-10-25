@@ -39,6 +39,6 @@ function files(directory) {
   assert.equal(source.version, version); assert.match(source.commit, /^[a-f0-9]{40}$/);
   const report = { passed: true, version, source, archivedAssets: checks, externalAssets: external };
   fs.mkdirSync(path.join(root, 'evidence'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'evidence', 'package-assets-v0424.json'), JSON.stringify(report, null, 2));
+  fs.writeFileSync(path.join(root, 'evidence', `package-assets-v${version.replaceAll('.', '')}.json`), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ passed: true, version, archivedAssets: checks.length, externalAssets: external.length, source }));
 })().catch(error => { console.error(error); process.exitCode = 1; });

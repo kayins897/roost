@@ -10,12 +10,32 @@
 .library-views { gap: 12px; align-items: center; }
 .collection-hub { width: min(680px,calc(100vw - 32px)); }
 .collection-hub-actions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 24px 0; }
-.collection-hub-actions button { display: flex; flex-direction: column; text-align: left; align-items: start; gap: 12px; padding: 20px 16px; border-radius: 18px; border: 1px solid var(--line); color: var(--text); background: var(--surface); }
-.collection-hub-actions button:hover { border-color: var(--accent); background: var(--control-selected); }
+.collection-hub-actions button { display: flex; flex-direction: column; text-align: left; align-items: start; gap: 12px; padding: 20px 16px; border-radius: 18px; border: 1px solid var(--line); color: var(--text); background: color-mix(in srgb,var(--library-overlay-solid) 55%,transparent); }
+.collection-hub-actions button:hover { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 12%,var(--library-overlay-solid)); }
 .collection-hub-actions svg { color: var(--accent); }
 .collection-hub-actions small { color: var(--muted); line-height: 1.6; }
 .collection-hub-footer { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .collection-hub-footer button { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+/* Quiet frost for expanded surfaces; Dock and search retain the stronger liquid lens. */
+:root[data-theme] .modal-backdrop:has(> :is(.collection-hub,.settings-dialog)) { background: var(--library-hub-scrim); -webkit-backdrop-filter: var(--library-hub-filter); backdrop-filter: var(--library-hub-filter); }
+:root[data-theme] :is(.selection-actionbar,.filter-expanded,.modal.collection-hub,.modal.settings-dialog) {
+  background: var(--library-overlay-fill); color: var(--text);
+  border-color: color-mix(in srgb,var(--text) 18%,transparent);
+  box-shadow: 0 12px 36px var(--surface-shadow),inset 0 1px 0 color-mix(in srgb,var(--text) 6%,transparent);
+  -webkit-backdrop-filter: var(--library-overlay-filter); backdrop-filter: var(--library-overlay-filter);
+}
+:root[data-theme] :is(.selection-actionbar,.filter-expanded,.collection-hub) :is(.feature-help,.selection-summary,.filter-label,.collection-hub-footer,.collection-hub-actions small) { color: var(--library-overlay-muted); }
+:root[data-theme] .filter-expanded .subtype-row > span { color: var(--library-overlay-muted); }
+@supports(appearance:base-select) {
+  :root[data-theme] :is(.sort-controls,.selection-actionbar) select::picker(select) {
+    background: var(--library-overlay-fill); color: var(--text);
+    border-color: color-mix(in srgb,var(--text) 18%,transparent);
+    box-shadow: 0 12px 36px var(--surface-shadow),inset 0 1px 0 color-mix(in srgb,var(--text) 6%,transparent);
+    -webkit-backdrop-filter: var(--library-overlay-filter); backdrop-filter: var(--library-overlay-filter);
+  }
+  :root[data-theme] :is(.sort-controls,.selection-actionbar) select option:checked { background: var(--control-selected); color: var(--control-selected-ink); }
+  :root[data-theme] :is(.sort-controls,.selection-actionbar) select option::checkmark { color: currentColor; }
+}
 /* List editing is outside the cover button. Only the interacted row allocates a lens. */
 .list-media-row { position: relative; isolation: isolate; border-radius: 20px; display: grid; grid-template-columns: 60px 68px minmax(140px,230px) minmax(180px,1fr) 32px; gap: 18px; align-items: center; padding: 14px 18px; min-width: 0; }
 .list-media-row > :not(.glass-material__effect):not(.glass-material__highlight) { position: relative; z-index: 2; min-width: 0; }
@@ -37,7 +57,6 @@
 .list-playtime { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); }
 .list-classification { font-size: 11px; }
 .list-impression label { display: flex; flex-direction: column; gap: 10px; }
-.list-impression label > span { color: var(--muted); font-size: 11px; }
 .list-impression input { width: 100%; min-width: 0; color: var(--text); font-size: 14px; line-height: 1.7; background: transparent; border: 1px solid transparent; border-radius: 9px; padding: 6px 8px; margin-left: -8px; box-sizing: border-box; }
 .list-impression input:hover:not([readonly]) { border-color: var(--line); }
 .list-impression input:focus { border-color: var(--accent); background: color-mix(in srgb,var(--surface) 60%,transparent); outline: none; }

@@ -3,7 +3,7 @@ Archive,ArrowRight,
 BookOpen,
 Check,CheckCircle2,ChevronDown,
 Clapperboard,
-Download,Filter,
+Filter,
 Gamepad2,Grid2X2,Heart,
 Info,
 Link2,
@@ -13,6 +13,7 @@ Plus,
 Search,Settings,Palette,FolderPlus,Trash2,X
 } from 'lucide-react';
 import { Fragment, useRef, useState } from 'react';
+import { version as appVersion } from '../../package.json';
 import { applyMetadataCandidate,findDuplicateCandidates } from '../domain/catalog.ts';
 import { emptyGameTags,formatPlaytime,GAME_TAG_KEYS,GAME_TAG_LABELS,MEDIA_LABELS } from '../domain/library.ts';
 import { CLASSIFICATIONS, CLASSIFICATION_LABELS, classificationRankMode } from './features/library/experienceOptions.ts';
@@ -86,12 +87,12 @@ function App() {
         })}</nav>
         <div className="sidebar-divider" />
         <div className="sidebar-tools">
-          <button onClick={() => guardDetail(() => setCollectionHub(true))} disabled={!!loadError} aria-label="收录作品" data-tooltip="收录作品" data-material-glass="button"><GlassLayers /><FolderPlus size={20} strokeWidth={1.7} /></button><button className={libraryView === 'trash' ? 'nav-item--active' : ''} onClick={() => changeLibraryView('trash')} aria-label="回收站" aria-pressed={libraryView === 'trash'} data-tooltip="回收站" data-material-glass="button"><GlassLayers /><Trash2 size={20} strokeWidth={1.7} /></button>
+          <button onClick={() => guardDetail(() => setCollectionHub(true))} disabled={!!loadError} aria-label="收录作品" data-tooltip="收录作品" data-material-glass="button"><GlassLayers /><FolderPlus size={20} strokeWidth={1.7} /></button><button className={libraryView === 'trash' ? 'nav-item--active' : ''} onClick={() => changeLibraryView(libraryView === 'trash' ? 'library' : 'trash')} aria-label="回收站" aria-pressed={libraryView === 'trash'} data-tooltip={libraryView === 'trash' ? '退出回收站' : '回收站'} data-material-glass="button"><GlassLayers /><Trash2 size={20} strokeWidth={1.7} /></button>
           <button className="background-theme-toggle icon-button" data-material-glass="button" onClick={cycleBackgroundPalette} data-tooltip={`背景配色：${backgroundPalettes[backgroundIndex]?.label ?? '自定义'} · 点击切换`} aria-label="切换背景主题配色"><GlassLayers /><Palette size={20} strokeWidth={1.7} style={{ color: `hsl(${backgroundHue} 75% 70%)` }} /></button>
           <button onClick={() => setSettings(true)} aria-label="数据与设置" data-tooltip="数据与设置" data-material-glass="button"><GlassLayers /><span><Settings size={20} strokeWidth={1.7} />设置</span></button>
         </div>
       </div><BackToTop scrollRef={scrollRef} focusRef={searchRef} onReturn={() => setMenuOpen(false)} /></div>
-      <div className="sidebar-bottom"><div className="sidebar-version">v{desktopInfo?.version ?? '0.4.24'}</div></div>
+      <div className="sidebar-bottom"><span className={`storage-marker ${loadError ? 'storage-marker--error' : ''}`} role="status"><span className="live-dot" />{loadError ? '等待恢复' : '本地保存'}</span><div className="sidebar-version">v{desktopInfo?.version ?? appVersion}</div></div>
     </aside>
     {menuOpen && <button className="mobile-dim" onClick={() => setMenuOpen(false)} aria-label="关闭菜单" />}
 
@@ -99,10 +100,6 @@ function App() {
       {demoInfo && <div className="demo-mode-banner" role="status">演示数据 · v{desktopInfo?.version} · 当前修改只保存在独立演示目录。同一“启动演示”入口会保留修改，不影响正式收藏。</div>}
       <header className="topbar">
         <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setMenuOpen(true)} aria-label="打开菜单" aria-expanded={menuOpen} aria-controls="library-navigation"><Menu size={21} /></button><label className="search-box global-search" data-material-glass="pane"><GlassLayers /><Search size={18} /><input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索作品、开发商、印象或标签" aria-label="搜索收藏" />{query && <button className="search-clear" onClick={() => setQuery('')} title="清除搜索" aria-label="清除搜索"><X size={14} /></button>}</label></div>
-        <div className="topbar-actions">
-          <span className="storage-marker"><span className="live-dot" />{loadError ? '等待恢复' : '本地保存'}</span>
-          <button className="top-icon" onClick={exportBackup} disabled={!!loadError} title="导出备份" aria-label="导出备份"><Download size={18} /></button>
-        </div>
       </header>
 
       <div className="main-scroll" id="library-content-scroll" ref={scrollRef}><div className="content-wrap">

@@ -1,10 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopBridge, DesktopResult, LibrarySnapshot, MetadataCandidate, StoredRecord, SteamImportGame, SteamEnrichmentProgress, SteamLibraryRequest } from '../src/shared/ipc-contract.ts';
+import type { DesktopBridge, DesktopResult, LibrarySnapshot, MetadataCandidate, StoredRecord, SteamImportGame, SteamEnrichmentProgress, SteamLibraryRequest, WindowState } from '../src/shared/ipc-contract.ts';
 
 // 桥接实现必须与 src/shared/ipc-contract.ts 的 DesktopBridge 逐方法对齐；
 // 载荷类型即契约类型，不在 preload 做运行时改写。
 const bridge: DesktopBridge = {
   getInfo: () => ipcRenderer.sendSync('qiyu:info').value,
+  getWindowState: () => ipcRenderer.sendSync('qiyu:window-state'),
+  windowCommand: command => ipcRenderer.send('qiyu:window-command', command),
+  onWindowState: listener => {
+    const handler = (_event: Electron.IpcRendererEvent, state: WindowState) => listener(state);
+    ipcRenderer.on('qiyu:window-state-changed', handler);
+    return () => ipcRenderer.removeListener('qiyu:window-state-changed', handler);
+  },
   loadLibrary: (): DesktopResult<StoredRecord> => ipcRenderer.sendSync('qiyu:load'),
   saveLibrary: (snapshot: LibrarySnapshot, revision: string, allowRecovery: boolean) =>
     ipcRenderer.sendSync('qiyu:save', { snapshot, revision, allowRecovery }),

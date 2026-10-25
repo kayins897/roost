@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { impressionError, personalWritingFor, personalWritingPatch, writingLength } from '../../../domain/personalWriting.ts';
+import { impressionError, personalWritingFor, personalWritingPatch } from '../../../domain/personalWriting.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 import { useUnsavedChanges } from '../../RecordEditors.tsx';
 import type { ListWritingGuard } from './useListWritingGuard.ts';
@@ -34,11 +34,11 @@ export function InlineImpression({ item, locked, onPatch, guard }: {
     return () => { if (guard.current?.owner === element) guard.current = null; };
   });
   return <div className="list-impression" ref={owner}>
-    <label><span>一句话印象</span><input aria-label={`${item.title}的一句话印象`} value={draft} readOnly={locked}
+    <label><input aria-label={`${item.title}的一句话印象`} value={draft} readOnly={locked}
       placeholder={locked ? '退出多选后可编辑印象' : original.legacy ? '原有长文已完整保留在测评中' : '写下一句话印象…'}
-      aria-invalid={!!error || !!impressionError(draft)} aria-describedby={`impression-help-${item.id}`}
+      aria-invalid={!!error || !!impressionError(draft)} aria-describedby={error ? `impression-help-${item.id}` : undefined}
       onChange={event => { setDraft(event.target.value); setError(''); }} onBlur={save}
       onKeyDown={event => { if (event.nativeEvent.isComposing) return; if (event.key === 'Enter') { event.preventDefault(); save(); } if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setDraft(original.impression); setBase(original.impression); setError(''); clearGuard(); } }} /></label>
-    <small id={`impression-help-${item.id}`} className={error ? 'list-impression-error' : ''} role={error ? 'alert' : undefined}>{error || (dirty ? `${writingLength(draft)}/80 · Enter 保存 · Esc 取消` : '直接编辑 · 离开时保存')}</small>
+    {error && <small id={`impression-help-${item.id}`} className="list-impression-error" role="alert">{error}</small>}
   </div>;
 }

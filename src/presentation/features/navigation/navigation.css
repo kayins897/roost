@@ -1,4 +1,10 @@
 .dock-stack { position: relative; flex: none; }
+/* Fade content at the scrollport edge instead of cutting a row directly under search. */
+.topbar { position: relative; z-index: 3; }
+.main-panel:has(> .main-scroll[data-scrolled]) > .topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -28px; height: 40px; pointer-events: none; background: linear-gradient(to bottom,color-mix(in srgb,var(--background) 65%,transparent),transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); -webkit-mask-image: linear-gradient(to bottom,transparent,#000 12px,transparent); mask-image: linear-gradient(to bottom,transparent,#000 12px,transparent); }
+:root[data-theme] .sidebar-bottom .storage-marker { display: flex; justify-content: center; gap: 5px; margin-bottom: 4px; font-size: 10px; line-height: 1.4; }
+:root[data-theme] .sidebar-bottom .storage-marker--error { color: var(--danger); }
+.sidebar-bottom .storage-marker--error .live-dot { background: currentColor; }
 .dock-back-top { position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 1px solid var(--glass-edge); border-radius: 50%; color: var(--text); background: linear-gradient(145deg,var(--liquid-glint),transparent 65%),var(--glass-fill); box-shadow: inset 0 1px 0 var(--glass-edge-light),0 5px 16px var(--glass-shadow); backdrop-filter: blur(18px) saturate(1.2); pointer-events: auto; transition: background-color .16s,color .16s,box-shadow .16s; }
 .dock-back-top:hover { color: var(--accent); background-color: var(--control-hover); box-shadow: inset 0 1px 0 var(--glass-edge-light),var(--dock-active-glow); }
 .dock-back-top:active { transform: translateX(-50%) scale(.96); }
@@ -8,4 +14,5 @@
 @media(max-height:240px) { .dock-back-top { width: 24px; height: 24px; top: calc(100% + 6px); }.dock-back-top svg { width: 14px; height: 14px; } }
 @media(prefers-reduced-motion:reduce) { .dock-back-top { transition: none; } }
 @media(prefers-reduced-transparency:reduce) { .dock-back-top { background: var(--glass-solid); backdrop-filter: none; } }
+@media(prefers-reduced-transparency:reduce) { .main-panel:has(> .main-scroll[data-scrolled]) > .topbar::after { -webkit-backdrop-filter: none; backdrop-filter: none; } }
 @supports not (backdrop-filter:blur(1px)) { .dock-back-top { background: var(--glass-solid); } }
