@@ -16,14 +16,15 @@ if (!process.argv[2]) {
 const directory = path.resolve(process.argv[2]);
 const output = path.join(directory, 'screenshots');
 const files = ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js'];
-const ids = ['cover', 'experience', 'facts', 'hours', 'count', 'tags', 'impression', 'footprint', 'gallery', 'review'];
-const spans = { cover: [2, 2], experience: [2, 1], facts: [2, 1], hours: [1, 1], count: [1, 1], tags: [2, 1], impression: [2, 1], footprint: [2, 1], gallery: [4, 1], review: [4, 1] };
+const ids = ['cover', 'experience', 'hours', 'count', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'review'];
+const spans = { cover: [2, 3], experience: [2, 1], hours: [1, 1], count: [1, 1], facts: [2, 1], impression: [3, 1], footprint: [1, 2], gallery: [2, 1], tags: [1, 1], review: [4, 1] };
+const mediumSpans = { cover: [1, 3], experience: [1, 1], hours: [1, 1], count: [1, 1], facts: [2, 1], impression: [2, 1], footprint: [1, 2], gallery: [1, 1], tags: [1, 1], review: [2, 1] };
 const report = {
   passed: false, scope: 'isolated-static-design-preview', startedAt: new Date().toISOString(),
-  testedFiles: {}, checks: [], layouts: [], motion: [], screenshots: [], errors: [], consoleErrors: [],
+  testedFiles: {}, checks: [], layouts: [], motion: [], colorContrast: [], surfaceContrast: [], screenshots: [], errors: [], consoleErrors: [],
   externalRequests: [], failedLocalRequests: [], localStorageWrites: [], storageInstrumentationErrors: [],
   productionPersistenceValidated: false,
-  unverified: ['原生 Electron、真实触屏和真实收藏持久化未验证'],
+  unverified: ['原生 Electron、真实触屏和真实收藏持久化未验证', '原生 select 展开选项和逐像素背景对比未验证；卡片双色渐变按实际 computed backgroundImage 以 1% 间隔采样，页面径向渐变不纳入文字背景'],
 };
 let temporary, server, browser, context, page, base;
 const widget = id => page.locator('.widget[data-widget="' + id + '"]');
@@ -119,7 +120,9 @@ async function inspectLayout(label, expectedColumns, defaults = false) {
       panel: document.querySelector('.detail-window').getBoundingClientRect().toJSON(),
       grid: grid.getBoundingClientRect().toJSON(), columns: css.gridTemplateColumns.split(/\s+/).filter(Boolean),
       gap: [parseFloat(css.columnGap), parseFloat(css.rowGap)], autoRows: css.gridAutoRows, autoFlow: css.gridAutoFlow,
+      padding: [parseFloat(css.paddingLeft), parseFloat(css.paddingRight)],
       coverFit: getComputedStyle(document.querySelector('.cover-card img')).objectFit,
+      coverImage: document.querySelector('.cover-card img').getBoundingClientRect().toJSON(),
       cards: [...grid.querySelectorAll('.widget[data-widget]')].filter(node => !node.hidden).map(node => {
         const style = getComputedStyle(node);
         return {
@@ -146,9 +149,12 @@ async function inspectLayout(label, expectedColumns, defaults = false) {
     assert.ok(card.scrollWidth <= card.clientWidth + 1, label + ' 内容无横向溢出：' + card.id);
     assert.ok(card.scrollHeight <= card.clientHeight + 2, label + ' 内容未撑出卡片：' + card.id);
     if (defaults) {
-      const columns = expectedColumns === 4 ? spans[card.id][0] : value.width <= 700 ? (['hours', 'count'].includes(card.id) ? 1 : 2) : (['cover', 'experience'].includes(card.id) ? 1 : Math.min(spans[card.id][0], 2));
+      const [columns, rows] = expectedColumns === 4 ? spans[card.id] : value.width <= 700 ? [(['hours', 'count'].includes(card.id) ? 1 : 2), 1] : mediumSpans[card.id];
       assert.ok(new RegExp('span ' + columns + '(?:\\D|$)').test(card.column), label + ' 实际列跨度：' + card.id);
-      if (expectedColumns === 4) assert.ok(new RegExp('span ' + spans[card.id][1] + '(?:\\D|$)').test(card.row), label + ' 实际行跨度：' + card.id);
+      // A single unspanned responsive row may be represented by auto.
+      assert.ok(rows === 1 && card.row === 'auto' || new RegExp('span ' + rows + '(?:\\D|$)').test(card.row), label + ' 实际行跨度：' + card.id);
+      const columnWidth = parseFloat(value.columns[0]);
+      near(card.rect.width, columnWidth * columns + value.gap[0] * (columns - 1), label + ' 测量列宽：' + card.id, 1);
     }
   }
   for (let i = 0; i < value.cards.length; i++) for (let j = i + 1; j < value.cards.length; j++) {
@@ -157,7 +163,84 @@ async function inspectLayout(label, expectedColumns, defaults = false) {
     const overlapY = Math.min(a.rect.bottom, b.rect.bottom) - Math.max(a.rect.y, b.rect.y);
     assert.ok(overlapX <= 1 || overlapY <= 1, label + ' 卡片不重叠：' + a.id + '/' + b.id);
   }
+  if (defaults && expectedColumns === 4) {
+    const columnWidth = parseFloat(value.columns[0]);
+    const measuredColumns = value.cards.map(card => Math.round((card.rect.width + value.gap[0]) / (columnWidth + value.gap[0])));
+    assert.deepEqual([...new Set(measuredColumns)].sort(), [1, 2, 3, 4], label + ' 真实存在四种宽度层级');
+    const shapes = [];
+    for (const card of value.cards) if (!shapes.some(shape => Math.abs(shape.width - card.rect.width) <= 1 && Math.abs(shape.height - card.rect.height) <= 1)) shapes.push({ width: card.rect.width, height: card.rect.height });
+    report.layouts.at(-1).measuredWidthDistribution = Object.fromEntries([1, 2, 3, 4].map(columns => [columns, measuredColumns.filter(measured => measured === columns).length]));
+    report.layouts.at(-1).measuredShapes = shapes;
+    assert.ok(shapes.length >= 6, label + ' 至少六种真实宽高组合，实际 ' + shapes.length);
+  }
   return Object.fromEntries(value.cards.map(card => [card.id, card.rect]));
+}
+
+// Runs in the browser against computed paint values, independently of the preview's color algorithm.
+function paintedContrast(nodes, pseudo) {
+  const parse = value => {
+    const match = value.match(/^rgba?\(([^)]+)\)$/);
+    if (!match) throw new Error('Unsupported computed color: ' + value);
+    const channels = match[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+    return [...channels.slice(0, 3), channels[3] ?? 1];
+  };
+  const blend = (front, back) => front.slice(0, 3).map((channel, index) => channel * front[3] + back[index] * (1 - front[3]));
+  const luminance = rgb => rgb.map(channel => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  return nodes.filter(node => node.getClientRects().length && getComputedStyle(node).visibility === 'visible').map(node => {
+    for (let ancestor = node; ancestor; ancestor = ancestor.parentElement) {
+      if (Number(getComputedStyle(ancestor).opacity) !== 1) throw new Error('Group opacity needs separate contrast measurement: ' + ancestor.className);
+    }
+    // Resolve the actual painted surfaces, including transparent child controls.
+    // Stop at an opaque surface so images/gradients behind the widget cannot contaminate it.
+    const layers = [], backgroundImages = []; let ancestor = node;
+    while (ancestor) {
+      const css = getComputedStyle(ancestor), color = parse(css.backgroundColor);
+      let paints = [color], opaque = color[3] === 1;
+      if (css.backgroundImage !== 'none') {
+        const image = css.backgroundImage, colors = image.match(/rgba?\([^)]+\)/g) || [];
+        // The design uses one two-stop linear gradient. Fail explicitly if that contract grows.
+        if (!image.startsWith('linear-gradient(') || (image.match(/gradient\(/g) || []).length !== 1 || colors.length !== 2) throw new Error('Unsupported contrast background: ' + image);
+        const interpolation = image.slice(0, image.indexOf(colors[0])).match(/\bin\s+([a-z0-9-]+)/i)?.[1];
+        if (interpolation && interpolation !== 'srgb') throw new Error('Unsupported gradient interpolation: ' + image);
+        const positions = [...image.matchAll(/\)\s+(-?[\d.]+)(%|px)/g)].map(match => match[1] + match[2]);
+        if (positions.length && (positions.length !== 2 || positions[0] !== '0%' || positions[1] !== '100%')) throw new Error('Unsupported gradient stop positions: ' + image);
+        const [start, end] = colors.map(parse);
+        if (start[3] !== 1 || end[3] !== 1) throw new Error('Translucent gradients need separate contrast measurement: ' + image);
+        paints = Array.from({ length: 101 }, (_, index) => start.map((channel, offset) => channel + (end[offset] - channel) * index / 100));
+        opaque = true;
+        backgroundImages.push(image);
+      }
+      layers.unshift(paints);
+      if (opaque) break;
+      ancestor = ancestor.parentElement;
+    }
+    if (!ancestor) throw new Error('Contrast needs an opaque backing surface');
+    let backgrounds = [[255, 255, 255]];
+    for (const paints of layers) backgrounds = backgrounds.flatMap(background => paints.map(paint => blend(paint, background)));
+    const css = getComputedStyle(node, pseudo), color = parse(css.color);
+    if (pseudo) color[3] *= Number(css.opacity);
+    const measurements = backgrounds.map(background => {
+      const foreground = blend(color, background), a = luminance(foreground), b = luminance(background);
+      return { background, luminance: b, ratio: (Math.max(a, b) + .05) / (Math.min(a, b) + .05) };
+    });
+    const worst = measurements.reduce((a, b) => a.ratio < b.ratio ? a : b);
+    return { id: node.dataset.widget, text: (node.value || node.textContent || node.getAttribute('aria-label') || '').trim().slice(0, 60), color: css.color, background: worst.background, backgroundImages,
+      gradientSampleCount: backgroundImages.length ? 101 : 0, luminance: { min: Math.min(...measurements.map(sample => sample.luminance)), max: Math.max(...measurements.map(sample => sample.luminance)) }, ratio: worst.ratio, fontSize: css.fontSize };
+  });
+}
+
+async function contrastSamples(label, probes) {
+  for (const [id, selector, category, pseudo = null] of probes) {
+    const samples = await widget(id).locator(selector).evaluateAll(paintedContrast, pseudo);
+    assert.ok(samples.length > 0, label + ' 有实际可见样本：' + id + ' ' + selector);
+    for (const sample of samples) {
+      report.colorContrast.push({ label, selector, category, pseudo, minimum: 4.5, ...sample, id });
+      assert.ok(sample.ratio >= 4.5, label + ' ' + id + ' ' + selector + (pseudo || '') + ' 对比度 ' + sample.ratio.toFixed(2) + ' 应至少 4.5');
+    }
+  }
 }
 
 async function rightClick(id) {
@@ -267,20 +350,25 @@ async function pressButton(selector, label) {
   await page.goto(base);
   await ready();
 
-  await check('桌面真实四列、默认 Bento 位置与内容自适应行高', async () => {
+  await check('桌面真实四列、四种宽度与至少六种宽高组合的错落 Bento', async () => {
     assert.deepEqual(await page.locator('.widget[data-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.widget)), ids);
     const boxes = await inspectLayout('desktop-default', 4, true);
     near(boxes.cover.y, boxes.experience.y, '封面和体验同顶');
     near(boxes.experience.x, boxes.facts.x, '体验和资料位于右侧同列');
-    near(boxes.facts.y - boxes.experience.bottom, 16, '右侧上下两张卡间距');
-    near(boxes.cover.bottom, boxes.facts.bottom, '封面跨过右侧两行');
+    near(boxes.hours.y - boxes.experience.bottom, 16, '体验和统计上下间距');
+    near(boxes.facts.y - boxes.hours.bottom, 16, '统计和资料上下间距');
+    near(boxes.cover.bottom, boxes.facts.bottom, '封面跨过右侧三行');
     near(boxes.hours.y, boxes.count.y, '统计卡并排');
-    near(boxes.count.y, boxes.tags.y, '标签在统计同行');
     near(boxes.count.x - boxes.hours.right, 16, '统计卡实际间距');
-    near(boxes.tags.x - boxes.count.right, 16, '统计和标签实际间距');
     near(boxes.impression.y, boxes.footprint.y, '印象和足迹并排');
-    near(boxes.gallery.width, boxes.review.width, '相册和测评均占整行');
-    assert.ok(boxes.cover.height > boxes.experience.height && boxes.gallery.width > boxes.hours.width * 3, '真实卡片尺寸有明显差异');
+    near(boxes.footprint.x - boxes.impression.right, 16, '三列印象与单列足迹间距');
+    near(boxes.gallery.y - boxes.impression.bottom, 16, '相册在印象下一行');
+    near(boxes.gallery.y, boxes.tags.y, '相册与标签同顶');
+    near(boxes.tags.x - boxes.gallery.right, 16, '相册和标签间距');
+    near(boxes.footprint.bottom, boxes.tags.bottom, '足迹跨过印象与相册两行');
+    near(boxes.review.y - boxes.footprint.bottom, 16, '测评位于拼图下一整行');
+    assert.ok(boxes.cover.height > boxes.cover.width && boxes.footprint.height > boxes.footprint.width, '封面与足迹形成竖长卡');
+    assert.ok(boxes.impression.width > boxes.gallery.width && boxes.review.width > boxes.impression.width, '三列印象与四列测评形成不同宽度');
     await shot('01-desktop-default');
   });
 
@@ -291,9 +379,94 @@ async function pressButton(selector, label) {
       if (width <= 700) {
         near(boxes.hours.y, boxes.count.y, '窄窗统计实际并排');
         assert.ok(boxes.impression.width > boxes.hours.width * 1.8, '窄窗大卡满宽');
+        const image = report.layouts.at(-1).coverImage;
+        assert.ok(image.height <= Math.min((width <= 700 ? 844 : 1060) * .62, 520) + 1, '窄窗封面按可用高度显示');
+        assert.ok(image.y >= boxes.cover.y - 1 && image.bottom <= boxes.cover.bottom + 1, '窄窗封面图片完整落在卡片内');
+      } else if (width <= 1050) {
+        near(boxes.cover.y, boxes.experience.y, '中窗封面与体验同顶');
+        near(boxes.experience.x, boxes.hours.x, '中窗体验与统计同列');
+        near(boxes.hours.x, boxes.count.x, '中窗统计纵向同列');
+        near(boxes.hours.y - boxes.experience.bottom, 16, '中窗体验与时长间距');
+        near(boxes.count.y - boxes.hours.bottom, 16, '中窗两统计纵向间距');
+        near(boxes.cover.bottom, boxes.count.bottom, '中窗封面跨右侧三卡');
+        near(boxes.footprint.y, boxes.gallery.y, '中窗足迹与相册同顶');
+        near(boxes.tags.y - boxes.gallery.bottom, 16, '中窗相册与标签纵向间距');
+        near(boxes.footprint.bottom, boxes.tags.bottom, '中窗足迹跨相册和标签');
       }
       if ([880, 390].includes(width)) await shot('02-responsive-' + width);
     }
+    await reset();
+  });
+
+  await check('明暗卡片有真实亮度层次，正文、辅助文字和表单均达 4.5 对比度', async () => {
+    const surfaces = await page.locator('.widget[data-widget]').evaluateAll(paintedContrast, null);
+    report.surfaceContrast = surfaces;
+    const darkest = Math.min(...surfaces.map(surface => surface.luminance.max));
+    const bright = surfaces.filter(surface => surface.luminance.min >= .30);
+    assert.ok(bright.length >= 1, '至少一张在完整渐变范围内保持明亮的卡片');
+    assert.ok(surfaces.filter(surface => surface.luminance.max <= .15).length >= 3, '至少三张实际暗卡');
+    for (const surface of bright) {
+      surface.ratioToDarkest = (surface.luminance.min + .05) / (darkest + .05);
+      assert.ok(surface.ratioToDarkest >= 4.5, '亮卡与深色表面有明确对比：' + surface.id);
+    }
+    await contrastSamples('default', [
+      ...ids.filter(id => id !== 'cover').map(id => [id, 'h2', 'normal']),
+      ['experience', '#current-state', 'normal'], ['experience', '.eyebrow,.rank-fields label>span', 'auxiliary'],
+      ['experience', 'select', 'form'], ['facts', 'dd', 'normal'], ['facts', 'dt,.edit-button,.source-link', 'auxiliary'],
+      ['hours', '.stat-value', 'normal'], ['hours', '.edit-button,.stat-value small', 'auxiliary'],
+      ['count', '.stat-value', 'normal'], ['count', '.edit-button,.stat-value small', 'auxiliary'],
+      ['tags', '.tag-row>span,.tag-pill,.edit-button', 'auxiliary'],
+      ['impression', '#impression-count', 'auxiliary'], ['impression', 'textarea', 'form'], ['impression', 'textarea', 'form-placeholder', '::placeholder'],
+      ['footprint', 'strong', 'normal'], ['footprint', 'time,li p,.edit-button', 'auxiliary'],
+      ['gallery', '#add-photos', 'normal'], ['gallery', '#photo-count,figcaption', 'auxiliary'],
+      ['review', '#review-count', 'auxiliary'],
+    ]);
+    await page.locator('#experience-toggle').click();
+    await away();
+    await contrastSamples('classification-open', [['experience', '.state-choices button', 'normal']]);
+    for (const selector of ['#edit-facts', '#edit-tags', '[data-stat="hours"]', '[data-stat="count"]', '#add-footprint', '#review-toggle']) await page.locator(selector).click();
+    await away();
+    await contrastSamples('editors-open', [
+      ['facts', '.facts-edit label', 'auxiliary'], ['facts', '.facts-edit input,.facts-edit button', 'form'],
+      ['tags', '.tag-editor label', 'auxiliary'], ['tags', '.tag-editor input,.tag-editor button', 'form'],
+      ['hours', '.stat-editor input,.stat-editor button', 'form'], ['hours', '.stat-editor input', 'form-placeholder', '::placeholder'],
+      ['count', '.stat-editor input,.stat-editor button', 'form'], ['count', '.stat-editor input', 'form-placeholder', '::placeholder'],
+      ['footprint', '.footprint-editor input,.footprint-editor button', 'form'], ['footprint', '.footprint-editor input', 'form-placeholder', '::placeholder'],
+      ['review', '#review-body textarea', 'form'], ['review', '#review-body textarea', 'form-placeholder', '::placeholder'], ['review', '#review-body small', 'auxiliary'],
+    ]);
+    await reset();
+  });
+
+  await check('默认渐变改为自定义纯色后恢复，不改尺寸、顺序或内容', async () => {
+    const surface = () => widget('experience').evaluate(node => {
+      const css = getComputedStyle(node);
+      return { image: css.backgroundImage, color: css.backgroundColor, border: css.borderColor };
+    });
+    const content = () => page.locator('.bento-grid').evaluate(grid => ({
+      text: grid.innerText, fields: [...grid.querySelectorAll('input:not([type=file]),textarea,select')].map(node => ({ value: node.value, checked: node.checked })),
+      photos: [...grid.querySelectorAll('.gallery-photo img')].map(image => image.getAttribute('src')),
+    }));
+    const original = await surface(), layout = await layoutState(), stable = await geometry(), savedContent = await content();
+    assert.ok(original.image.startsWith('linear-gradient('), '默认体验卡真实使用渐变');
+    await rightClick('experience');
+    await page.locator('#card-color-hex').fill('#FFFFFF');
+    await page.locator('#card-color-apply').click();
+    await away();
+    const white = await surface();
+    assert.equal(white.image, 'none', '自定义白色移除实际背景渐变');
+    assert.equal(white.color, 'rgb(255, 255, 255)', '自定义白色实际可见');
+    assert.deepEqual(await layoutState(), layout.map(card => card.id === 'experience' ? { ...card, color: '#FFFFFF' } : card), '仅当前卡片色值改变');
+    sameGeometry(stable, await geometry(), '自定义纯色卡位');
+    assert.deepEqual(await content(), savedContent, '自定义纯色保留业务内容');
+    await contrastSamples('custom-white-surface', [['experience', 'h2,#current-state', 'normal'], ['experience', '.eyebrow,.rank-fields label>span', 'auxiliary'], ['experience', 'select', 'form']]);
+    await rightClick('experience');
+    await page.locator('#context-default-color').click();
+    await away();
+    assert.deepEqual(await surface(), original, '恢复默认色同时恢复实际渐变和描边');
+    assert.deepEqual(await layoutState(), layout, '恢复默认表面不改变布局状态');
+    sameGeometry(stable, await geometry(), '恢复默认表面卡位');
+    assert.deepEqual(await content(), savedContent, '恢复默认表面保留业务内容');
+    await shot('18-default-surface-restored');
     await reset();
   });
 
