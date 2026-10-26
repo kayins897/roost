@@ -15,10 +15,10 @@ if (!process.argv[2]) {
 
 const directory = path.resolve(process.argv[2]);
 const output = path.join(directory, 'screenshots');
-const files = ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js'];
-const ids = ['cover', 'experience', 'hours', 'count', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'review'];
-const spans = { cover: [2, 3], experience: [2, 1], hours: [1, 1], count: [1, 1], facts: [2, 1], impression: [3, 1], footprint: [1, 2], gallery: [2, 1], tags: [1, 1], review: [4, 1] };
-const mediumSpans = { cover: [1, 3], experience: [1, 1], hours: [1, 1], count: [1, 1], facts: [2, 1], impression: [2, 1], footprint: [1, 2], gallery: [1, 1], tags: [1, 1], review: [2, 1] };
+const files = ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js'];
+const ids = ['cover', 'experience', 'hours', 'platform', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'count', 'review'];
+const spans = { cover: [2, 3], experience: [2, 1], hours: [1, 1], platform: [1, 1], count: [1, 1], facts: [2, 1], impression: [3, 1], footprint: [1, 2], gallery: [2, 1], tags: [1, 1], review: [4, 1] };
+const mediumSpans = { cover: [1, 3], experience: [1, 1], hours: [1, 1], platform: [1, 1], count: [1, 1], facts: [2, 1], impression: [2, 1], footprint: [1, 2], gallery: [1, 1], tags: [1, 1], review: [2, 1] };
 const report = {
   passed: false, scope: 'isolated-static-design-preview', startedAt: new Date().toISOString(),
   testedFiles: {}, checks: [], layouts: [], motion: [], colorContrast: [], surfaceContrast: [], screenshots: [], errors: [], consoleErrors: [],
@@ -149,7 +149,7 @@ async function inspectLayout(label, expectedColumns, defaults = false) {
     assert.ok(card.scrollWidth <= card.clientWidth + 1, label + ' 内容无横向溢出：' + card.id);
     assert.ok(card.scrollHeight <= card.clientHeight + 2, label + ' 内容未撑出卡片：' + card.id);
     if (defaults) {
-      const [columns, rows] = expectedColumns === 4 ? spans[card.id] : value.width <= 700 ? [(['hours', 'count'].includes(card.id) ? 1 : 2), 1] : mediumSpans[card.id];
+      const [columns, rows] = expectedColumns === 4 ? spans[card.id] : value.width <= 700 ? [(['hours', 'platform', 'count'].includes(card.id) ? 1 : 2), 1] : mediumSpans[card.id];
       assert.ok(new RegExp('span ' + columns + '(?:\\D|$)').test(card.column), label + ' 实际列跨度：' + card.id);
       // A single unspanned responsive row may be represented by auto.
       assert.ok(rows === 1 && card.row === 'auto' || new RegExp('span ' + rows + '(?:\\D|$)').test(card.row), label + ' 实际行跨度：' + card.id);
@@ -288,6 +288,7 @@ async function pressButton(selector, label) {
     assert.ok(fs.statSync(path.join(directory, file)).isFile(), '参数必须为组装预览目录：' + file);
     report.testedFiles[file] = createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex');
   }
+  report.testedFiles['assets/platform-icons.js'] = createHash('sha256').update(fs.readFileSync(path.join(directory, 'assets/platform-icons.js'))).digest('hex');
   fs.mkdirSync(output, { recursive: true });
   temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'qiyu-bento-motion-'));
   const fixture = path.join(temporary, 'preview');
@@ -295,7 +296,8 @@ async function pressButton(selector, label) {
   for (const file of files) fs.copyFileSync(path.join(directory, file), path.join(fixture, file));
   for (const file of files) assert.equal(createHash('sha256').update(fs.readFileSync(path.join(fixture, file))).digest('hex'), report.testedFiles[file], '隔离副本与被测哈希一致：' + file);
   fs.cpSync(path.join(directory, 'assets'), path.join(fixture, 'assets'), { recursive: true, dereference: true });
-  report.isolation = { temporaryRoot: temporary, fixture: 'Copy of supplied static five files and assets only', browserProfile: 'Playwright ephemeral browser context', storagePolicy: 'Record and block all localStorage writes', realApplicationStarted: false, collectionAccess: false };
+  assert.equal(createHash('sha256').update(fs.readFileSync(path.join(fixture, 'assets/platform-icons.js'))).digest('hex'), report.testedFiles['assets/platform-icons.js'], '隔离图标数据副本与被测哈希一致');
+  report.isolation = { temporaryRoot: temporary, fixture: 'Copy of supplied static six files and assets only', browserProfile: 'Playwright ephemeral browser context', storagePolicy: 'Record and block all localStorage writes', realApplicationStarted: false, collectionAccess: false };
   const inside = (root, candidate) => { const relative = path.relative(root, candidate); return relative && relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative); };
   server = http.createServer((request, response) => {
     try {
@@ -358,8 +360,8 @@ async function pressButton(selector, label) {
     near(boxes.hours.y - boxes.experience.bottom, 16, '体验和统计上下间距');
     near(boxes.facts.y - boxes.hours.bottom, 16, '统计和资料上下间距');
     near(boxes.cover.bottom, boxes.facts.bottom, '封面跨过右侧三行');
-    near(boxes.hours.y, boxes.count.y, '统计卡并排');
-    near(boxes.count.x - boxes.hours.right, 16, '统计卡实际间距');
+    near(boxes.hours.y, boxes.platform.y, '时长和拥有平台并排');
+    near(boxes.platform.x - boxes.hours.right, 16, '时长与平台实际间距');
     near(boxes.impression.y, boxes.footprint.y, '印象和足迹并排');
     near(boxes.footprint.x - boxes.impression.right, 16, '三列印象与单列足迹间距');
     near(boxes.gallery.y - boxes.impression.bottom, 16, '相册在印象下一行');
@@ -377,7 +379,7 @@ async function pressButton(selector, label) {
       await page.setViewportSize({ width, height: width <= 700 ? 844 : 1060 });
       const boxes = await inspectLayout('viewport-' + width, width > 1050 ? 4 : 2, true);
       if (width <= 700) {
-        near(boxes.hours.y, boxes.count.y, '窄窗统计实际并排');
+        near(boxes.hours.y, boxes.platform.y, '窄窗时长与平台实际并排');
         assert.ok(boxes.impression.width > boxes.hours.width * 1.8, '窄窗大卡满宽');
         const image = report.layouts.at(-1).coverImage;
         assert.ok(image.height <= Math.min((width <= 700 ? 844 : 1060) * .62, 520) + 1, '窄窗封面按可用高度显示');
@@ -385,10 +387,10 @@ async function pressButton(selector, label) {
       } else if (width <= 1050) {
         near(boxes.cover.y, boxes.experience.y, '中窗封面与体验同顶');
         near(boxes.experience.x, boxes.hours.x, '中窗体验与统计同列');
-        near(boxes.hours.x, boxes.count.x, '中窗统计纵向同列');
+        near(boxes.hours.x, boxes.platform.x, '中窗时长与平台纵向同列');
         near(boxes.hours.y - boxes.experience.bottom, 16, '中窗体验与时长间距');
-        near(boxes.count.y - boxes.hours.bottom, 16, '中窗两统计纵向间距');
-        near(boxes.cover.bottom, boxes.count.bottom, '中窗封面跨右侧三卡');
+        near(boxes.platform.y - boxes.hours.bottom, 16, '中窗时长与平台纵向间距');
+        near(boxes.cover.bottom, boxes.platform.bottom, '中窗封面跨右侧三卡');
         near(boxes.footprint.y, boxes.gallery.y, '中窗足迹与相册同顶');
         near(boxes.tags.y - boxes.gallery.bottom, 16, '中窗相册与标签纵向间距');
         near(boxes.footprint.bottom, boxes.tags.bottom, '中窗足迹跨相册和标签');
@@ -410,11 +412,12 @@ async function pressButton(selector, label) {
       assert.ok(surface.ratioToDarkest >= 4.5, '亮卡与深色表面有明确对比：' + surface.id);
     }
     await contrastSamples('default', [
-      ...ids.filter(id => id !== 'cover').map(id => [id, 'h2', 'normal']),
+      ...ids.filter(id => !['cover', 'count'].includes(id)).map(id => [id, 'h2', 'normal']),
       ['experience', '#current-state', 'normal'], ['experience', '.eyebrow,.rank-fields label>span', 'auxiliary'],
       ['experience', 'select', 'form'], ['facts', 'dd', 'normal'], ['facts', 'dt,.edit-button,.source-link', 'auxiliary'],
       ['hours', '.stat-value', 'normal'], ['hours', '.edit-button,.stat-value small', 'auxiliary'],
-      ['count', '.stat-value', 'normal'], ['count', '.edit-button,.stat-value small', 'auxiliary'],
+      ['hours', '#last-run-value', 'auxiliary'],
+      ['platform', '#platform-list .platform-badge,#edit-platforms', 'normal'],
       ['tags', '.tag-row>span,.tag-pill,.edit-button', 'auxiliary'],
       ['impression', '#impression-count', 'auxiliary'], ['impression', 'textarea', 'form'], ['impression', 'textarea', 'form-placeholder', '::placeholder'],
       ['footprint', 'strong', 'normal'], ['footprint', 'time,li p,.edit-button', 'auxiliary'],
@@ -424,12 +427,21 @@ async function pressButton(selector, label) {
     await page.locator('#experience-toggle').click();
     await away();
     await contrastSamples('classification-open', [['experience', '.state-choices button', 'normal']]);
-    for (const selector of ['#edit-facts', '#edit-tags', '[data-stat="hours"]', '[data-stat="count"]', '#add-footprint', '#review-toggle']) await page.locator(selector).click();
+    await page.locator('#experience-toggle').click();
+    await rightClick('cover');
+    await page.locator('#context-manage').click();
+    await page.locator('[data-toggle-widget="count"]').setChecked(true);
+    await page.locator('#layout-done').click();
+    await away();
+    await contrastSamples('restored-count', [['count', 'h2,.stat-value,.edit-button,.stat-value small', 'normal']]);
+    for (const selector of ['#edit-facts', '#edit-tags', '#edit-platforms', '[data-stat="hours"]', '[data-stat="count"]', '#add-footprint', '#review-toggle']) await page.locator(selector).click();
     await away();
     await contrastSamples('editors-open', [
       ['facts', '.facts-edit label', 'auxiliary'], ['facts', '.facts-edit input,.facts-edit button', 'form'],
       ['tags', '.tag-editor label', 'auxiliary'], ['tags', '.tag-editor input,.tag-editor button', 'form'],
-      ['hours', '.stat-editor input,.stat-editor button', 'form'], ['hours', '.stat-editor input', 'form-placeholder', '::placeholder'],
+      ['platform', '#platform-editor button,#platform-editor input', 'form'],
+      ['platform', '#platform-editor input', 'form-placeholder', '::placeholder'],
+      ['hours', '.stat-editor input,.stat-editor button', 'form'], ['hours', '.stat-editor input[type=number]', 'form-placeholder', '::placeholder'],
       ['count', '.stat-editor input,.stat-editor button', 'form'], ['count', '.stat-editor input', 'form-placeholder', '::placeholder'],
       ['footprint', '.footprint-editor input,.footprint-editor button', 'form'], ['footprint', '.footprint-editor input', 'form-placeholder', '::placeholder'],
       ['review', '#review-body textarea', 'form'], ['review', '#review-body textarea', 'form-placeholder', '::placeholder'], ['review', '#review-body small', 'auxiliary'],
@@ -661,7 +673,7 @@ async function pressButton(selector, label) {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
   });
 
-  await check('五文件哈希稳定、无外网、无 storage 写入且无页面错误', async () => {
+  await check('六个预览文件及图标数据哈希稳定、无外网、无 storage 写入且无页面错误', async () => {
     await page.evaluate(() => window.__flushBentoStorageReports());
     assert.deepEqual(await page.evaluate(() => Object.keys(localStorage)), [], '本地存储保持空白');
     assert.deepEqual(report.localStorageWrites, [], '所有生命周期未尝试写入 localStorage');
@@ -669,7 +681,7 @@ async function pressButton(selector, label) {
     assert.deepEqual(report.failedLocalRequests, [], '本地素材无请求失败');
     assert.deepEqual(report.errors, [], '无页面脚本错误');
     assert.deepEqual(report.consoleErrors, [], '无浏览器错误');
-    for (const file of files) assert.equal(createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex'), report.testedFiles[file], '被测输入未在运行中变化：' + file);
+    for (const file of [...files, 'assets/platform-icons.js']) assert.equal(createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex'), report.testedFiles[file], '被测输入未在运行中变化：' + file);
   });
   report.passed = true;
 })().catch(error => {

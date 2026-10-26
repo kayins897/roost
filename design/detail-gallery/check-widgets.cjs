@@ -14,8 +14,8 @@ if (!process.argv[2]) {
 
 const directory = path.resolve(process.argv[2]);
 const output = path.join(directory, 'screenshots');
-const widgetIds = ['cover', 'experience', 'facts', 'hours', 'count', 'tags', 'impression', 'footprint', 'gallery', 'review'];
-const fieldIds = ['original', 'year', 'date', 'creator', 'platform', 'source'];
+const widgetIds = ['cover', 'experience', 'hours', 'platform', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'count', 'review'];
+const fieldIds = ['original', 'year', 'date', 'creator', 'source'];
 const report = {
   passed: false, scope: 'design-prototype', productionPersistenceValidated: false,
   startedAt: new Date().toISOString(), testedFiles: {},
@@ -104,6 +104,8 @@ async function captureContent() {
     })),
     hours: document.querySelector('#hours-value').textContent,
     count: document.querySelector('#count-value').textContent,
+    platforms: document.querySelector('#platform-list').textContent,
+    lastRun: [document.querySelector('#last-run-value').textContent, document.querySelector('#last-run-value').getAttribute('datetime')],
   }));
 }
 
@@ -203,7 +205,7 @@ async function reloadDefaults() {
 (async () => {
   assert.ok(fs.existsSync(path.join(directory, 'index.html')), '参数应为含 index.html 的组装预览目录');
   fs.mkdirSync(output, { recursive: true });
-  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js']) {
+  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js', 'assets/platform-icons.js']) {
     report.testedFiles[file] = createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex');
   }
   server = http.createServer((request, response) => {
@@ -261,11 +263,15 @@ async function reloadDefaults() {
   await page.goto(base);
   await ready();
 
-  await check('十张独立小组件、资料字段及默认布局', async () => {
+  await check('十一张独立小组件、十张默认显示及分离平台的资料字段', async () => {
     const ids = await order();
-    assert.equal(ids.length, 10);
-    assert.deepEqual([...ids].sort(), [...widgetIds].sort(), '组件 ID 唯一且完整');
-    for (const id of widgetIds) assert.equal(await widget(id).isVisible(), true, id + ' 默认显示');
+    assert.equal(ids.length, 11);
+    assert.deepEqual(ids, widgetIds, '组件 DOM 顺序唯一且完整');
+    for (const id of widgetIds) assert.equal(await widget(id).isVisible(), id !== 'count', id + ' 默认显示状态');
+    assert.equal(await page.locator('.widget[data-widget]:not([hidden])').count(), 10, '默认只有十张可见卡');
+    assert.equal(await widget('facts').locator('[data-field-row=platform],[data-input=platform]').count(), 0, '拥有平台从作品资料和编辑字段分离');
+    assert.equal((await widget('tags').getAttribute('data-color')).toUpperCase(), '#C91662', '标签采用醒目玫红');
+    assert.equal((await widget('count').getAttribute('data-color')).toUpperCase(), '#232327', '隐藏完成次数采用深灰');
     assert.equal(await page.locator('#layout-tools').isVisible(), false);
     assert.equal(await page.locator('#layout-empty').isVisible(), false);
     for (const id of fieldIds) assert.equal(await widget('facts').locator('[data-field-row="' + id + '"]').isVisible(), true, '资料行默认显示：' + id);
@@ -274,6 +280,31 @@ async function reloadDefaults() {
     initialContent = await captureContent();
     await layout(1440, 1060, '默认宽屏');
     await shot('01-default');
+  });
+
+  await check('完成次数保留可恢复隐藏卡，取消和重置均恢复默认隐藏', async () => {
+    const count = await page.locator('#count-value').textContent();
+    await enterEdit(); await manager();
+    await toggleWidget('count').setChecked(true);
+    assert.equal(await widget('count').isVisible(), true);
+    await page.locator('#layout-cancel').click();
+    assert.equal(await widget('count').isVisible(), false, '取消恢复进入时隐藏状态');
+    await enterEdit(); await manager();
+    await toggleWidget('count').setChecked(true);
+    await page.locator('#layout-done').click();
+    assert.equal(await page.locator('#count-value').textContent(), count, '找回卡片不清除完成次数');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await settle();
+    const columns = await widget('count').evaluate(node => getComputedStyle(node).gridColumn);
+    assert.match(columns, /span 1(?:\D|$)/, '窄窗恢复完成次数仍保持单列统计卡');
+    await layout(390, 844, '窄窗恢复完成次数');
+    await page.setViewportSize({ width: 1440, height: 1060 });
+    await enterEdit();
+    await page.locator('#layout-reset').click();
+    assert.equal(await widget('count').isVisible(), false, '恢复默认重新隐藏完成次数');
+    assert.equal(await page.locator('#count-value').textContent(), count, '默认隐藏不删除次数值');
+    await page.locator('#layout-done').click();
+    assert.deepEqual(await captureLayout(), initialLayout);
   });
 
   await check('浏览器鼠标按住拖动可将资料卡移至体验卡之前', async () => {
@@ -306,7 +337,7 @@ async function reloadDefaults() {
     const beforeSecond = await order(), remaining = beforeSecond.filter(id => id !== source);
     await drag(source, target, 'after');
     assert.deepEqual(await order(), moved(beforeSecond, source, remaining.indexOf(target) + 1), '落在下半放到目标后');
-    assert.equal(new Set(await order()).size, 10, '拖动不会复制或丢失卡片');
+    assert.equal(new Set(await order()).size, 11, '拖动不会复制或丢失卡片');
     await shot('02-editing');
     await page.locator('#layout-cancel').click();
     assert.deepEqual(await captureLayout(), initialLayout, '取消恢复进入时的顺序');
@@ -385,7 +416,7 @@ async function reloadDefaults() {
     assert.equal(await page.locator('#layout-empty').isVisible(), false);
     await toggleWidget('facts').setChecked(false);
     await page.locator('#layout-reset').click();
-    for (const id of widgetIds) assert.equal(await widget(id).isVisible(), true, '恢复默认显示：' + id);
+    for (const id of widgetIds) assert.equal(await widget(id).isVisible(), id !== 'count', '恢复默认显示状态：' + id);
     assert.equal(await page.locator('#layout-empty').isVisible(), false);
     assert.deepEqual(await captureContent(), content, '恢复默认只改布局，不清除文字、资料和照片');
     assert.deepEqual(await captureLayout(), initialLayout, '恢复默认布局及尺寸');
@@ -400,6 +431,7 @@ async function reloadDefaults() {
     assert.deepEqual(report.localStorageWrites, [], '所有页面生命周期均无 localStorage 写入');
     assert.deepEqual(report.externalRequests, [], '预览只请求本地组装素材');
     assert.deepEqual(report.errors, [], '页面无脚本错误');
+    for (const [file, hash] of Object.entries(report.testedFiles)) assert.equal(createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex'), hash, '被测预览及图标输入运行中保持稳定：' + file);
   });
   report.passed = true;
 })().catch(error => {

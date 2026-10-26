@@ -16,7 +16,7 @@ const directory = path.resolve(process.argv[2]);
 const output = path.join(directory, 'screenshots');
 const sizes = {
   cover: ['small', 'medium', 'large'], experience: ['small', 'medium', 'large'],
-  facts: ['small', 'medium', 'large'], hours: ['medium', 'large'], count: ['medium', 'large'],
+  facts: ['small', 'medium', 'large'], hours: ['medium', 'large'], platform: ['medium', 'large'], count: ['medium', 'large'],
   tags: ['small', 'medium', 'large'], impression: ['small', 'medium', 'large'],
   footprint: ['small', 'medium', 'large'], gallery: ['small', 'medium', 'large'], review: ['small', 'medium'],
 };
@@ -83,6 +83,8 @@ async function captureContent() {
     })),
     hours: document.querySelector('#hours-value').textContent,
     count: document.querySelector('#count-value').textContent,
+    platforms: document.querySelector('#platform-list').textContent,
+    lastRun: [document.querySelector('#last-run-value').textContent, document.querySelector('#last-run-value').getAttribute('datetime')],
   }));
 }
 
@@ -159,6 +161,15 @@ async function enterManage(id = 'cover') {
   assert.equal(await page.locator('#impression').evaluate(node => Boolean(node.closest('[inert]'))), true, '编辑时内容禁止误操作');
 }
 
+async function restoreOptionalCount() {
+  if (!await widget('count').isVisible()) {
+    await enterManage();
+    await toggle('count').setChecked(true);
+    await page.locator('#layout-done').click();
+    assert.equal(await widget('count').isVisible(), true, '显式恢复完成次数后才检查其菜单');
+  }
+}
+
 async function reloadDefaults() {
   await page.setViewportSize({ width: 1440, height: 1060 });
   await page.reload();
@@ -228,7 +239,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
 (async () => {
   assert.ok(fs.existsSync(path.join(directory, 'index.html')), '参数应为含 index.html 的组装预览目录');
   fs.mkdirSync(output, { recursive: true });
-  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js']) {
+  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js', 'assets/platform-icons.js']) {
     report.testedFiles[file] = createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex');
   }
   server = http.createServer((request, response) => {
@@ -294,7 +305,9 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await assertBrowsing();
     initialLayout = await captureLayout();
     initialContent = await captureContent();
-    assert.deepEqual(initialLayout.widgets.map(card => card.id).sort(), [...widgetIds].sort(), '十张卡片完整且唯一');
+    assert.deepEqual(initialLayout.widgets.map(card => card.id).sort(), [...widgetIds].sort(), '十一张卡片完整且唯一');
+    assert.equal(initialLayout.widgets.filter(card => !card.hidden).length, 10, '十张默认可见');
+    assert.equal(initialLayout.widgets.find(card => card.id === 'count').hidden, true, '完成次数默认隐藏');
     assert.ok(new Set(initialLayout.widgets.map(card => normalized(card.color))).size > 1, '默认卡片使用多种颜色');
     for (const card of initialLayout.widgets) {
       assert.match(card.color, /^#[0-9a-f]{6}$/i, '默认色为六位十六进制：' + card.id);
@@ -310,6 +323,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   });
 
   await check('每卡与封面图片可直接右键，鼠标位置打开菜单', async () => {
+    await restoreOptionalCount();
     for (const id of widgetIds) {
       await rightClick(id, id === 'cover');
       assert.equal(await page.locator('#edit-layout').isVisible(), true, '调整布局位于菜单内');
@@ -332,9 +346,11 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await shot('02-cover-context');
     report.browserMouseContextMenuValidated = true;
     await closeMenu();
+    await reloadDefaults();
   });
 
   await check('所有受限尺寸直接生效且不进入整体编辑', async () => {
+    await restoreOptionalCount();
     for (const id of widgetIds) {
       const geometries = [];
       for (const size of sizes[id]) {
@@ -358,6 +374,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   });
 
   await check('各卡预设色与合法自定义色只改变当前卡', async () => {
+    await restoreOptionalCount();
     for (const id of widgetIds) {
       const before = await captureLayout(), current = before.widgets.find(card => card.id === id).color;
       await rightClick(id, id === 'cover');
@@ -448,6 +465,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   });
 
   await check('键盘右键、Escape回焦与外部点击、缩放、滚动关闭', async () => {
+    await restoreOptionalCount();
     for (const key of ['Shift+F10', 'ContextMenu']) {
       for (const id of widgetIds) {
         await widget(id).scrollIntoViewIfNeeded();
@@ -666,6 +684,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     assert.deepEqual(report.localStorageWrites, [], '整个页面生命周期无 localStorage 写入');
     assert.deepEqual(report.externalRequests, [], '只请求本地组装素材');
     assert.deepEqual(report.errors, [], '无页面脚本错误');
+    for (const [file, hash] of Object.entries(report.testedFiles)) assert.equal(createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex'), hash, '被测预览及图标输入运行中保持稳定：' + file);
     assert.equal(await page.evaluate(() => typeof window.qiyuDesktop), 'undefined', '不连接真实桌面收藏');
   });
   report.passed = true;
