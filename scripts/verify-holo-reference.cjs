@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 let playwright;
 try { playwright = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright'); }
 catch (error) {
@@ -14,11 +15,11 @@ const { chromium } = playwright;
 
 const root = path.resolve(__dirname, '..');
 const source = path.join(root, 'design', 'holo-card-reference');
-const evidence = path.resolve(process.env.HOLO_EVIDENCE_DIR || path.join(root, 'evidence', 'holo-reference'));
+const evidence = path.resolve(process.env.HOLO_EVIDENCE_DIR || path.join(root, 'evidence', 'holo-reference-facets'));
 const report = { startedAt: new Date().toISOString(), browser: '', checks: [], diagnostics: [], limits: [
   'Uses headless Edge with SwiftShader; this is functional verification, not device GPU performance measurement.',
   'Hidden-page behavior is tested with a synthetic document.hidden getter and visibilitychange event because headless Edge keeps background tabs visible.',
-  'Reference-video fidelity and artistic restraint require visual comparison; pixel differences reported here do not certify either.'
+  'Reference-video fidelity, filled triangle-facet shape, and artistic restraint require visual comparison; pixel differences reported here do not certify them.'
 ] };
 const kinds = ['foil', 'holo', 'poly'];
 let browser, server;
@@ -96,10 +97,23 @@ const counters = page => page.evaluate(() => ({ draws: window.__holoVerify.draws
 async function settle(page, milliseconds = 350) { await page.waitForTimeout(milliseconds); }
 async function inputRange(page, id, value) { await page.locator(`#${id}`).fill(String(value)); await page.locator(`#${id}`).dispatchEvent('input'); await settle(page, 60); }
 async function pause(page) { if (await page.locator('#motion').getAttribute('aria-pressed') === 'true') await page.locator('#motion').click(); await page.mouse.move(1, 1); await settle(page, 900); }
+async function play(page) { if (await page.locator('#motion').getAttribute('aria-pressed') === 'false') await page.locator('#motion').click(); await settle(page, 120); }
+async function materialUniforms(page, strength, filter) {
+  const actual = await page.evaluate(() => Object.fromEntries(['foil', 'holo', 'poly'].map(kind => [kind, {
+    strength: window.__holoVerify.uniform(kind, 'uStrength')[0],
+    filter: window.__holoVerify.uniform(kind, 'uFilter')[0]
+  }])));
+  for (const kind of kinds) {
+    assert.ok(typeof actual[kind].strength === 'number' && Math.abs(actual[kind].strength - strength) < .001, `${kind}: uStrength=${actual[kind].strength}, expected ${strength}`);
+    assert.ok(typeof actual[kind].filter === 'number' && Math.abs(actual[kind].filter - filter) < .001, `${kind}: uFilter=${actual[kind].filter}, expected ${filter}`);
+  }
+  return actual;
+}
 
 (async () => {
   fs.mkdirSync(evidence, { recursive: true });
   const allowed = new Map([['/', 'index.html'], ['/index.html', 'index.html'], ['/holo.css', 'holo.css'], ['/holo.js', 'holo.js'], ['/shaders.js', 'shaders.js'], ['/fixtures.js', 'fixtures.js']]);
+  report.sourceHashes = Object.fromEntries([...new Set(allowed.values())].map(file => [file, createHash('sha256').update(fs.readFileSync(path.join(source, file))).digest('hex')]));
   server = http.createServer((request, response) => {
     const file = allowed.get(new URL(request.url, 'http://localhost').pathname);
     if (!file) { response.writeHead(request.url === '/favicon.ico' ? 204 : 404).end(); return; }
@@ -115,9 +129,11 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
 
   await check('Default settings, live WebGL, and nonempty pixels', async () => {
     assert.equal(await page.locator('#strength').inputValue(), '65');
+    assert.equal(await page.locator('#filter').inputValue(), '55');
     assert.equal(await page.locator('#speed').inputValue(), '35');
-    assert.equal(await page.locator('#etching').isChecked(), false);
+    assert.equal(await page.locator('#etching').isChecked(), true);
     assert.deepEqual(await page.evaluate(() => window.__deck.snapshot().failed), []);
+    await materialUniforms(page, .65, .55);
     const result = await capture(page, 'live');
     for (const kind of kinds) { assert.ok(result[kind].values > 100, `${kind} pixel variation`); assert.ok(result[kind].max - result[kind].min > 100, `${kind} pixel range`); }
     const before = await counters(page); await settle(page, 250); const after = await counters(page);
@@ -134,6 +150,9 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
 
   await check('Original view equals source and all three materials remain distinct', async () => {
     await page.locator('#compare').click(); await settle(page, 100); await capture(page, 'original');
+    await materialUniforms(page, 0, 0);
+    assert.equal(await page.locator('#strength').inputValue(), '65');
+    assert.equal(await page.locator('#filter').inputValue(), '55');
     const errors = await page.evaluate(() => {
       const source = window.HoloFixtures.cover().getContext('2d').getImageData(0, 0, 480, 720).data;
       return Object.fromEntries(['foil', 'holo', 'poly'].map(kind => {
@@ -145,6 +164,7 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
     for (const error of Object.values(errors)) assert.ok(error < 0.5, `Original-source error ${error}`);
     await page.screenshot({ path: path.join(evidence, 'original-1440.png'), fullPage: true });
     await page.locator('#compare').click(); await settle(page, 80); const result = await capture(page, 'default');
+    await materialUniforms(page, .65, .55);
     assert.equal(new Set(Object.values(result).map(item => item.hash)).size, 3);
     const differences = {};
     for (const kind of kinds) { differences[kind] = await delta(page, 'original', 'default', kind); assert.ok(differences[kind].meanAbsolute > 2, `${kind} materially differs from original`); }
@@ -153,8 +173,9 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
     return { errors, differences };
   });
 
-  await check('Strength 0, 20, 65, 100 produces ordered material differences', async () => {
+  await check('With filter off, texture strength 0, 20, 65, 100 produces ordered differences', async () => {
     const results = {};
+    await inputRange(page, 'filter', 0);
     for (const amount of [0, 20, 65, 100]) { await inputRange(page, 'strength', amount); await capture(page, `strength-${amount}`); }
     for (const kind of kinds) {
       results[kind] = {};
@@ -164,7 +185,73 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
       assert.ok(results[kind][65] > results[kind][20] * 1.5);
       assert.ok(results[kind][100] > results[kind][65] * 1.2);
     }
-    await inputRange(page, 'strength', 65); return results;
+    await inputRange(page, 'strength', 65); await inputRange(page, 'filter', 55); return results;
+  });
+
+  await check('Texture and base-colour filter operate independently, with both zero matching original', async () => {
+    const result = {};
+    await inputRange(page, 'filter', 0); await capture(page, 'texture-only');
+    await materialUniforms(page, .65, 0);
+    assert.equal(await page.locator('#strength').inputValue(), '65');
+    await page.screenshot({ path: path.join(evidence, 'texture-only-1440.png'), fullPage: true });
+    await inputRange(page, 'strength', 0); await inputRange(page, 'filter', 55); await capture(page, 'filter-only');
+    await materialUniforms(page, 0, .55);
+    assert.equal(await page.locator('#strength').inputValue(), '0');
+    await page.screenshot({ path: path.join(evidence, 'filter-only-1440.png'), fullPage: true });
+    await inputRange(page, 'filter', 100); await capture(page, 'filter-full');
+    await inputRange(page, 'filter', 0); await capture(page, 'both-zero');
+    await materialUniforms(page, 0, 0);
+    for (const kind of kinds) {
+      result[kind] = {
+        textureOnly: await delta(page, 'original', 'texture-only', kind),
+        filterOnly: await delta(page, 'original', 'filter-only', kind),
+        filterFull: await delta(page, 'original', 'filter-full', kind),
+        textureVersusFilter: await delta(page, 'texture-only', 'filter-only', kind),
+        bothZero: await delta(page, 'original', 'both-zero', kind),
+        combinedVersusTexture: await delta(page, 'default', 'texture-only', kind),
+        combinedVersusFilter: await delta(page, 'default', 'filter-only', kind)
+      };
+      assert.ok(result[kind].textureOnly.meanAbsolute > .5, `${kind}: texture is visible without filter`);
+      assert.ok(result[kind].filterOnly.meanAbsolute > .5, `${kind}: filter is visible without texture`);
+      assert.ok(result[kind].filterFull.meanAbsolute > result[kind].filterOnly.meanAbsolute, `${kind}: filter strength increases visible effect`);
+      assert.ok(result[kind].textureVersusFilter.meanAbsolute > .5, `${kind}: texture and filter differ`);
+      assert.ok(result[kind].bothZero.meanAbsolute < .5, `${kind}: both zero restores original`);
+      assert.ok(result[kind].combinedVersusTexture.meanAbsolute > .5, `${kind}: filter also affects textured material`);
+      assert.ok(result[kind].combinedVersusFilter.meanAbsolute > .5, `${kind}: texture also affects filtered material`);
+    }
+    await inputRange(page, 'strength', 65); await inputRange(page, 'filter', 55);
+    return result;
+  });
+
+  await check('Filter-only base colour changes between fixed times 0 and 8', async () => {
+    const clock = await page.evaluate(() => window.__deck.snapshot().clock);
+    await inputRange(page, 'strength', 0); await materialUniforms(page, 0, .55);
+    await page.evaluate(() => window.__deck.setTime(0)); await capture(page, 'filter-time-0');
+    await page.screenshot({ path: path.join(evidence, 'filter-only-time0-1440.png'), fullPage: true });
+    await page.evaluate(() => window.__deck.setTime(8)); await capture(page, 'filter-time-8');
+    await page.screenshot({ path: path.join(evidence, 'filter-only-time8-1440.png'), fullPage: true });
+    const result = {};
+    for (const kind of kinds) {
+      result[kind] = await delta(page, 'filter-time-0', 'filter-time-8', kind);
+      assert.ok(result[kind].meanAbsolute > .001, `${kind}: filter-only changes subtly with time`);
+    }
+    await page.evaluate(clock => window.__deck.setTime(clock), clock); await inputRange(page, 'strength', 65);
+    return result;
+  });
+
+  await check('Both zero stop automatic flow; either nonzero resumes; compare disables both', async () => {
+    await inputRange(page, 'strength', 0); await inputRange(page, 'filter', 0); await play(page);
+    const stopped = await counters(page); await settle(page, 220); assert.deepEqual(await counters(page), stopped);
+    await inputRange(page, 'strength', 65); const texture = await counters(page); await settle(page, 220); assert.ok((await counters(page)).draws > texture.draws, 'Texture-only keeps automatic flow');
+    await inputRange(page, 'strength', 0); await inputRange(page, 'filter', 55); const filter = await counters(page); await settle(page, 220); assert.ok((await counters(page)).draws > filter.draws, 'Filter-only keeps automatic flow');
+    await page.locator('#compare').click(); await settle(page, 100); await materialUniforms(page, 0, 0);
+    const comparing = await counters(page); await settle(page, 220); assert.deepEqual(await counters(page), comparing);
+    await capture(page, 'filter-only-compare');
+    for (const kind of kinds) assert.ok((await delta(page, 'original', 'filter-only-compare', kind)).meanAbsolute < .5, `${kind}: compare bypasses remaining filter`);
+    await page.locator('#compare').click(); await settle(page, 100); await materialUniforms(page, 0, .55);
+    const restored = await counters(page); await settle(page, 220); assert.ok((await counters(page)).draws > restored.draws);
+    await pause(page); await inputRange(page, 'strength', 65); await inputRange(page, 'filter', 55);
+    return { bothZero: stopped, compare: comparing, textureOnlyContinuesDrawing: true, filterOnlyContinuesDrawing: true };
   });
 
   await check('Pointer x/y reach shader uniforms and visibly alter each material', async () => {
@@ -198,12 +285,14 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
     return { ray };
   });
 
-  await check('Optional reference etching is off by default and affects only the intended material', async () => {
-    await capture(page, 'etch-off'); await page.locator('#etching').check(); await settle(page, 80); await capture(page, 'etch-on');
+  await check('Default-on facet control changes only holographic material and can be disabled', async () => {
+    assert.equal(await page.locator('#etching').isChecked(), true);
+    await capture(page, 'etch-on'); await page.locator('#etching').uncheck(); await settle(page, 80); await capture(page, 'etch-off');
     const result = {};
     for (const kind of kinds) result[kind] = await delta(page, 'etch-off', 'etch-on', kind);
     assert.ok(result.holo.meanAbsolute > .05); assert.equal(result.foil.meanAbsolute, 0); assert.equal(result.poly.meanAbsolute, 0);
-    await page.locator('#etching').uncheck(); return result;
+    await page.screenshot({ path: path.join(evidence, 'smooth-holographic-1440.png'), fullPage: true });
+    await page.locator('#etching').check(); return result;
   });
 
   await check('Local image replacement, invalid image handling, reset, and no persistence', async () => {
@@ -212,16 +301,25 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
       const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ef285b'; ctx.fillRect(0, 0, 480, 720); ctx.fillStyle = '#30c5a0'; ctx.fillRect(0, 0, 240, 360);
       return canvas.toDataURL('image/png').split(',')[1];
     });
+    await capture(page, 'before-upload');
+    const beforeUpload = await counters(page);
     await page.locator('#coverFile').setInputFiles({ name: 'verification-cover.png', mimeType: 'image/png', buffer: Buffer.from(data, 'base64') });
     await page.waitForFunction(() => document.querySelector('#message').textContent.includes('未保存'));
+    await page.waitForFunction(draws => window.__holoVerify.draws > draws, beforeUpload.draws);
     await capture(page, 'uploaded');
-    for (const kind of kinds) assert.ok((await delta(page, 'default', 'uploaded', kind)).meanAbsolute > 20, `${kind} updates to local cover`);
+    for (const kind of kinds) assert.ok((await delta(page, 'before-upload', 'uploaded', kind)).meanAbsolute > 20, `${kind} updates to local cover`);
     await page.locator('#coverFile').setInputFiles({ name: 'invalid.png', mimeType: 'image/png', buffer: Buffer.from('not a PNG') });
     await page.waitForFunction(() => document.querySelector('#message').textContent.includes('无法读取'));
     await capture(page, 'after-invalid');
     for (const kind of kinds) assert.equal((await delta(page, 'uploaded', 'after-invalid', kind)).meanAbsolute, 0);
-    await page.locator('#reset').click(); await pause(page);
-    assert.equal(await page.locator('#strength').inputValue(), '65'); assert.equal(await page.locator('#speed').inputValue(), '35'); assert.equal(await page.locator('#etching').isChecked(), false);
+    await inputRange(page, 'strength', 20); await inputRange(page, 'filter', 30); await inputRange(page, 'speed', 80); await page.locator('#etching').uncheck();
+    await page.locator('#compare').click();
+    await page.locator('#reset').click();
+    assert.equal(await page.locator('#strength').inputValue(), '65'); assert.equal(await page.locator('#filter').inputValue(), '55');
+    assert.equal(await page.locator('#speed').inputValue(), '35'); assert.equal(await page.locator('#etching').isChecked(), true);
+    assert.equal(await page.locator('#compare').getAttribute('aria-pressed'), 'false');
+    assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'true');
+    await pause(page); await materialUniforms(page, .65, .55);
     await page.locator('#compare').click(); await settle(page, 80); await capture(page, 'reset-original');
     for (const kind of kinds) assert.equal((await delta(page, 'original', 'reset-original', kind)).meanAbsolute, 0);
     await page.locator('#compare').click();
@@ -284,7 +382,8 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
       assert.equal(await reduced.page.locator('[data-kind="foil"] .card-face').evaluate(card => getComputedStyle(card).transform), 'none');
       await settle(reduced.page, 250); assert.deepEqual(await counters(reduced.page), after);
       await inputRange(reduced.page, 'strength', 30); const changed = await counters(reduced.page); assert.ok(changed.draws > after.draws); await settle(reduced.page, 150); assert.deepEqual(await counters(reduced.page), changed);
-      assert.deepEqual(reduced.audit.pageErrors, []); return { initial: before, afterPointer: after, afterStrength: changed };
+      await inputRange(reduced.page, 'filter', 40); const filtered = await counters(reduced.page); assert.ok(filtered.draws > changed.draws); await settle(reduced.page, 150); assert.deepEqual(await counters(reduced.page), filtered);
+      assert.deepEqual(reduced.audit.pageErrors, []); return { initial: before, afterPointer: after, afterStrength: changed, afterFilter: filtered };
     } finally { await reducedContext.close(); }
   });
 
@@ -311,6 +410,10 @@ async function pause(page) { if (await page.locator('#motion').getAttribute('ari
     assert.deepEqual(audit.pageErrors, []); assert.deepEqual(audit.consoleErrors, []);
     assert.equal(await page.evaluate(() => typeof window.qiyu), 'undefined');
     return { requests: audit.requests, errors: audit.pageErrors, consoleErrors: audit.consoleErrors };
+  });
+  await check('Source files remained unchanged throughout verification', async () => {
+    const finalHashes = Object.fromEntries(Object.keys(report.sourceHashes).map(file => [file, createHash('sha256').update(fs.readFileSync(path.join(source, file))).digest('hex')]));
+    assert.deepEqual(finalHashes, report.sourceHashes); return finalHashes;
   });
   await context.close();
 })().catch(error => { report.fatal = error.stack || String(error); console.error(error); }).finally(async () => {

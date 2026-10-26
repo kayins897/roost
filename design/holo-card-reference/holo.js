@@ -1,6 +1,6 @@
 (() => {
   const { vertex, effects } = window.HoloShaders;
-  const params = { strength: 0.65, speed: 0.35, etching: false, compare: false, paused: false };
+  const params = { strength: 0.65, filter: 0.55, speed: 0.35, etching: true, compare: false, paused: false };
   const media = matchMedia('(prefers-reduced-motion: reduce)');
   const message = document.getElementById('message');
   let cover = window.HoloFixtures.cover();
@@ -45,7 +45,7 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      uniforms = Object.fromEntries(['uCover','uTime','uStrength','uEtching','uRay'].map(n => [n, gl.getUniformLocation(program,n)]));
+      uniforms = Object.fromEntries(['uCover','uTime','uStrength','uFilter','uEtching','uRay'].map(n => [n, gl.getUniformLocation(program,n)]));
       failed = false; updateTexture();
     }
     function updateTexture() {
@@ -85,6 +85,7 @@
         if (!failed) {
           gl.useProgram(program); gl.bindTexture(gl.TEXTURE_2D,texture); gl.uniform1i(uniforms.uCover,0);
           gl.uniform1f(uniforms.uTime,t); gl.uniform1f(uniforms.uStrength,params.compare?0:params.strength);
+          gl.uniform1f(uniforms.uFilter,params.compare?0:params.filter);
           gl.uniform1f(uniforms.uEtching,params.etching?1:0); gl.uniform2f(uniforms.uRay,state.x,state.y);
           gl.viewport(0,0,canvas.width,canvas.height); gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
         }
@@ -92,7 +93,7 @@
       }
     };
   }
-  function playing() { return !params.paused && !media.matches && !params.compare && params.speed>0 && params.strength>0 && views.some(v=>!v.failed()); }
+  function playing() { return !params.paused && !media.matches && !params.compare && params.speed>0 && (params.strength>0 || params.filter>0) && views.some(v=>!v.failed()); }
   function requestDraw() { if (!raf && !document.hidden) raf=requestAnimationFrame(frame); }
   function frame(now) {
     raf=0; const dt=last?Math.min(0.05,(now-last)/1000):1/60; last=now;
@@ -112,8 +113,10 @@
   select('foil');
   function sync() {
     document.getElementById('strength').value=String(params.strength*100);
+    document.getElementById('filter').value=String(params.filter*100);
     document.getElementById('speed').value=String(params.speed*100);
     document.getElementById('strengthOut').textContent=Math.round(params.strength*100)+'%';
+    document.getElementById('filterOut').textContent=Math.round(params.filter*100)+'%';
     document.getElementById('speedOut').textContent=Math.round(params.speed*100)+'%';
     document.getElementById('etching').checked=params.etching;
     document.getElementById('compare').setAttribute('aria-pressed',String(params.compare));
@@ -125,7 +128,7 @@
     motion.disabled=media.matches;
     requestDraw();
   }
-  ['strength','speed'].forEach(key=>document.getElementById(key).addEventListener('input',e=>{params[key]=Number(e.target.value)/100;sync();}));
+  ['strength','filter','speed'].forEach(key=>document.getElementById(key).addEventListener('input',e=>{params[key]=Number(e.target.value)/100;sync();}));
   document.getElementById('etching').addEventListener('change',e=>{params.etching=e.target.checked;sync();});
   document.getElementById('compare').addEventListener('click',()=>{params.compare=!params.compare;sync();});
   document.getElementById('motion').addEventListener('click',()=>{params.paused=!params.paused;sync();});
@@ -142,7 +145,7 @@
     finally {URL.revokeObjectURL(url);e.target.value='';}
   });
   document.getElementById('reset').addEventListener('click',()=>{
-    uploadVersion++;Object.assign(params,{strength:.65,speed:.35,etching:false,compare:false,paused:false});
+    uploadVersion++;Object.assign(params,{strength:.65,filter:.55,speed:.35,etching:true,compare:false,paused:false});
     clock=0;cover=window.HoloFixtures.cover();views.forEach(v=>{v.point(0,0,true);v.updateTexture();});
     message.textContent='';sync();
   });
