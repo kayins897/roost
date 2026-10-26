@@ -1,0 +1,43 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小丑牌特殊卡效果 · 闪箔 / 镭射 / 多彩</title>
+<link rel="stylesheet" href="holo.css">
+</head>
+<body>
+<header>
+  <h1>小丑牌特殊卡效果 · 闪箔 / 镭射 / 多彩</h1>
+  <p>来源：B 站 @左右横条的酸葡萄《小丑牌特殊卡效果 Shader 1 / 2 / 4》。命名沿用游戏内的三种卡牌版本：闪箔（Foil）、镭射（Holographic）、多彩（Polychrome）。三个效果都按视频里露出的 GLSL 逐字还原；视频没露出的收尾行在 <code>SOURCE-README.md</code> 里标为「推断」。卡片封面是原创合成图，不含任何游戏素材。</p>
+</header>
+<main>
+  <section class="cards">
+    <figure class="card" data-kind="foil">
+      <canvas id="cv-foil" width="480" height="720"></canvas>
+      <figcaption><b>闪箔</b><span>Shader 1 · BV1Tr42137Lz</span></figcaption>
+    </figure>
+    <figure class="card" data-kind="holo">
+      <canvas id="cv-holo" width="480" height="720"></canvas>
+      <figcaption><b>镭射</b><span>Shader 4 · BV1ep421S7Hv</span></figcaption>
+    </figure>
+    <figure class="card" data-kind="poly">
+      <canvas id="cv-poly" width="480" height="720"></canvas>
+      <figcaption><b>多彩</b><span>Shader 2 · BV1CH4y1A7aW</span></figcaption>
+    </figure>
+  </section>
+  <section class="panel">
+    <label>偏转强度 delta<input id="delta" type="range" min="0" max="1" step="0.01" value="0.9"><output id="deltaOut"></output></label>
+    <label>网格密度 gridSize<input id="grid" type="range" min="0.4" max="3" step="0.01" value="1.25"><output id="gridOut"></output></label>
+    <label>动画速度<input id="speed" type="range" min="0" max="3" step="0.01" value="1"><output id="speedOut"></output></label>
+    <button id="toggle">关闭特效</button>
+  </section>
+  <section class="source">
+    <h2 id="srcTitle">闪箔 · fragment shader</h2>
+    <p class="hint">点任一张卡看它的源码；鼠标移到卡上会倾斜并驱动光线偏移。</p>
+    <pre id="src"></pre>
+  </section>
+</main>
+<script src="holo.js"></script>
+</body>
+</html>
+

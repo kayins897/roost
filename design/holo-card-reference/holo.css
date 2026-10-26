@@ -1,0 +1,55 @@
+﻿:root {
+  color-scheme: dark;
+  --ink: #e8ecf6;
+  --dim: #97a0b8;
+  --gold: #d9b26a;
+  --bg: #14161c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 40px 48px 64px;
+  background: radial-gradient(1200px 600px at 20% -10%, #232838, var(--bg) 60%);
+  color: var(--ink);
+  font: 14px/1.7 "Microsoft YaHei", system-ui, sans-serif;
+}
+header { max-width: 880px; }
+h1 { margin: 0 0 10px; font-size: 24px; letter-spacing: .02em; }
+header p { margin: 0 0 28px; color: var(--dim); }
+code { padding: 1px 5px; border-radius: 4px; background: #262b3a; color: #cfd6e8; font-size: 12px; }
+.cards { display: flex; flex-wrap: wrap; gap: 32px; margin-bottom: 32px; }
+.card {
+  position: relative;
+  margin: 0;
+  width: 240px;
+  padding: 10px;
+  border-radius: 16px;
+  background: #1b1f2a;
+  border: 1px solid #2b3140;
+  transition: transform .12s ease-out, border-color .2s, box-shadow .2s;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.card.is-active { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(217,178,106,.35), 0 18px 40px -18px rgba(0,0,0,.9); }
+.card canvas { display: block; width: 240px; height: 360px; border-radius: 9px; }
+.card figcaption { display: flex; flex-direction: column; gap: 2px; padding: 10px 2px 2px; }
+.card figcaption b { font-size: 13px; font-weight: 600; }
+.card figcaption span { font-size: 11px; color: var(--dim); }
+.panel { display: flex; flex-wrap: wrap; align-items: center; gap: 26px; margin-bottom: 26px; }
+.panel label { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--dim); }
+.panel input[type=range] { grid-column: 1 / 2; width: 170px; accent-color: var(--gold); }
+.panel input[type=range] + output { grid-column: 2 / 3; color: var(--ink); font-variant-numeric: tabular-nums; }
+button {
+  padding: 9px 18px; border-radius: 999px; border: 1px solid #3a4152;
+  background: #202634; color: var(--ink); font: inherit; cursor: pointer;
+}
+button:hover { border-color: var(--gold); }
+.source { max-width: 1040px; }
+.source h2 { margin: 0 0 4px; font-size: 15px; }
+.hint { margin: 0 0 12px; color: var(--dim); font-size: 12px; }
+pre {
+  margin: 0; padding: 18px 20px; max-height: 420px; overflow: auto;
+  border-radius: 12px; background: #0e1117; border: 1px solid #232838;
+  color: #cfd6e8; font: 12px/1.65 Consolas, "Cascadia Mono", monospace; white-space: pre;
+}
+
