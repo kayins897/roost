@@ -14,6 +14,7 @@ async function layout(width, height) {
   const boxes = await page.evaluate(() => ({
     rootWidth: document.documentElement.scrollWidth, width: innerWidth,
     cover: document.querySelector('.cover-card').getBoundingClientRect().toJSON(),
+    coverImage: document.querySelector('.cover-card img').getBoundingClientRect().toJSON(),
     facts: document.querySelector('.facts-card').getBoundingClientRect().toJSON(),
     panel: document.querySelector('.detail-window').getBoundingClientRect().toJSON(),
     coverFit: getComputedStyle(document.querySelector('.cover-card img')).objectFit,
@@ -22,6 +23,7 @@ async function layout(width, height) {
   assert.ok(boxes.rootWidth <= boxes.width + 1, '页面不能横向溢出');
   assert.ok(boxes.panel.x >= 0 && boxes.panel.x + boxes.panel.width <= width + 1, '弹窗边界');
   assert.equal(boxes.coverFit, 'contain', '封面完整显示');
+  assert.ok(boxes.coverImage.x >= boxes.cover.x - 1 && boxes.coverImage.right <= boxes.cover.right + 1 && boxes.coverImage.y >= boxes.cover.y - 1 && boxes.coverImage.bottom <= boxes.cover.bottom + 1, '图片元素也在卡片内，不能被外层裁掉');
   boxes.cards.forEach(card => assert.ok(card.scrollWidth <= card.clientWidth + 1, '卡片内容横向边界'));
   report.layouts.push({ width, height, ...boxes });
 }
@@ -49,6 +51,9 @@ async function layout(width, height) {
     await page.locator('.detail-window').evaluate(n => { n.dataset.originalHeight = n.style.maxHeight; n.style.maxHeight = 'none'; });
     await page.locator('.detail-window').screenshot({ path: path.join(output, '02-full-layout.png') });
     await page.locator('.detail-window').evaluate(n => { n.style.maxHeight = n.dataset.originalHeight; n.scrollTop = 0; });
+    await page.locator('#edit-layout').click(); await shot('09-layout-editor');
+    await page.locator('#manage-widgets').click(); await page.locator('#widget-manager details').evaluate(n => n.open = true); await shot('10-card-controls');
+    await page.locator('#layout-cancel').click();
   });
   await check('原位体验分类与等级资格、时长未记录及0有区别', async () => {
     await button('体验分类 新游戏+ ⌄').click(); await button('新作开荒').click(); assert.equal(await page.locator('#priority-field').isVisible(), true); assert.equal(await page.locator('#grade-field').isVisible(), false);
