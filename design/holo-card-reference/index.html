@@ -1,43 +1,60 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<title>小丑牌特殊卡效果 · 闪箔 / 镭射 / 多彩</title>
-<link rel="stylesheet" href="holo.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>栖域 · 卡面材质参考</title>
+  <link rel="stylesheet" href="holo.css">
 </head>
 <body>
-<header>
-  <h1>小丑牌特殊卡效果 · 闪箔 / 镭射 / 多彩</h1>
-  <p>来源：B 站 @左右横条的酸葡萄《小丑牌特殊卡效果 Shader 1 / 2 / 4》。命名沿用游戏内的三种卡牌版本：闪箔（Foil）、镭射（Holographic）、多彩（Polychrome）。三个效果都按视频里露出的 GLSL 逐字还原；视频没露出的收尾行在 <code>SOURCE-README.md</code> 里标为「推断」。卡片封面是原创合成图，不含任何游戏素材。</p>
-</header>
-<main>
-  <section class="cards">
-    <figure class="card" data-kind="foil">
-      <canvas id="cv-foil" width="480" height="720"></canvas>
-      <figcaption><b>闪箔</b><span>Shader 1 · BV1Tr42137Lz</span></figcaption>
-    </figure>
-    <figure class="card" data-kind="holo">
-      <canvas id="cv-holo" width="480" height="720"></canvas>
-      <figcaption><b>镭射</b><span>Shader 4 · BV1ep421S7Hv</span></figcaption>
-    </figure>
-    <figure class="card" data-kind="poly">
-      <canvas id="cv-poly" width="480" height="720"></canvas>
-      <figcaption><b>多彩</b><span>Shader 2 · BV1CH4y1A7aW</span></figcaption>
-    </figure>
-  </section>
-  <section class="panel">
-    <label>偏转强度 delta<input id="delta" type="range" min="0" max="1" step="0.01" value="0.9"><output id="deltaOut"></output></label>
-    <label>网格密度 gridSize<input id="grid" type="range" min="0.4" max="3" step="0.01" value="1.25"><output id="gridOut"></output></label>
-    <label>动画速度<input id="speed" type="range" min="0" max="3" step="0.01" value="1"><output id="speedOut"></output></label>
-    <button id="toggle">关闭特效</button>
-  </section>
-  <section class="source">
-    <h2 id="srcTitle">闪箔 · fragment shader</h2>
-    <p class="hint">点任一张卡看它的源码；鼠标移到卡上会倾斜并驱动光线偏移。</p>
-    <pre id="src"></pre>
-  </section>
-</main>
-<script src="holo.js"></script>
+  <main>
+    <header>
+      <span class="eyebrow">栖域 / 独立材质预览</span>
+      <h1>闪箔、镭射与多彩</h1>
+      <p>移动鼠标观察反光。三张卡片使用同一底图，也可以换成自己的封面。</p>
+    </header>
+    <section class="cards" aria-label="三种卡面材质">
+      <figure class="card" data-kind="foil" tabindex="0" aria-label="闪箔，方向键调整反光">
+        <div class="card-face"><canvas id="cv-foil" width="480" height="720" aria-label="闪箔预览"></canvas></div>
+        <figcaption><b>闪箔 <small>FOIL</small></b><span>银白细环 · 金属光束</span></figcaption>
+      </figure>
+      <figure class="card" data-kind="holo" tabindex="0" aria-label="镭射，方向键调整反光">
+        <div class="card-face"><canvas id="cv-holo" width="480" height="720" aria-label="镭射预览"></canvas></div>
+        <figcaption><b>镭射 <small>HOLOGRAPHIC</small></b><span>柔和色散 · 明暗交错</span></figcaption>
+      </figure>
+      <figure class="card" data-kind="poly" tabindex="0" aria-label="多彩，方向键调整反光">
+        <div class="card-face"><canvas id="cv-poly" width="480" height="720" aria-label="多彩预览"></canvas></div>
+        <figcaption><b>多彩 <small>POLYCHROME</small></b><span>宽幅光谱 · 保留牌面</span></figcaption>
+      </figure>
+    </section>
+    <section class="panel" aria-label="预览控制">
+      <div class="controls">
+        <label>反光强度 <output id="strengthOut" for="strength">65%</output><input id="strength" type="range" min="0" max="100" step="1" value="65"></label>
+        <label>流动速度 <output id="speedOut" for="speed">35%</output><input id="speed" type="range" min="0" max="100" step="1" value="35"></label>
+        <label class="texture-toggle"><input id="etching" type="checkbox">原视频镭射刻纹</label>
+      </div>
+      <div class="actions">
+        <button id="compare" type="button" aria-pressed="false">查看原图</button>
+        <button id="motion" type="button" aria-pressed="true">暂停流动</button>
+        <label class="file-button" for="coverFile" tabindex="0">更换底图<input id="coverFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
+        <button id="reset" class="quiet" type="button">恢复默认</button>
+      </div>
+      <p id="message" role="status" aria-live="polite"></p>
+    </section>
+    <details class="source">
+      <summary>参考视频与实现</summary>
+      <nav aria-label="参考视频">
+        <a href="https://www.bilibili.com/video/BV1Tr42137Lz" target="_blank" rel="noreferrer">闪箔 · Shader 1 ↗</a>
+        <a href="https://www.bilibili.com/video/BV1ep421S7Hv" target="_blank" rel="noreferrer">镭射 · Shader 4 ↗</a>
+        <a href="https://www.bilibili.com/video/BV1CH4y1A7aW" target="_blank" rel="noreferrer">多彩 · Shader 2 ↗</a>
+      </nav>
+      <p>参考：B站「左右横条的酸葡萄」。效果为画面与局部公式的校准实现，并非原工程逐字复刻；默认不显示网格或网点。底图为本地合成图，更换图片只用于本页预览。</p>
+      <h2 id="srcTitle">闪箔 · fragment shader</h2>
+      <pre id="src"></pre>
+    </details>
+  </main>
+  <script src="shaders.js"></script>
+  <script src="fixtures.js"></script>
+  <script src="holo.js"></script>
 </body>
 </html>
-
