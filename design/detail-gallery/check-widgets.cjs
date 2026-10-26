@@ -56,6 +56,8 @@ async function ready() {
 }
 
 async function enterEdit() {
+  await widget('cover').locator('img').click({ button: 'right' });
+  assert.equal(await page.locator('#card-context-menu').isVisible(), true, '右键封面打开卡片菜单');
   await page.locator('#edit-layout').click();
   assert.equal(await page.locator('#layout-tools').isVisible(), true, '进入布局编辑');
   assert.equal(await page.locator('#impression').evaluate(node => Boolean(node.closest('[inert]'))), true, '布局编辑期间业务内容禁止误操作');
@@ -83,7 +85,7 @@ async function captureLayout() {
     widgets: [...document.querySelectorAll('.widget[data-widget]')].map(node => {
       const css = getComputedStyle(node);
       return {
-        id: node.dataset.widget, hidden: node.hidden,
+        id: node.dataset.widget, hidden: node.hidden, size: node.dataset.size, color: node.dataset.color,
         width: node.hidden ? null : Math.round(node.getBoundingClientRect().width * 100) / 100,
         columns: [css.gridColumnStart, css.gridColumnEnd],
       };
@@ -201,7 +203,7 @@ async function reloadDefaults() {
 (async () => {
   assert.ok(fs.existsSync(path.join(directory, 'index.html')), '参数应为含 index.html 的组装预览目录');
   fs.mkdirSync(output, { recursive: true });
-  for (const file of ['index.html', 'preview.css', 'preview.js', 'layout.js']) {
+  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js']) {
     report.testedFiles[file] = createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex');
   }
   server = http.createServer((request, response) => {
