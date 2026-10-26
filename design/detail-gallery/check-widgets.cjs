@@ -14,7 +14,7 @@ if (!process.argv[2]) {
 
 const directory = path.resolve(process.argv[2]);
 const output = path.join(directory, 'screenshots');
-const widgetIds = ['cover', 'experience', 'hours', 'platform', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'count', 'review'];
+const widgetIds = ['cover', 'grade', 'hours', 'platform', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'count', 'review'];
 const fieldIds = ['original', 'year', 'date', 'creator', 'source'];
 const report = {
   passed: false, scope: 'design-prototype', productionPersistenceValidated: false,
@@ -58,6 +58,7 @@ async function ready() {
 async function enterEdit() {
   await widget('cover').locator('img').click({ button: 'right' });
   assert.equal(await page.locator('#card-context-menu').isVisible(), true, '右键封面打开卡片菜单');
+  await page.locator('#context-appearance').click();
   await page.locator('#edit-layout').click();
   assert.equal(await page.locator('#layout-tools').isVisible(), true, '进入布局编辑');
   assert.equal(await page.locator('#impression').evaluate(node => Boolean(node.closest('[inert]'))), true, '布局编辑期间业务内容禁止误操作');
@@ -99,14 +100,22 @@ async function captureContent() {
     impression: document.querySelector('#impression').value,
     review: document.querySelector('#review-body textarea').value,
     facts: [...document.querySelectorAll('[data-field-row]')].map(node => [node.dataset.fieldRow, node.textContent]),
-    photos: [...document.querySelectorAll('.gallery-photo')].map(node => ({
-      src: node.querySelector('img').getAttribute('src'), caption: node.querySelector('figcaption').textContent,
-    })),
+    photos: previewDetail.photos.map(photo => ({ src: photo.src, caption: photo.caption })),
+    galleryMode: document.querySelector('.gallery-card').dataset.galleryMode,
+    rating: document.querySelector('#grade-value').textContent,
+    state: document.querySelector('#current-state').textContent,
+    priority: document.querySelector('#priority-value').textContent,
     hours: document.querySelector('#hours-value').textContent,
     count: document.querySelector('#count-value').textContent,
     platforms: document.querySelector('#platform-list').textContent,
     lastRun: [document.querySelector('#last-run-value').textContent, document.querySelector('#last-run-value').getAttribute('datetime')],
   }));
+}
+
+async function writeImpression(text) {
+  await widget('impression').click({ button: 'right', position: { x: 12, y: 12 } });
+  await page.locator('#context-impression').fill(text);
+  await page.locator('[data-content-save=impression]').click();
 }
 
 async function resize(id, size) {
@@ -205,7 +214,7 @@ async function reloadDefaults() {
 (async () => {
   assert.ok(fs.existsSync(path.join(directory, 'index.html')), '参数应为含 index.html 的组装预览目录');
   fs.mkdirSync(output, { recursive: true });
-  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js', 'assets/platform-icons.js']) {
+  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js', 'card-content.js', 'assets/platform-icons.js']) {
     report.testedFiles[file] = createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex');
   }
   server = http.createServer((request, response) => {
@@ -276,6 +285,10 @@ async function reloadDefaults() {
     assert.equal(await page.locator('#layout-empty').isVisible(), false);
     for (const id of fieldIds) assert.equal(await widget('facts').locator('[data-field-row="' + id + '"]').isVisible(), true, '资料行默认显示：' + id);
     assert.equal(await widget('facts').locator('.widget[data-widget=tags]').count(), 0, '标签为独立卡片');
+    assert.equal(await page.locator('.experience-card,[data-widget=experience]').count(), 0, '体验独立卡已移除');
+    assert.equal(await widget('grade').locator('#grade-value').innerText(), '9.0');
+    assert.equal(await widget('footprint').locator('#current-state').innerText(), '新游戏+');
+    assert.equal(await page.locator('#impression').getAttribute('readonly'), '', '卡面印象保持只读');
     initialLayout = await captureLayout();
     initialContent = await captureContent();
     await layout(1440, 1060, '默认宽屏');
@@ -307,11 +320,11 @@ async function reloadDefaults() {
     assert.deepEqual(await captureLayout(), initialLayout);
   });
 
-  await check('浏览器鼠标按住拖动可将资料卡移至体验卡之前', async () => {
+  await check('浏览器鼠标按住拖动可将资料卡移至评分卡之前', async () => {
     await enterEdit();
     const start = await order(), remaining = start.filter(id => id !== 'facts');
-    await mouseDrag('facts', 'experience', 'before');
-    assert.deepEqual(await order(), moved(start, 'facts', remaining.indexOf('experience')), '鼠标落在上半放到目标前');
+    await mouseDrag('facts', 'grade', 'before');
+    assert.deepEqual(await order(), moved(start, 'facts', remaining.indexOf('grade')), '鼠标落在上半放到目标前');
     report.browserMouseDragValidated = true;
     report.dragValidation = 'Browser mouse down/move/up plus HTML DragEvent dispatch paths';
     report.unverified = ['原生Electron/真实触屏拖动未验证'];
@@ -331,7 +344,7 @@ async function reloadDefaults() {
     await action('facts', 'move-down').focus();
     await page.keyboard.press('Enter');
     assert.deepEqual(await order(), start, '键盘下移一位');
-    const source = 'review', target = 'experience';
+    const source = 'review', target = 'grade';
     await drag(source, target, 'before');
     assert.deepEqual(await order(), moved(start, source, start.indexOf(target)), '落在上半放到目标前');
     const beforeSecond = await order(), remaining = beforeSecond.filter(id => id !== source);
@@ -373,7 +386,7 @@ async function reloadDefaults() {
   await check('字段隐藏保留内容，取消只回退布局', async () => {
     const values = await widget('facts').locator('[data-field-row]').evaluateAll(nodes => nodes.map(node => [node.dataset.fieldRow, node.textContent]));
     const impression = '取消布局时，这条新输入的印象仍应保留。';
-    await page.locator('#impression').fill(impression);
+    await writeImpression(impression);
     await enterEdit();
     await fieldManager();
     for (const id of fieldIds) {
@@ -400,9 +413,9 @@ async function reloadDefaults() {
 
   await check('全部隐藏仍可找回，重置保留文字与临时照片', async () => {
     const impression = '恢复布局也保留这一页的文字和照片。';
-    await page.locator('#impression').fill(impression);
+    await writeImpression(impression);
     await page.locator('#photo-files').setInputFiles(path.join(directory, 'assets', 'shot-1.jpg'));
-    await page.waitForFunction(count => document.querySelectorAll('.gallery-photo').length === count, initialContent.photos.length + 1);
+    await page.waitForFunction(count => parseInt(document.querySelector('#photo-count').textContent) === count, initialContent.photos.length + 1);
     const content = await captureContent();
     await enterEdit();
     await manager();

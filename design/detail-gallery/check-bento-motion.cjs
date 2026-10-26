@@ -15,16 +15,16 @@ if (!process.argv[2]) {
 
 const directory = path.resolve(process.argv[2]);
 const output = path.join(directory, 'screenshots');
-const files = ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js'];
-const ids = ['cover', 'experience', 'hours', 'platform', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'count', 'review'];
-const spans = { cover: [2, 3], experience: [2, 1], hours: [1, 1], platform: [1, 1], count: [1, 1], facts: [2, 1], impression: [3, 1], footprint: [1, 2], gallery: [2, 1], tags: [1, 1], review: [4, 1] };
-const mediumSpans = { cover: [1, 3], experience: [1, 1], hours: [1, 1], platform: [1, 1], count: [1, 1], facts: [2, 1], impression: [2, 1], footprint: [1, 2], gallery: [1, 1], tags: [1, 1], review: [2, 1] };
+const files = ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js', 'card-content.js'];
+const ids = ['cover', 'grade', 'hours', 'platform', 'facts', 'impression', 'footprint', 'gallery', 'tags', 'count', 'review'];
+const spans = { cover: [2, 3], grade: [2, 1], hours: [1, 1], platform: [1, 1], count: [1, 1], facts: [2, 1], impression: [3, 1], footprint: [1, 2], gallery: [2, 1], tags: [1, 1], review: [4, 1] };
+const mediumSpans = { cover: [1, 3], grade: [1, 1], hours: [1, 1], platform: [1, 1], count: [1, 1], facts: [2, 1], impression: [2, 1], footprint: [1, 2], gallery: [1, 1], tags: [1, 1], review: [2, 1] };
 const report = {
   passed: false, scope: 'isolated-static-design-preview', startedAt: new Date().toISOString(),
   testedFiles: {}, checks: [], layouts: [], motion: [], colorContrast: [], surfaceContrast: [], screenshots: [], errors: [], consoleErrors: [],
   externalRequests: [], failedLocalRequests: [], localStorageWrites: [], storageInstrumentationErrors: [],
   productionPersistenceValidated: false,
-  unverified: ['原生 Electron、真实触屏和真实收藏持久化未验证', '原生 select 展开选项和逐像素背景对比未验证；卡片双色渐变按实际 computed backgroundImage 以 1% 间隔采样，页面径向渐变不纳入文字背景'],
+  unverified: ['原生 Electron、真实触屏和真实收藏持久化未验证', '图片上方的相册标题与半透明菜单按钮未逐像素验证；原生 select 展开选项和逐像素背景对比未验证；卡片双色渐变按实际 computed backgroundImage 以 1% 间隔采样，页面径向渐变不纳入文字背景'],
 };
 let temporary, server, browser, context, page, base;
 const widget = id => page.locator('.widget[data-widget="' + id + '"]');
@@ -234,7 +234,7 @@ function paintedContrast(nodes, pseudo) {
 
 async function contrastSamples(label, probes) {
   for (const [id, selector, category, pseudo = null] of probes) {
-    const samples = await widget(id).locator(selector).evaluateAll(paintedContrast, pseudo);
+    const samples = await (id === 'menu' ? menu() : widget(id)).locator(selector).evaluateAll(paintedContrast, pseudo);
     assert.ok(samples.length > 0, label + ' 有实际可见样本：' + id + ' ' + selector);
     for (const sample of samples) {
       report.colorContrast.push({ label, selector, category, pseudo, minimum: 4.5, ...sample, id });
@@ -249,6 +249,12 @@ async function rightClick(id) {
   await card.click({ button: 'right', position: { x: 12, y: 35 } });
   assert.equal(await menu().isVisible(), true, '实际鼠标右键打开菜单');
   await settle();
+}
+
+async function appearance(id) {
+  await rightClick(id);
+  await page.locator('#context-appearance').click();
+  assert.equal(await menu().getAttribute('data-page'), 'appearance');
 }
 
 async function reset() {
@@ -297,7 +303,7 @@ async function pressButton(selector, label) {
   for (const file of files) assert.equal(createHash('sha256').update(fs.readFileSync(path.join(fixture, file))).digest('hex'), report.testedFiles[file], '隔离副本与被测哈希一致：' + file);
   fs.cpSync(path.join(directory, 'assets'), path.join(fixture, 'assets'), { recursive: true, dereference: true });
   assert.equal(createHash('sha256').update(fs.readFileSync(path.join(fixture, 'assets/platform-icons.js'))).digest('hex'), report.testedFiles['assets/platform-icons.js'], '隔离图标数据副本与被测哈希一致');
-  report.isolation = { temporaryRoot: temporary, fixture: 'Copy of supplied static six files and assets only', browserProfile: 'Playwright ephemeral browser context', storagePolicy: 'Record and block all localStorage writes', realApplicationStarted: false, collectionAccess: false };
+  report.isolation = { temporaryRoot: temporary, fixture: 'Copy of supplied static seven files and assets only', browserProfile: 'Playwright ephemeral browser context', storagePolicy: 'Record and block all localStorage writes', realApplicationStarted: false, collectionAccess: false };
   const inside = (root, candidate) => { const relative = path.relative(root, candidate); return relative && relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative); };
   server = http.createServer((request, response) => {
     try {
@@ -355,9 +361,9 @@ async function pressButton(selector, label) {
   await check('桌面真实四列、四种宽度与至少六种宽高组合的错落 Bento', async () => {
     assert.deepEqual(await page.locator('.widget[data-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.widget)), ids);
     const boxes = await inspectLayout('desktop-default', 4, true);
-    near(boxes.cover.y, boxes.experience.y, '封面和体验同顶');
-    near(boxes.experience.x, boxes.facts.x, '体验和资料位于右侧同列');
-    near(boxes.hours.y - boxes.experience.bottom, 16, '体验和统计上下间距');
+    near(boxes.cover.y, boxes.grade.y, '封面和体验同顶');
+    near(boxes.grade.x, boxes.facts.x, '体验和资料位于右侧同列');
+    near(boxes.hours.y - boxes.grade.bottom, 16, '体验和统计上下间距');
     near(boxes.facts.y - boxes.hours.bottom, 16, '统计和资料上下间距');
     near(boxes.cover.bottom, boxes.facts.bottom, '封面跨过右侧三行');
     near(boxes.hours.y, boxes.platform.y, '时长和拥有平台并排');
@@ -385,10 +391,10 @@ async function pressButton(selector, label) {
         assert.ok(image.height <= Math.min((width <= 700 ? 844 : 1060) * .62, 520) + 1, '窄窗封面按可用高度显示');
         assert.ok(image.y >= boxes.cover.y - 1 && image.bottom <= boxes.cover.bottom + 1, '窄窗封面图片完整落在卡片内');
       } else if (width <= 1050) {
-        near(boxes.cover.y, boxes.experience.y, '中窗封面与体验同顶');
-        near(boxes.experience.x, boxes.hours.x, '中窗体验与统计同列');
+        near(boxes.cover.y, boxes.grade.y, '中窗封面与体验同顶');
+        near(boxes.grade.x, boxes.hours.x, '中窗体验与统计同列');
         near(boxes.hours.x, boxes.platform.x, '中窗时长与平台纵向同列');
-        near(boxes.hours.y - boxes.experience.bottom, 16, '中窗体验与时长间距');
+        near(boxes.hours.y - boxes.grade.bottom, 16, '中窗体验与时长间距');
         near(boxes.platform.y - boxes.hours.bottom, 16, '中窗时长与平台纵向间距');
         near(boxes.cover.bottom, boxes.platform.bottom, '中窗封面跨右侧三卡');
         near(boxes.footprint.y, boxes.gallery.y, '中窗足迹与相册同顶');
@@ -400,57 +406,39 @@ async function pressButton(selector, label) {
     await reset();
   });
 
-  await check('明暗卡片有真实亮度层次，正文、辅助文字和表单均达 4.5 对比度', async () => {
+  await check('卡片明暗层次、正文与不透明输入表面计算对比度达到4.5', async () => {
     const surfaces = await page.locator('.widget[data-widget]').evaluateAll(paintedContrast, null);
     report.surfaceContrast = surfaces;
     const darkest = Math.min(...surfaces.map(surface => surface.luminance.max));
     const bright = surfaces.filter(surface => surface.luminance.min >= .30);
-    assert.ok(bright.length >= 1, '至少一张在完整渐变范围内保持明亮的卡片');
-    assert.ok(surfaces.filter(surface => surface.luminance.max <= .15).length >= 3, '至少三张实际暗卡');
-    for (const surface of bright) {
-      surface.ratioToDarkest = (surface.luminance.min + .05) / (darkest + .05);
-      assert.ok(surface.ratioToDarkest >= 4.5, '亮卡与深色表面有明确对比：' + surface.id);
-    }
+    assert.ok(bright.length >= 1); assert.ok(surfaces.filter(surface => surface.luminance.max <= .15).length >= 3);
+    for (const surface of bright) { surface.ratioToDarkest = (surface.luminance.min + .05) / (darkest + .05); assert.ok(surface.ratioToDarkest >= 4.5); }
     await contrastSamples('default', [
-      ...ids.filter(id => !['cover', 'count'].includes(id)).map(id => [id, 'h2', 'normal']),
-      ['experience', '#current-state', 'normal'], ['experience', '.eyebrow,.rank-fields label>span', 'auxiliary'],
-      ['experience', 'select', 'form'], ['facts', 'dd', 'normal'], ['facts', 'dt,.edit-button,.source-link', 'auxiliary'],
-      ['hours', '.stat-value', 'normal'], ['hours', '.edit-button,.stat-value small', 'auxiliary'],
-      ['hours', '#last-run-value', 'auxiliary'],
-      ['platform', '#platform-list .platform-badge,#edit-platforms', 'normal'],
-      ['tags', '.tag-row>span,.tag-pill,.edit-button', 'auxiliary'],
-      ['impression', '#impression-count', 'auxiliary'], ['impression', 'textarea', 'form'], ['impression', 'textarea', 'form-placeholder', '::placeholder'],
-      ['footprint', 'strong', 'normal'], ['footprint', 'time,li p,.edit-button', 'auxiliary'],
-      ['gallery', '#add-photos', 'normal'], ['gallery', '#photo-count,figcaption', 'auxiliary'],
-      ['review', '#review-count', 'auxiliary'],
+      ...ids.filter(id => !['cover','count','gallery'].includes(id)).map(id => [id,'h2','normal']),
+      ['grade','#grade-value','normal'], ['grade','#grade-unit','auxiliary'],
+      ['footprint','#current-state,#priority-value','normal'], ['footprint','.eyebrow,#priority-field>span,time,li p','auxiliary'],
+      ['facts','dd','normal'], ['facts','dt,.source-link','auxiliary'],
+      ['hours','.stat-value','normal'], ['hours','.stat-value small,#last-run-value','auxiliary'],
+      ['platform','#platform-list .platform-badge','normal'], ['tags','.tag-row>span,.tag-pill','auxiliary'],
+      ['impression','#impression-count','auxiliary'], ['impression','textarea','form'], ['impression','textarea','form-placeholder','::placeholder'],
+      ['footprint','li strong','normal'], ['review','#review-count','auxiliary'],
     ]);
-    await page.locator('#experience-toggle').click();
-    await away();
-    await contrastSamples('classification-open', [['experience', '.state-choices button', 'normal']]);
-    await page.locator('#experience-toggle').click();
-    await rightClick('cover');
-    await page.locator('#context-manage').click();
-    await page.locator('[data-toggle-widget="count"]').setChecked(true);
-    await page.locator('#layout-done').click();
-    await away();
-    await contrastSamples('restored-count', [['count', 'h2,.stat-value,.edit-button,.stat-value small', 'normal']]);
-    for (const selector of ['#edit-facts', '#edit-tags', '#edit-platforms', '[data-stat="hours"]', '[data-stat="count"]', '#add-footprint', '#review-toggle']) await page.locator(selector).click();
-    await away();
-    await contrastSamples('editors-open', [
-      ['facts', '.facts-edit label', 'auxiliary'], ['facts', '.facts-edit input,.facts-edit button', 'form'],
-      ['tags', '.tag-editor label', 'auxiliary'], ['tags', '.tag-editor input,.tag-editor button', 'form'],
-      ['platform', '#platform-editor button,#platform-editor input', 'form'],
-      ['platform', '#platform-editor input', 'form-placeholder', '::placeholder'],
-      ['hours', '.stat-editor input,.stat-editor button', 'form'], ['hours', '.stat-editor input[type=number]', 'form-placeholder', '::placeholder'],
-      ['count', '.stat-editor input,.stat-editor button', 'form'], ['count', '.stat-editor input', 'form-placeholder', '::placeholder'],
-      ['footprint', '.footprint-editor input,.footprint-editor button', 'form'], ['footprint', '.footprint-editor input', 'form-placeholder', '::placeholder'],
-      ['review', '#review-body textarea', 'form'], ['review', '#review-body textarea', 'form-placeholder', '::placeholder'], ['review', '#review-body small', 'auxiliary'],
-    ]);
+    await appearance('cover'); await page.locator('#context-manage').click();
+    await page.locator('[data-toggle-widget=count]').setChecked(true); await page.locator('#layout-done').click(); await away();
+    await contrastSamples('restored-count', [['count','h2,.stat-value,.stat-value small','normal']]);
+    for (const id of ['grade','facts','tags','hours','count','impression','review','platform','footprint']) {
+      await rightClick(id);
+      if (id === 'footprint') await page.locator('.context-note-editor summary').click();
+      await contrastSamples('content-editor-' + id, [['menu','input:not([type=range]):not([type=color]),textarea,select','form']]);
+      await page.locator('#context-close').click();
+    }
+    await page.locator('#review-toggle').click();
+    await contrastSamples('review-open', [['review','#review-body textarea','form'],['review','#review-body small','auxiliary']]);
     await reset();
   });
 
   await check('默认渐变改为自定义纯色后恢复，不改尺寸、顺序或内容', async () => {
-    const surface = () => widget('experience').evaluate(node => {
+    const surface = () => widget('grade').evaluate(node => {
       const css = getComputedStyle(node);
       return { image: css.backgroundImage, color: css.backgroundColor, border: css.borderColor };
     });
@@ -459,19 +447,19 @@ async function pressButton(selector, label) {
       photos: [...grid.querySelectorAll('.gallery-photo img')].map(image => image.getAttribute('src')),
     }));
     const original = await surface(), layout = await layoutState(), stable = await geometry(), savedContent = await content();
-    assert.ok(original.image.startsWith('linear-gradient('), '默认体验卡真实使用渐变');
-    await rightClick('experience');
+    assert.ok(original.image.startsWith('linear-gradient('), '默认评分卡真实使用渐变');
+    await appearance('grade');
     await page.locator('#card-color-hex').fill('#FFFFFF');
     await page.locator('#card-color-apply').click();
     await away();
     const white = await surface();
     assert.equal(white.image, 'none', '自定义白色移除实际背景渐变');
     assert.equal(white.color, 'rgb(255, 255, 255)', '自定义白色实际可见');
-    assert.deepEqual(await layoutState(), layout.map(card => card.id === 'experience' ? { ...card, color: '#FFFFFF' } : card), '仅当前卡片色值改变');
+    assert.deepEqual(await layoutState(), layout.map(card => card.id === 'grade' ? { ...card, color: '#FFFFFF' } : card), '仅当前卡片色值改变');
     sameGeometry(stable, await geometry(), '自定义纯色卡位');
     assert.deepEqual(await content(), savedContent, '自定义纯色保留业务内容');
-    await contrastSamples('custom-white-surface', [['experience', 'h2,#current-state', 'normal'], ['experience', '.eyebrow,.rank-fields label>span', 'auxiliary'], ['experience', 'select', 'form']]);
-    await rightClick('experience');
+    await contrastSamples('custom-white-surface', [['grade', 'h2,#grade-value', 'normal'], ['grade', '#grade-unit', 'auxiliary']]);
+    await appearance('grade');
     await page.locator('#context-default-color').click();
     await away();
     assert.deepEqual(await surface(), original, '恢复默认色同时恢复实际渐变和描边');
@@ -484,7 +472,7 @@ async function pressButton(selector, label) {
 
   await check('真实 hover 中间帧、上浮缩放终态、图标反馈与移出复位', async () => {
     assert.equal(await page.evaluate(() => matchMedia('(hover:hover) and (pointer:fine)').matches), true, 'Edge 细指针悬停环境');
-    const card = widget('experience'), icon = card.locator('.widget-icon').first();
+    const card = widget('grade'), icon = card.locator('.widget-icon').first();
     assert.ok(await page.locator('.widget-icon').count() >= 8, '至少八处卡片小图标');
     const start = await style(card), iconStart = await style(icon), stable = await geometry();
     identity(start, '未悬停');
@@ -519,11 +507,11 @@ async function pressButton(selector, label) {
   });
 
   await check('普通按钮与图标按钮实际按住时仅按钮缩小到 .98', async () => {
-    await pressButton('#edit-facts', '06-button-pressed');
+    await pressButton('#review-toggle', '06-button-pressed');
     await pressButton('.favorite.widget-icon', '07-icon-button-pressed');
   });
 
-  await check('输入按住不会触发整卡收缩，键盘焦点环实际可见且平滑 200ms', async () => {
+  await check('只读文字按住不触发整卡收缩，键盘焦点环仍平滑可见', async () => {
     const input = page.locator('#impression'), card = widget('impression');
     await input.scrollIntoViewIfNeeded();
     await away();
@@ -566,26 +554,27 @@ async function pressButton(selector, label) {
 
   await check('右键菜单与布局编辑禁用卡片 transform 且进出卡位稳定', async () => {
     const stable = await geometry();
-    await widget('experience').hover({ position: { x: 35, y: 70 } });
+    await widget('grade').hover({ position: { x: 35, y: 70 } });
     await settle(280);
-    await rightClick('experience');
+    await rightClick('grade');
     assert.equal(await page.locator('.detail-window').evaluate(node => node.classList.contains('card-settings-open')), true);
-    for (const id of ['experience', 'facts', 'cover']) {
+    for (const id of ['grade', 'facts', 'cover']) {
       await widget(id).hover({ position: { x: 10, y: 20 }, force: true });
       identity(await style(widget(id)), '菜单打开：' + id);
     }
     sameGeometry(stable, await geometry(), '菜单打开卡位');
     await shot('11-menu-no-motion');
+    await page.locator('#context-appearance').click();
     await page.locator('#edit-layout').click();
     assert.equal(await page.locator('#layout-tools').isVisible(), true);
     assert.equal(await menu().isVisible(), false);
-    for (const id of ['experience', 'facts', 'cover']) {
+    for (const id of ['grade', 'facts', 'cover']) {
       await widget(id).hover({ position: { x: 10, y: 35 } });
       identity(await style(widget(id)), '布局编辑：' + id);
     }
     sameGeometry(stable, await geometry(), '进入布局编辑卡位');
-    await rightClick('experience');
-    identity(await style(widget('experience')), '编辑中打开菜单');
+    await rightClick('grade');
+    identity(await style(widget('grade')), '编辑中打开菜单');
     sameGeometry(stable, await geometry(), '编辑菜单卡位');
     await shot('12-editing-no-motion');
     await page.keyboard.press('Escape');
@@ -597,9 +586,9 @@ async function pressButton(selector, label) {
 
   await check('合成长资料撑高 auto 行且反复 hover 不累积增高或溢出', async () => {
     const before = await widget('facts').boundingBox();
-    await page.locator('#edit-facts').click();
-    await page.locator('[data-input="original"]').fill('合成验收资料用于检查换行与内容撑高。'.repeat(24));
-    await page.locator('#save-facts').click();
+    await rightClick('facts');
+    await page.locator('#context-fact-original').fill('合成验收资料用于检查换行与内容撑高。'.repeat(24));
+    await page.locator('[data-content-save=facts]').click();
     const boxes = await inspectLayout('synthetic-long-content', 4);
     assert.ok(boxes.facts.height > before.height + 30, '长资料实际撑高卡片与网格行');
     const stable = await geometry();
@@ -616,17 +605,18 @@ async function pressButton(selector, label) {
   await check('尺寸实际变化及自定义卡片完成后的跨窗口无损回流', async () => {
     const widths = {};
     for (const size of ['small', 'medium', 'large']) {
-      await rightClick('facts');
+      await appearance('facts');
       await menu().locator('[data-menu-size="' + size + '"]').click();
       await away();
       widths[size] = (await widget('facts').boundingBox()).width;
     }
     assert.ok(widths.small < widths.medium && widths.medium < widths.large, '尺寸选项确实改变卡片宽度');
     report.sizeWidths = widths;
-    await rightClick('facts');
+    await appearance('facts');
     await page.locator('#card-color-hex').fill('#394B61');
     await page.locator('#card-color-apply').click();
     await rightClick('facts');
+    await page.locator('#context-appearance').click();
     await page.locator('#edit-layout').click();
     await widget('footprint').locator('[data-action="hide"]').click();
     await widget('facts').locator('[data-action="move-up"]').click();
@@ -654,7 +644,7 @@ async function pressButton(selector, label) {
     await page.mouse.down();
     try {
       await settle(280);
-      for (const target of [widget('experience'), button, widget('experience').locator('.widget-icon').first()]) {
+      for (const target of [widget('grade'), button, widget('grade').locator('.widget-icon').first()]) {
         const value = await style(target);
         identity(value, '减少动态');
         assert.ok(value.transitionDuration.split(',').every(item => parseFloat(item) <= 0.001), '减少动态停用过渡');
@@ -673,7 +663,7 @@ async function pressButton(selector, label) {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
   });
 
-  await check('六个预览文件及图标数据哈希稳定、无外网、无 storage 写入且无页面错误', async () => {
+  await check('七个预览文件及图标数据哈希稳定、无外网、无 storage 写入且无页面错误', async () => {
     await page.evaluate(() => window.__flushBentoStorageReports());
     assert.deepEqual(await page.evaluate(() => Object.keys(localStorage)), [], '本地存储保持空白');
     assert.deepEqual(report.localStorageWrites, [], '所有生命周期未尝试写入 localStorage');

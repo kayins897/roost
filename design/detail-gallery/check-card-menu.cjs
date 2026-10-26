@@ -15,7 +15,7 @@ if (!process.argv[2]) {
 const directory = path.resolve(process.argv[2]);
 const output = path.join(directory, 'screenshots');
 const sizes = {
-  cover: ['small', 'medium', 'large'], experience: ['small', 'medium', 'large'],
+  cover: ['small', 'medium', 'large'], grade: ['small', 'medium', 'large'],
   facts: ['small', 'medium', 'large'], hours: ['medium', 'large'], platform: ['medium', 'large'], count: ['medium', 'large'],
   tags: ['small', 'medium', 'large'], impression: ['small', 'medium', 'large'],
   footprint: ['small', 'medium', 'large'], gallery: ['small', 'medium', 'large'], review: ['small', 'medium'],
@@ -78,9 +78,11 @@ async function captureContent() {
     facts: [...document.querySelectorAll('[data-field-row]')].map(node => [node.dataset.fieldRow, node.textContent]),
     tags: document.querySelector('#tag-rows').textContent,
     footprints: document.querySelector('#footprints').textContent,
-    photos: [...document.querySelectorAll('.gallery-photo')].map(node => ({
-      src: node.querySelector('img').getAttribute('src'), caption: node.querySelector('figcaption').textContent,
-    })),
+    photos: previewDetail.photos.map(photo => ({ src: photo.src, caption: photo.caption })),
+    galleryMode: document.querySelector('.gallery-card').dataset.galleryMode,
+    rating: document.querySelector('#grade-value').textContent,
+    state: document.querySelector('#current-state').textContent,
+    priority: document.querySelector('#priority-value').textContent,
     hours: document.querySelector('#hours-value').textContent,
     count: document.querySelector('#count-value').textContent,
     platforms: document.querySelector('#platform-list').textContent,
@@ -99,7 +101,7 @@ function assertOnlyCardChanged(before, after, id, properties) {
 async function assertBrowsing() {
   assert.equal(await page.locator('#layout-tools').isVisible(), false, '直接调整不进入整体布局编辑');
   assert.equal(await page.locator('.detail-window').evaluate(node => node.classList.contains('layout-editing')), false);
-  assert.equal(await page.locator('#impression').evaluate(node => Boolean(node.closest('[inert]'))), false, '浏览状态内容仍可编辑');
+  assert.equal(await page.locator('#impression').evaluate(node => Boolean(node.closest('[inert]'))), false, '浏览状态未锁定整卡内容');
 }
 
 async function rightClick(id, image = false) {
@@ -113,13 +115,32 @@ async function rightClick(id, image = false) {
   await settle();
 }
 
+async function openAppearance(id, image = false) {
+  await rightClick(id, image);
+  assert.equal(await menu().getAttribute('data-page'), 'content', '每卡默认进入内容页');
+  assert.equal(await menu().getAttribute('data-widget'), id, '菜单绑定当前卡');
+  assert.equal(await page.locator('#context-sizes').isVisible(), false, '默认内容页不摊开外观尺寸');
+  await page.locator('#context-appearance').click();
+  assert.equal(await menu().getAttribute('data-page'), 'appearance');
+}
+
+async function writeImpression(text) {
+  await rightClick('impression');
+  await page.locator('#context-impression').fill(text);
+  await page.locator('[data-content-save=impression]').click();
+}
+
 async function closeMenu() {
+  if (await menu().getAttribute('data-page') === 'appearance' && await page.locator('#context-back').isVisible()) {
+    await page.keyboard.press('Escape');
+    assert.equal(await menu().getAttribute('data-page'), 'content', 'Escape先从外观回到本卡内容');
+  }
   await page.keyboard.press('Escape');
   assert.equal(await menu().isVisible(), false, 'Escape 关闭菜单');
 }
 
 async function chooseSize(id, size) {
-  await rightClick(id, id === 'cover');
+  await openAppearance(id, id === 'cover');
   await menu().locator('[data-menu-size="' + size + '"]').click();
   await settle();
   assert.equal(await widget(id).getAttribute('data-size'), size, '直接应用当前卡尺寸');
@@ -127,7 +148,7 @@ async function chooseSize(id, size) {
 }
 
 async function customColor(id, color) {
-  await rightClick(id, id === 'cover');
+  await openAppearance(id, id === 'cover');
   await page.locator('#card-color-hex').fill(color);
   await page.locator('#card-color-apply').click();
   await settle();
@@ -153,7 +174,7 @@ async function assertColorApplied(id, expected) {
 }
 
 async function enterManage(id = 'cover') {
-  await rightClick(id, id === 'cover');
+  await openAppearance(id, id === 'cover');
   await page.locator('#context-manage').click();
   assert.equal(await menu().isVisible(), false);
   assert.equal(await page.locator('#layout-tools').isVisible(), true, '管理进入布局编辑');
@@ -212,7 +233,7 @@ async function menuBounds(label, point) {
 }
 
 async function contrast(id, selector, minimum = 4.5, pseudo = null) {
-  const result = await widget(id).locator(selector).first().evaluate((node, options) => {
+  const result = await (id === 'menu' ? menu() : widget(id)).locator(selector).first().evaluate((node, options) => {
     const parse = value => {
       const match = value.match(/^rgba?\(([^)]+)\)$/);
       if (!match) throw new Error('Unsupported computed color: ' + value);
@@ -239,7 +260,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
 (async () => {
   assert.ok(fs.existsSync(path.join(directory, 'index.html')), '参数应为含 index.html 的组装预览目录');
   fs.mkdirSync(output, { recursive: true });
-  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js', 'assets/platform-icons.js']) {
+  for (const file of ['index.html', 'preview.css', 'preview.js', 'card-menu.js', 'layout.js', 'platforms.js', 'card-content.js', 'assets/platform-icons.js']) {
     report.testedFiles[file] = createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex');
   }
   server = http.createServer((request, response) => {
@@ -325,7 +346,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   await check('每卡与封面图片可直接右键，鼠标位置打开菜单', async () => {
     await restoreOptionalCount();
     for (const id of widgetIds) {
-      await rightClick(id, id === 'cover');
+      await openAppearance(id, id === 'cover');
       assert.equal(await page.locator('#edit-layout').isVisible(), true, '调整布局位于菜单内');
       assert.equal(await menu().locator('#edit-layout').count(), 1);
       const options = await menu().locator('button[data-menu-size]').evaluateAll(nodes => nodes.filter(node => !node.hidden && !node.disabled && getComputedStyle(node).display !== 'none').map(node => node.dataset.menuSize));
@@ -349,9 +370,12 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await reloadDefaults();
   });
 
-  await check('所有受限尺寸直接生效且不进入整体编辑', async () => {
-    await restoreOptionalCount();
+  await check('单卡独立显示时每档尺寸实际生效且菜单不进入整体编辑', async () => {
     for (const id of widgetIds) {
+      await reloadDefaults();
+      await enterManage(id === 'count' ? 'cover' : id);
+      for (const candidate of widgetIds) await toggle(candidate).setChecked(candidate === id);
+      await page.locator('#layout-done').click();
       const geometries = [];
       for (const size of sizes[id]) {
         const before = await captureLayout();
@@ -364,6 +388,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
       }
       assert.equal(new Set(geometries).size, sizes[id].length, '每档尺寸实际改变卡片宽度或高度：' + id);
     }
+    await reloadDefaults();
     await chooseSize('cover', 'small');
     const small = await widget('cover').boundingBox();
     await chooseSize('cover', 'large');
@@ -377,7 +402,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await restoreOptionalCount();
     for (const id of widgetIds) {
       const before = await captureLayout(), current = before.widgets.find(card => card.id === id).color;
-      await rightClick(id, id === 'cover');
+      await openAppearance(id, id === 'cover');
       const presets = await menu().locator('button[data-menu-color]').evaluateAll(nodes => nodes.map(node => node.dataset.menuColor));
       assert.ok(presets.length >= 2, '提供多种预设色');
       for (const color of presets) assert.match(color, /^#[0-9a-f]{6}$/i);
@@ -402,7 +427,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
 
   await check('非法颜色保持原色并提供输入错误状态', async () => {
     const before = await captureLayout();
-    await rightClick('facts');
+    await openAppearance('facts');
     for (const invalid of ['', '#fff', '#12345g', 'ffffff', 'not-a-color']) {
       await page.locator('#card-color-hex').fill(invalid);
       await page.locator('#card-color-apply').click();
@@ -419,7 +444,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   });
 
   await check('恢复当前卡默认色保留尺寸、顺序、文字和其他颜色', async () => {
-    await page.locator('#impression').fill('恢复当前卡默认颜色，也应保留这段文字。');
+    await writeImpression('恢复当前卡默认颜色，也应保留这段文字。');
     await enterManage();
     await action('facts', 'move-down').click();
     await page.locator('#layout-done').click();
@@ -428,7 +453,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await customColor('tags', '#123456');
     await chooseSize('facts', 'large');
     const before = await captureLayout(), content = await captureContent();
-    await rightClick('facts');
+    await openAppearance('facts');
     await page.locator('#context-default-color').click();
     assert.equal(await menu().isVisible(), false, '恢复颜色后关闭菜单');
     const expected = initialLayout.widgets.find(card => card.id === 'facts').color;
@@ -440,28 +465,13 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await reloadDefaults();
   });
 
-  await check('白色自定义背景下正文、辅助文字与输入仍可读', async () => {
-    for (const id of ['facts', 'impression', 'hours', 'review']) {
-      await customColor(id, '#ffffff');
-      await assertColorApplied(id, '#ffffff');
+  await check('白色自定义卡片与右键内容表单文字仍可读', async () => {
+    for (const id of ['facts', 'impression', 'hours', 'review', 'grade']) { await customColor(id, '#ffffff'); await assertColorApplied(id, '#ffffff'); }
+    for (const [id, selector] of [['facts','h2'],['facts','dd'],['facts','dt'],['impression','#impression'],['impression','#impression-count'],['hours','#hours-value'],['hours','#last-run-value'],['grade','#grade-value']]) await contrast(id, selector);
+    for (const [id, selector] of [['facts','#context-fact-original'],['impression','#context-impression'],['hours','#context-hours'],['review','#context-review'],['grade','#context-rating']]) {
+      await rightClick(id); await contrast('menu', selector); await closeMenu();
     }
-    await contrast('facts', 'h2');
-    await contrast('facts', 'dd');
-    await contrast('facts', 'dt', 3);
-    await page.locator('#edit-facts').click();
-    await contrast('facts', '.facts-edit label', 3);
-    await contrast('facts', '.facts-edit input');
-    await contrast('impression', '#impression');
-    await contrast('impression', '#impression-count', 3);
-    await contrast('impression', '#impression', 3, '::placeholder');
-    await widget('hours').locator('[data-stat="hours"]').click();
-    await contrast('hours', '#hours-editor input');
-    await page.locator('#review-toggle').click();
-    await contrast('review', '#review-body textarea');
-    await contrast('review', '#review-body small', 3);
-    await widget('facts').scrollIntoViewIfNeeded();
-    await shot('06-white-readable');
-    await reloadDefaults();
+    await shot('06-white-readable'); await reloadDefaults();
   });
 
   await check('键盘右键、Escape回焦与外部点击、缩放、滚动关闭', async () => {
@@ -473,6 +483,9 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
         assert.equal(await widget(id).evaluate(node => document.activeElement === node), true, '卡片可键盘聚焦');
         await page.keyboard.press(key);
         assert.equal(await menu().isVisible(), true, key + ' 打开 ' + id);
+        assert.equal(await menu().getAttribute('data-page'), 'content');
+        await page.locator('#context-appearance').focus(); await page.keyboard.press('Enter');
+        assert.equal(await menu().getAttribute('data-page'), 'appearance');
         const options = await menu().locator('button[data-menu-size]').evaluateAll(nodes => nodes.map(node => node.dataset.menuSize));
         assert.deepEqual(options.sort(), [...sizes[id]].sort(), '键盘菜单使用当前聚焦卡片的受限尺寸');
         await page.locator('#card-color-hex').focus();
@@ -481,6 +494,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
         if (id === 'facts') {
           const before = await captureLayout(), color = key === 'Shift+F10' ? '#314159' : '#415926';
           await page.keyboard.press(key);
+          await page.locator('#context-appearance').click();
           await page.locator('#card-color-hex').fill(color);
           await page.locator('#card-color-apply').click();
           assert.equal(normalized(await widget(id).getAttribute('data-color')), color, '键盘菜单操作命中当前卡片');
@@ -490,17 +504,19 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
       }
     }
     await page.locator('#impression').click({ button: 'right', position: { x: 12, y: 12 } });
-    assert.equal(await menu().isVisible(), false, '文字输入框保留原生右键操作');
-    await page.keyboard.press('Escape');
-    await rightClick('cover', true);
+    assert.equal(await menu().isVisible(), true, '只读卡面文字仍可右键打开本卡内容');
+    assert.equal(await menu().getAttribute('data-widget'), 'impression');
+    assert.equal(await page.locator('#context-impression').isVisible(), true);
+    await closeMenu();
+    await openAppearance('cover', true);
     await page.mouse.click(2, 2);
     assert.equal(await menu().isVisible(), false, '点击菜单外关闭');
-    await rightClick('cover', true);
+    await openAppearance('cover', true);
     await page.setViewportSize({ width: 1439, height: 1060 });
     await settle();
     assert.equal(await menu().isVisible(), false, '窗口改变大小关闭');
     await page.setViewportSize({ width: 1440, height: 1060 });
-    await rightClick('cover', true);
+    await openAppearance('cover', true);
     const scroll = await page.locator('.detail-window').evaluate(node => {
       const before = node.scrollTop; node.scrollTop = before + 120; return { before, after: node.scrollTop };
     });
@@ -541,7 +557,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   await check('菜单进入整体编辑，底部工具条与取消恢复进入时布局和颜色', async () => {
     await customColor('cover', '#315678');
     await chooseSize('facts', 'small');
-    await page.locator('#impression').fill('取消布局编辑保留进入前的内容。');
+    await writeImpression('取消布局编辑保留进入前的内容。');
     const before = await captureLayout(), content = await captureContent();
     await enterManage();
     const tools = await page.locator('#layout-tools').evaluate(node => ({
@@ -571,9 +587,9 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   });
 
   await check('恢复默认还原布局与默认颜色，保留文字和临时照片', async () => {
-    await page.locator('#impression').fill('恢复默认布局也保留这一页的文字和临时截图。');
+    await writeImpression('恢复默认布局也保留这一页的文字和临时截图。');
     await page.locator('#photo-files').setInputFiles(path.join(directory, 'assets', 'shot-1.jpg'));
-    await page.waitForFunction(count => document.querySelectorAll('.gallery-photo').length === count, initialContent.photos.length + 1);
+    await page.waitForFunction(count => parseInt(document.querySelector('#photo-count').textContent) === count, initialContent.photos.length + 1);
     const content = await captureContent();
     await customColor('facts', '#abcdef');
     await chooseSize('facts', 'large');
@@ -590,7 +606,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
   });
 
   await check('全部隐藏后空白栅格右键仍可找回全部卡片', async () => {
-    await page.locator('#impression').fill('全部隐藏不会删除这段内容。');
+    await writeImpression('全部隐藏不会删除这段内容。');
     const content = await captureContent();
     await customColor('facts', '#abcdef');
     await enterManage();
@@ -613,28 +629,16 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await reloadDefaults();
   });
 
-  await check('自定义浅色和中灰时悬停、分类及表单文字保持对比', async () => {
+  await check('自定义浅色和中灰下评分、分类及表单仍可读', async () => {
     for (const color of ['#ffffff','#777777','#797979','#747474']) {
-      await customColor('review',color);
-      await page.locator('#review-toggle').hover();
-      await contrast('review','#review-toggle h2');
-      await customColor('experience',color);
-      await page.locator('#experience-toggle').click();
-      for (let index=0; index<7; index++) {
-        const selector='#state-choices button:nth-child('+(index+1)+')';
-        await contrast('experience',selector);
-        await widget('experience').locator(selector).hover();
-        await contrast('experience',selector);
-      }
-      await page.locator('#experience-toggle').click();
-      await contrast('experience','#priority-field select');
-      await customColor('facts',color);
-      await page.locator('#edit-facts').click();
-      await contrast('facts','.facts-edit input');
-      await page.locator('#edit-facts').click();
+      await customColor('grade',color); await contrast('grade','#grade-value');
+      await customColor('footprint',color); await contrast('footprint','#current-state'); await contrast('footprint','#priority-value');
+      await rightClick('footprint');
+      await contrast('menu','#context-state-choices button'); await contrast('menu','#context-priority-choices button');
+      await closeMenu();
+      await customColor('facts',color); await rightClick('facts'); await contrast('menu','#context-fact-original'); await closeMenu();
     }
-    await shot('11-custom-gray-readable');
-    await reloadDefaults();
+    await shot('11-custom-gray-readable'); await reloadDefaults();
   });
 
   await check('全隐藏后重新打开可通过键盘恢复卡片，菜单Tab可退出', async () => {
@@ -654,13 +658,14 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await page.keyboard.press('Space');
     assert.equal(await widget('cover').isVisible(),true,'键盘恢复第一张封面卡');
     await page.locator('#layout-done').click();
-    await rightClick('cover',true);
+    await openAppearance('cover',true);
     await page.locator('#context-manage').focus();
     await page.keyboard.press('Tab');
     assert.equal(await menu().isVisible(),false,'Tab离开菜单时关闭，不留下失焦菜单');
     assert.equal(await widget('cover').evaluate(node=>document.activeElement===node),true);
     await page.keyboard.press('Shift+F10');
-    await menu().locator('[data-menu-size]').first().focus();
+    await page.locator('#context-appearance').click();
+    await page.locator('#context-back').focus();
     await page.keyboard.press('Shift+Tab');
     assert.equal(await menu().isVisible(),false,'反向Tab同样可以退出');
     await shot('12-empty-keyboard-recovered');
@@ -671,6 +676,7 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await widget('cover').evaluate(node=>node.dispatchEvent(new MouseEvent('contextmenu',{
       button:2,clientX:innerWidth-2,clientY:innerHeight-2,bubbles:true,cancelable:true,
     })));
+    await page.locator('#context-appearance').click();
     await page.locator('#card-color-hex').fill('#bad');
     await page.locator('#card-color-apply').click();
     await menuBounds('非法颜色提示后的右下菜单',{x:1438,y:1058});
