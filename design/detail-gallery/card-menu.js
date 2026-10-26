@@ -1,14 +1,14 @@
 // Standalone design preview; these preferences are never written to storage.
 const cardDefaultColors = {
-  cover:'#111317', experience:'#3654CE', facts:'#1C1C20', hours:'#242426', count:'#C91662',
-  tags:'#232327', impression:'#F79232', footprint:'#7825D0', gallery:'#151518', review:'#121214',
+  cover:'#111317', experience:'#3654CE', facts:'#1C1C20', hours:'#242426', count:'#232327', platform:'#17171B',
+  tags:'#C91662', impression:'#F79232', footprint:'#7825D0', gallery:'#151518', review:'#121214',
 };
 // Default surfaces carry hierarchy; choosing a custom color gives this card a solid surface.
 const cardDefaultSurfaces = {
   cover:{border:'#41454D'},
   experience:{stops:['#215AE4','#7638D6'],border:'transparent'},
-  facts:{border:'#3A3A43'}, hours:{border:'transparent'}, count:{border:'transparent'},
-  tags:{border:'#625476'}, impression:{stops:['#FB791B','#FFB046'],border:'transparent'},
+  facts:{border:'#3A3A43'}, hours:{border:'transparent'}, count:{border:'#625476'}, platform:{border:'#3C3C46'},
+  tags:{border:'transparent'}, impression:{stops:['#FB791B','#FFB046'],border:'transparent'},
   footprint:{stops:['#6521D0','#8F2DD5'],border:'transparent'},
   gallery:{border:'#44444C'}, review:{border:'#303038'},
 };

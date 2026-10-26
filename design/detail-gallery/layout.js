@@ -5,20 +5,21 @@
   const definitions = [
     ['cover', '封面', { small:[1,2,420], medium:[2,3,690], large:[2,4,860] }],
     ['experience', '我的体验', { small:[1,1,270], medium:[2,1,270], large:[2,2,440] }],
-    ['hours', '游玩时长', { medium:[1,1,160], large:[2,1,160] }],
-    ['count', '完成次数', { medium:[1,1,160], large:[2,1,160] }],
+    ['hours', '游玩时长', { medium:[1,1,190], large:[2,1,190] }],
+    ['platform', '拥有平台', { medium:[1,1,190], large:[2,1,190] }],
     ['facts', '作品资料', { small:[1,1,270], medium:[2,1,250], large:[4,1,240] }],
     ['impression', '一句话印象', { small:[1,1,180], medium:[3,1,190], large:[4,2,340] }],
     ['footprint', '体验足迹', { small:[1,1,200], medium:[1,2,470], large:[2,2,440] }],
     ['gallery', '我的截图', { small:[2,1,200], medium:[2,1,270], large:[4,2,400] }],
     ['tags', '标签', { small:[1,1,210], medium:[1,1,270], large:[4,1,210] }],
+    ['count', '完成次数', { medium:[1,1,160], large:[2,1,160] }],
     ['review', '长文测评', { small:[2,1,80], medium:[4,1,80] }],
   ];
-  const fieldNames = { original:'作品名称', year:'发行年份', date:'收录日期', creator:'创作者', platform:'拥有平台', source:'来源链接', tag0:'玩法', tag1:'题材', tag2:'游玩场景', tag3:'其他' };
+  const fieldNames = { original:'作品名称', year:'发行年份', date:'收录日期', creator:'创作者', source:'来源链接', tag0:'玩法', tag1:'题材', tag2:'游玩场景', tag3:'其他' };
   const sizeNames = { small:'紧凑', medium:'标准', large:'加大' };
   const widgets = new Map();
   let layout = defaults(), entryLayout = null, editing = false, dragged = null;
-  function defaults() { return { cards:definitions.map(([id]) => ({ id, size:'medium', visible:true, color:cardDefaultColors[id] })), fields:Object.fromEntries(Object.keys(fieldNames).map(id => [id,true])) }; }
+  function defaults() { return { cards:definitions.map(([id]) => ({ id, size:'medium', visible:id!=='count', color:cardDefaultColors[id] })), fields:Object.fromEntries(Object.keys(fieldNames).map(id => [id,true])) }; }
   const clone = value => JSON.parse(JSON.stringify(value));
   const announce = text => { find('#layout-status').textContent = text; };
   // Native auto-sized grid tracks grow with content; hover transforms never feed back into row sizing.
@@ -118,7 +119,7 @@
   function clearDrop() { widgets.forEach(widget => widget.element.classList.remove('drop-before','drop-after')); }
   function clearDrag() { dragged = null; clearDrop(); widgets.forEach(widget => widget.element.classList.remove('dragging')); }
   Object.entries(fieldNames).forEach(([id,title],index) => {
-    if (index === 0 || index === 6) { const heading = document.createElement('span'); heading.className = 'field-heading'; heading.textContent = index === 0 ? '作品资料' : '标签分组'; find('#field-toggles').append(heading); }
+    if (index === 0 || index === 5) { const heading = document.createElement('span'); heading.className = 'field-heading'; heading.textContent = index === 0 ? '作品资料' : '标签分组'; find('#field-toggles').append(heading); }
     const label = document.createElement('label'), input = document.createElement('input'); input.type = 'checkbox'; input.dataset.toggleField = id;
     input.onchange = () => { layout.fields[id] = input.checked; applyFields(); };
     label.append(input,title); find('#field-toggles').append(label);
