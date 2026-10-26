@@ -1,75 +1,127 @@
+// Isolated, in-memory design preview. No application repository or storage.
 const $ = selector => document.querySelector(selector);
-const states = ['新作开荒', '游玩中', '未完待续', '新游戏+', '收官完结', '暂时搁置', '已体验 · 未分类'];
-const colors = ['#b89cdd', '#80b9ea', '#8cbfe0', '#80c5d4', '#88cda1', '#d5ac78', '#b4b8c5'];
-let currentState = '新游戏+';
-const initialTags = [['玩法', ['银河恶魔城', '动作', '探索']], ['题材', ['奇幻', '虫之王国']], ['游玩场景', ['需要沉浸']], ['其他', ['独立游戏']]];
-function renderTags() {
-  $('#tag-rows').replaceChildren(...initialTags.map(([label, values]) => {
-    const row = document.createElement('div'); row.className = 'tag-row';
-    const name = document.createElement('span'); name.textContent = label;
-    const tags = document.createElement('div');
-    values.forEach(value => { const chip = document.createElement('span'); chip.className = 'tag-pill'; chip.textContent = value; tags.append(chip); });
-    row.append(name, tags); return row;
-  }));
-}
-function renderStates() {
-  $('#state-choices').replaceChildren(...states.map((state, index) => {
-    const button = document.createElement('button'); button.textContent = state; button.setAttribute('aria-pressed', String(state === currentState)); button.dataset.stateColor=colors[index]; button.style.setProperty('--choice-ink','var(--widget-choice-'+index+', '+colors[index]+')');
-    button.onclick = () => { currentState = state; $('#current-state').textContent = state; document.documentElement.style.setProperty('--state', colors[index]); $('#priority-field').hidden = !['新作开荒', '游玩中', '未完待续', '新游戏+'].includes(state); $('#grade-field').hidden = !['新游戏+', '收官完结'].includes(state); $('#state-choices').hidden = true; $('#experience-toggle').setAttribute('aria-expanded', 'false'); renderStates(); $('#experience-toggle').focus(); };
-    return button;
-  }));
-}
-$('#experience-toggle').onclick = () => { $('#state-choices').hidden = !$('#state-choices').hidden; $('#experience-toggle').setAttribute('aria-expanded', String(!$('#state-choices').hidden)); };
-$('.favorite').onclick = event => { const button = event.currentTarget, pressed = button.getAttribute('aria-pressed') !== 'true'; button.setAttribute('aria-pressed', String(pressed)); button.setAttribute('aria-label', pressed ? '取消喜欢' : '标为喜欢'); button.textContent = pressed ? '♥' : '♡'; };
-document.querySelectorAll('[data-stat]').forEach(button => { button.onclick = () => { const key = button.dataset.stat; $('#' + key + '-value').hidden = true; $('#' + key + '-editor').hidden = false; $('#' + key + '-editor input').focus(); }; });
-document.querySelectorAll('[data-save]').forEach(button => { button.onclick = () => { const key = button.dataset.save, input = $('#' + key + '-editor input'), n = Number(input.value); if (input.value !== '' && (!Number.isFinite(n) || n < 0 || (key === 'count' && !Number.isInteger(n)))) { input.setCustomValidity('请输入有效的非负数'); input.reportValidity(); return; } input.setCustomValidity(''); const label = $('#' + key + '-value'); label.replaceChildren(); label.append(input.value.trim() === '' ? '未记录' : input.value); if (input.value.trim() !== '') { const unit = document.createElement('small'); unit.textContent = key === 'hours' ? 'h' : '次'; label.append(unit); } if (key === 'hours') { const value=$('#last-run-input').value, lastRun=$('#last-run-value'); lastRun.textContent=value ? value.replace('T',' ').replaceAll('-','.') : '未记录'; if (value) lastRun.setAttribute('datetime',value); else lastRun.removeAttribute('datetime'); } label.hidden = false; $('#' + key + '-editor').hidden = true; }; });
-$('#edit-facts').onclick = () => { const open = $('.facts-edit').hidden; $('.facts-edit').hidden = !open; $('.facts').hidden = open; $('#edit-facts').setAttribute('aria-expanded', String(open)); $('#edit-facts').textContent = open ? '取消' : '编辑'; };
-$('#save-facts').onclick = () => { document.querySelectorAll('[data-input]').forEach(input => { $('[data-field="' + input.dataset.input + '"]').textContent = input.value.trim() || '未记录'; }); $('#edit-facts').click(); };
-$('#edit-tags').onclick = () => { const open = $('.tag-editor').hidden; $('.tag-editor').hidden = !open; $('#tag-rows').hidden = open; $('#edit-tags').setAttribute('aria-expanded', String(open)); $('#edit-tags').textContent = open ? '取消' : '编辑'; };
-$('#save-tags').onclick = () => { document.querySelectorAll('.tag-editor input').forEach((input, index) => { const seen = new Set(); initialTags[index][1] = input.value.split(/[,，、]+/).map(value => value.trim()).filter(value => { const key = value.toLocaleLowerCase(); if (!value || seen.has(key)) return false; seen.add(key); return true; }); }); renderTags(); $('#edit-tags').click(); };
-function impressionCount() { $('#impression-count').textContent = $('#impression').value.length + ' / 80'; }
-$('#impression').oninput = () => { impressionCount(); $('.writing-status').textContent = ''; };
-$('#impression').onblur = () => { $('.writing-status').textContent = '已更新预览'; };
-$('#review-toggle').onclick = () => { $('#review-body').hidden = !$('#review-body').hidden; $('#review-toggle').setAttribute('aria-expanded', String(!$('#review-body').hidden)); };
-function reviewCount() { $('#review-count').textContent = $('#review-body textarea').value.length + ' 字'; }
-$('#review-body textarea').oninput = reviewCount;
-$('#add-footprint').onclick = () => { $('.footprint-editor').hidden = !$('.footprint-editor').hidden; if (!$('.footprint-editor').hidden) $('.footprint-editor input').focus(); };
-$('#save-footprint').onclick = () => { const text = $('.footprint-editor input').value.trim(); if (!text) return; const row = document.createElement('li'), time = document.createElement('time'), wrap = document.createElement('div'), strong = document.createElement('strong'); time.textContent = '2026.10'; strong.textContent = text; wrap.append(strong); row.append(time, wrap); $('#footprints').prepend(row); $('.footprint-editor input').value = ''; $('.footprint-editor').hidden = true; };
-let photos = [
-  { src: 'assets/shot-1.jpg', caption: '旅途中的一刻', local: false },
-  { src: 'assets/shot-2.jpg', caption: '想再回去的地方', local: false },
-  { src: 'assets/shot-3.jpg', caption: '探索留下的画面', local: false },
-  { src: 'assets/shot-4.jpg', caption: '', local: false },
-];
-let photoIndex = 0;
-function renderPhotos() {
-  $('#photo-count').textContent = photos.length + ' 张';
-  $('#gallery-track').replaceChildren(...photos.map((photo, index) => {
-    const button = document.createElement('button'); button.className = 'gallery-photo'; button.setAttribute('aria-label', '查看截图 ' + (index + 1));
-    const figure = document.createElement('figure'), image = document.createElement('img'), caption = document.createElement('figcaption'); image.src = photo.src; image.alt = photo.caption || '游戏截图 ' + (index + 1); image.loading = 'lazy'; caption.textContent = photo.caption || '添加一句说明…';
-    figure.append(image, caption); button.append(figure); button.onclick = () => openPhoto(index); return button;
-  }));
-  if (!photos.length) { const empty = document.createElement('div'); empty.className = 'gallery-empty'; const text = document.createElement('span'); text.textContent = '把值得留下的画面放在这里'; const button = document.createElement('button'); button.className = 'button'; button.textContent = '＋ 添加第一张截图'; button.onclick = () => $('#photo-files').click(); empty.append(text, button); $('#gallery-track').append(empty); }
-}
-function showPhoto() { const photo = photos[photoIndex]; if (!photo) { $('.lightbox').close(); return; } $('#lightbox-image').src = photo.src; $('#lightbox-image').alt = photo.caption || '游戏截图 ' + (photoIndex + 1); $('#lightbox-position').textContent = (photoIndex + 1) + ' / ' + photos.length; $('#photo-caption').value = photo.caption; $('#prev-photo').disabled = $('#next-photo').disabled = photos.length < 2; }
-function openPhoto(index) { photoIndex = index; showPhoto(); $('.lightbox').showModal(); $('#close-lightbox').focus(); }
-function movePhoto(step) { if (!photos.length) return; photoIndex = (photoIndex + step + photos.length) % photos.length; showPhoto(); }
-$('#prev-photo').onclick = () => movePhoto(-1); $('#next-photo').onclick = () => movePhoto(1); $('#close-lightbox').onclick = () => $('.lightbox').close();
-$('.lightbox').addEventListener('click', event => { if (event.target === $('.lightbox')) $('.lightbox').close(); });
-$('.lightbox').addEventListener('keydown', event => { if (event.target instanceof HTMLInputElement) return; if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); movePhoto(event.key === 'ArrowLeft' ? -1 : 1); } });
-$('#photo-caption').oninput = () => { photos[photoIndex].caption = $('#photo-caption').value; renderPhotos(); };
-$('#remove-photo').onclick = () => { const [removed] = photos.splice(photoIndex, 1); if (removed?.local) URL.revokeObjectURL(removed.src); photoIndex = Math.min(photoIndex, photos.length - 1); renderPhotos(); showPhoto(); };
-$('#add-photos').onclick = () => $('#photo-files').click();
-$('#photo-files').onchange = async event => {
-  $('.gallery-error').textContent = ''; const failures = [];
-  for (const file of event.target.files) {
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { failures.push(file.name); continue; }
-    const url = URL.createObjectURL(file), probe = new Image();
-    try { await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; probe.src = url; }); photos.push({ src: url, caption: '', local: true }); } catch { URL.revokeObjectURL(url); failures.push(file.name); }
+const previewDetail = (() => {
+  const states = ['新作开荒','游玩中','未完待续','新游戏+','收官完结','暂时搁置','已体验 · 未分类'];
+  const grades = ['SSS','SS','S','A','B','C'];
+  let state='新游戏+', priority='A', rating=9;
+  const tags=[['玩法',['银河恶魔城','动作','探索']],['题材',['奇幻','虫之王国']],['游玩场景',['需要沉浸']],['其他',['独立游戏']]];
+  const footprints=[{date:'2026.10',title:'回到圣巢',text:'开始新一轮探索，寻找上次错过的角落。'},{date:'2026.09',title:'旅程的一个句点',text:'给这段体验留下一份记录。'}];
+  const hasPriority=()=>['新作开荒','游玩中','未完待续','新游戏+'].includes(state);
+  const hasRating=()=>['新游戏+','收官完结'].includes(state);
+  function renderExperience() {
+    $('#current-state').textContent=state;
+    $('#priority-field').hidden=!hasPriority(); $('#priority-value').textContent=priority||'未设置';
+    $('#grade-value').textContent=hasRating() && rating!==null ? rating.toFixed(1) : '—';
+    $('#grade-unit').hidden=!hasRating() || rating===null;
+    $('#grade-empty').hidden=!hasRating() || rating!==null; $('#grade-unavailable').hidden=hasRating();
+    $('.grade-card').dataset.ratingAvailable=String(hasRating());
   }
-  event.target.value = ''; renderPhotos(); $('#gallery-track').scrollLeft = $('#gallery-track').scrollWidth;
-  if (failures.length) $('.gallery-error').textContent = '未能打开：' + failures.join('、');
-};
-$('#close-preview').onclick = () => { $('.detail-window').hidden = true; $('#close-preview').hidden = true; $('#preview-closed').hidden = false; $('#reopen').focus(); };
-$('#reopen').onclick = () => { $('.detail-window').hidden = false; $('#close-preview').hidden = false; $('#preview-closed').hidden = true; $('#close-preview').focus(); };
-renderTags(); renderStates(); renderPhotos(); impressionCount(); reviewCount();
+  function renderTags() {
+    $('#tag-rows').replaceChildren(...tags.map(([label,values])=>{
+      const row=document.createElement('div'), name=document.createElement('span'), list=document.createElement('div');
+      row.className='tag-row'; name.textContent=label;
+      for (const value of values) { const chip=document.createElement('span'); chip.className='tag-pill'; chip.textContent=value; list.append(chip); }
+      if (!values.length) { const empty=document.createElement('span'); empty.className='count'; empty.textContent='暂无标签'; list.append(empty); }
+      row.append(name,list); return row;
+    }));
+  }
+  function renderFootprints() {
+    $('#footprints').replaceChildren(...footprints.map(note=>{
+      const row=document.createElement('li'), time=document.createElement('time'), wrap=document.createElement('div'), title=document.createElement('strong');
+      time.textContent=note.date||'日期未记录'; title.textContent=note.title; wrap.append(title);
+      if (note.text) { const text=document.createElement('p'); text.textContent=note.text; wrap.append(text); }
+      row.append(time,wrap); return row;
+    }));
+    if (!footprints.length) { const row=document.createElement('li'); row.className='footprint-empty'; row.textContent='还没有体验足迹'; $('#footprints').append(row); }
+  }
+  function setRating(value) {
+    if (!hasRating() || (value!==null && (!Number.isFinite(value) || value<0 || value>10 || !Number.isInteger(value*2)))) return false;
+    rating=value; renderExperience(); return true;
+  }
+  function setStat(key,value,date) {
+    const target=$('#'+key+'-value'); target.replaceChildren(); target.append(value===''?'未记录':value);
+    if (value!=='') { const unit=document.createElement('small'); unit.textContent=key==='hours'?'h':'次'; target.append(unit); }
+    if (key==='hours') {
+      const node=$('#last-run-value'); node.textContent=date ? date.replace('T',' ').replaceAll('-','.') : '未记录';
+      if (date) node.setAttribute('datetime',date); else node.removeAttribute('datetime');
+    }
+  }
+  $('.favorite').onclick=event=>{ const button=event.currentTarget, value=button.getAttribute('aria-pressed')!=='true'; button.setAttribute('aria-pressed',String(value)); button.setAttribute('aria-label',value?'取消喜欢':'标为喜欢'); button.textContent=value?'♥':'♡'; };
+  function countWriting() { $('#impression-count').textContent=$('#impression').value.length+' / 80'; $('#review-count').textContent=$('#review-body textarea').value.length+' 字'; }
+  $('#review-toggle').onclick=()=>{ const open=$('#review-body').hidden; $('#review-body').hidden=!open; $('#review-toggle').setAttribute('aria-expanded',String(open)); };
+  let photos=[{src:'assets/shot-1.jpg',caption:'旅途中的一刻'},{src:'assets/shot-2.jpg',caption:'想再回去的地方'},{src:'assets/shot-3.jpg',caption:'探索留下的画面'},{src:'assets/shot-4.jpg',caption:''}];
+  let photoIndex=0,coverIndex=0,galleryMode='single',galleryPage=0,photoOrigin=null;
+  const pageSize=()=>({single:1,quad:4,nine:9}[galleryMode]);
+  function renderPhotos() {
+    const size=pageSize(), pages=Math.max(1,Math.ceil(photos.length/size)); galleryPage=Math.min(galleryPage,pages-1);
+    $('.gallery-card').dataset.galleryMode=galleryMode; $('#photo-count').textContent=photos.length+' 张';
+    const indices=galleryMode==='single' ? (photos.length?[coverIndex]:[]) : photos.map((_,i)=>i).slice(galleryPage*size,(galleryPage+1)*size);
+    $('#gallery-track').replaceChildren(...indices.map(index=>{
+      const photo=photos[index], button=document.createElement('button'), image=document.createElement('img');
+      button.className='gallery-photo'; button.dataset.photoIndex=index; button.setAttribute('aria-label','查看截图 '+(index+1));
+      image.src=photo.src; image.alt=photo.caption||'游戏截图 '+(index+1); image.draggable=false;
+      button.append(image); button.onclick=()=>openPhoto(index); return button;
+    }));
+    if (!photos.length) { const empty=document.createElement('div'); empty.className='gallery-empty'; empty.textContent='还没有截图'; $('#gallery-track').append(empty); }
+    $('.gallery-pages').hidden=galleryMode==='single'||pages<=1;
+    $('#gallery-page-count').textContent=(galleryPage+1)+' / '+pages;
+    $('#gallery-prev-page').disabled=galleryPage===0; $('#gallery-next-page').disabled=galleryPage===pages-1;
+  }
+  function showPhoto() {
+    const photo=photos[photoIndex]; if (!photo) { $('.lightbox').close(); return; }
+    $('#lightbox-image').src=photo.src; $('#lightbox-image').alt=photo.caption||'游戏截图 '+(photoIndex+1);
+    $('#lightbox-position').textContent=(photoIndex+1)+' / '+photos.length; $('#photo-caption').value=photo.caption;
+    $('#prev-photo').disabled=$('#next-photo').disabled=photos.length<2;
+    $('#set-gallery-cover').disabled=photoIndex===coverIndex;
+  }
+  function openPhoto(index) { photoOrigin=document.activeElement; photoIndex=index; showPhoto(); $('.lightbox').showModal(); $('#close-lightbox').focus(); }
+  function movePhoto(step) { if (photos.length) { photoIndex=(photoIndex+step+photos.length)%photos.length; showPhoto(); } }
+  $('#prev-photo').onclick=()=>movePhoto(-1); $('#next-photo').onclick=()=>movePhoto(1);
+  $('#close-lightbox').onclick=()=>$('.lightbox').close();
+  $('.lightbox').addEventListener('close',()=>{const target=photoOrigin?.isConnected&&photoOrigin.getClientRects().length?photoOrigin:$('.gallery-card');target.focus({preventScroll:true});});
+  $('.lightbox').addEventListener('click',event=>{ if (event.target===$('.lightbox')) $('.lightbox').close(); });
+  $('.lightbox').addEventListener('keydown',event=>{ if (event.target instanceof HTMLInputElement) return; if (['ArrowLeft','ArrowRight'].includes(event.key)) { event.preventDefault(); movePhoto(event.key==='ArrowLeft'?-1:1); } });
+  $('#photo-caption').oninput=()=>{ photos[photoIndex].caption=$('#photo-caption').value; renderPhotos(); };
+  $('#set-gallery-cover').onclick=()=>{ coverIndex=photoIndex; renderPhotos(); showPhoto(); };
+  $('#remove-photo').onclick=()=>{
+    const [removed]=photos.splice(photoIndex,1); if (removed?.local) URL.revokeObjectURL(removed.src);
+    if (photoIndex<coverIndex) coverIndex--; else if (photoIndex===coverIndex) coverIndex=Math.min(coverIndex,photos.length-1);
+    coverIndex=Math.max(0,coverIndex); photoIndex=Math.min(photoIndex,photos.length-1); renderPhotos(); showPhoto();
+  };
+  $('#gallery-prev-page').onclick=()=>{ galleryPage--; renderPhotos(); }; $('#gallery-next-page').onclick=()=>{ galleryPage++; renderPhotos(); };
+  async function readImage(file) {
+    if (!['image/png','image/jpeg','image/webp'].includes(file.type)) throw Error('unsupported');
+    const src=URL.createObjectURL(file), image=new Image();
+    try { await new Promise((resolve,reject)=>{ image.onload=resolve; image.onerror=reject; image.src=src; }); return src; }
+    catch (error) { URL.revokeObjectURL(src); throw error; }
+  }
+  $('#photo-files').onchange=async event=>{
+    $('.gallery-error').textContent=''; const failures=[];
+    for (const file of event.target.files) { try { photos.push({src:await readImage(file),caption:'',local:true}); } catch { failures.push(file.name); } }
+    event.target.value=''; renderPhotos(); if (failures.length) $('.gallery-error').textContent='未能打开：'+failures.join('、');
+  };
+  let coverURL=null;
+  $('#cover-file').onchange=async event=>{
+    const file=event.target.files[0]; event.target.value=''; if (!file) return;
+    try { const src=await readImage(file); if (coverURL) URL.revokeObjectURL(coverURL); coverURL=src; $('.cover-card img').src=src; }
+    catch { $('#layout-status').textContent='未能打开这张封面图片'; }
+  };
+  $('#close-preview').onclick=()=>{ $('.detail-window').hidden=true; $('#close-preview').hidden=true; $('#preview-closed').hidden=false; $('#reopen').focus(); };
+  $('#reopen').onclick=()=>{ $('.detail-window').hidden=false; $('#close-preview').hidden=false; $('#preview-closed').hidden=true; $('#close-preview').focus(); };
+  renderExperience(); renderTags(); renderFootprints(); renderPhotos(); countWriting();
+  return {
+    states,grades,tags,hasPriority,hasRating,setRating,setStat,
+    get state(){return state;}, get priority(){return priority;}, get rating(){return rating;}, get footprints(){return footprints;},
+    setState(value){if(states.includes(value)){state=value;renderExperience();}},
+    setPriority(value){if(hasPriority()&&(value===null||grades.includes(value))){priority=value;renderExperience();}},
+    updateTags(values){values.forEach((value,index)=>{const seen=new Set();tags[index][1]=value.split(/[,，、]+/).map(s=>s.trim()).filter(s=>{const key=s.toLocaleLowerCase();if(!s||seen.has(key))return false;seen.add(key);return true;});});renderTags();},
+    saveFootprint(index,note){if(index===null)footprints.unshift(note);else footprints[index]=note;renderFootprints();},
+    removeFootprint(index){footprints.splice(index,1);renderFootprints();},
+    saveWriting(id,text){$(id==='impression'?'#impression':'#review-body textarea').value=text;countWriting();},
+    get photos(){return photos;},get galleryMode(){return galleryMode;},get coverIndex(){return coverIndex;},
+    setGalleryMode(value){if(['single','quad','nine'].includes(value)){galleryMode=value;galleryPage=0;renderPhotos();}},
+    setGalleryCover(index){if(photos[index]){coverIndex=index;renderPhotos();}},
+    resetCover(){if(coverURL)URL.revokeObjectURL(coverURL);coverURL=null;$('.cover-card img').src='assets/cover.jpg';},
+  };
+})();
+

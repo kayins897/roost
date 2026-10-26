@@ -4,13 +4,13 @@
   const grid = find('.bento-grid');
   const definitions = [
     ['cover', '封面', { small:[1,2,420], medium:[2,3,690], large:[2,4,860] }],
-    ['experience', '我的体验', { small:[1,1,270], medium:[2,1,270], large:[2,2,440] }],
+    ['grade', '通关评分', { small:[1,1,270], medium:[2,1,270], large:[2,2,440] }],
     ['hours', '游玩时长', { medium:[1,1,190], large:[2,1,190] }],
     ['platform', '拥有平台', { medium:[1,1,190], large:[2,1,190] }],
     ['facts', '作品资料', { small:[1,1,270], medium:[2,1,250], large:[4,1,240] }],
     ['impression', '一句话印象', { small:[1,1,180], medium:[3,1,190], large:[4,2,340] }],
-    ['footprint', '体验足迹', { small:[1,1,200], medium:[1,2,470], large:[2,2,440] }],
-    ['gallery', '我的截图', { small:[2,1,200], medium:[2,1,270], large:[4,2,400] }],
+    ['footprint', '体验与足迹', { small:[1,1,200], medium:[1,2,490], large:[2,2,440] }],
+    ['gallery', '我的截图', { small:[2,1,200], medium:[2,1,300], large:[4,2,440] }],
     ['tags', '标签', { small:[1,1,210], medium:[1,1,270], large:[4,1,210] }],
     ['count', '完成次数', { medium:[1,1,160], large:[2,1,160] }],
     ['review', '长文测评', { small:[2,1,80], medium:[4,1,80] }],
@@ -38,7 +38,7 @@
       element.style.setProperty('--cols', columns);
       element.style.setProperty('--rows', rows);
       element.style.setProperty('--card-height', height+'px');
-      element.style.setProperty('--medium-cols', card.size==='medium' && ['cover','experience','gallery'].includes(card.id) ? 1 : Math.min(columns,2));
+      element.style.setProperty('--medium-cols', card.size==='medium' && ['cover','grade','gallery'].includes(card.id) ? 1 : Math.min(columns,2));
       element.style.setProperty('--medium-rows', card.size==='medium' && ['cover','footprint'].includes(card.id) ? rows : 1);
       element.classList.remove('col-span-1','col-span-2','col-span-3','col-span-4','row-span-1','row-span-2','row-span-3','row-span-4');
       element.classList.add('col-span-'+columns,'row-span-'+rows);

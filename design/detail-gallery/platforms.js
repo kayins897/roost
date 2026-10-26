@@ -1,5 +1,5 @@
 // In-memory design preview. Platform names are user attributes, never account connections.
-(() => {
+const platformPreview = (() => {
   const find = selector => document.querySelector(selector);
   const catalog = [
     ['steam','Steam',['steam']], ['playstation','PlayStation',['playstation','ps','ps3','ps4','ps5']],
@@ -30,29 +30,28 @@
       badge.append(logo(name),text); return badge;
     }));
     if (!owned.length) { const empty=document.createElement('span'); empty.className='platform-empty'; empty.textContent='未记录'; find('#platform-list').append(empty); }
+    if (!find('#platform-choices')) return;
     const choices=[...catalog.map(([id,name])=>[id,name]),...owned.filter(name=>!identity(name)).map(name=>[key(name),name])];
     find('#platform-choices').classList.add('platform-choices');
     find('#platform-choices').replaceChildren(...choices.map(([id,name]) => {
       const button=document.createElement('button'), text=document.createElement('span'); button.type='button';
       button.dataset.platform=id; button.setAttribute('aria-pressed',String(owned.some(value=>key(value)===id))); text.textContent=name;
       button.append(logo(name),text);
-      button.onclick=()=>{ owned=owned.some(value=>key(value)===id) ? owned.filter(value=>key(value)!==id) : [...owned,name]; render(); [...find('#platform-choices').children].find(node=>node.dataset.platform===id)?.focus(); };
+      button.onclick=()=>{ owned=owned.some(value=>key(value)===id) ? owned.filter(value=>key(value)!==id) : [...owned,name]; render(); ([...find('#platform-choices').children].find(node=>node.dataset.platform===id)||find('#custom-platform')).focus(); };
       return button;
     }));
   }
-  function setOpen(open) {
-    find('#platform-editor').hidden=!open; find('#platform-list').hidden=open;
-    find('#edit-platforms').setAttribute('aria-expanded',String(open)); find('#edit-platforms').textContent=open?'收起':'编辑';
-    if (open) find('#platform-choices button').focus(); else find('#edit-platforms').focus();
+  function mountEditor(container,close) {
+    const editor=document.createElement('div'); editor.id='platform-editor'; editor.className='platform-editor';
+    editor.innerHTML='<div id="platform-choices" aria-label="选择拥有平台"></div><div class="custom-platform"><input id="custom-platform" aria-label="其他平台名称" placeholder="其他平台…" maxlength="60"><button class="button" id="add-platform">加入</button></div><p id="platform-error" role="status"></p><button class="button" id="done-platforms">完成</button>';
+    container.append(editor); render();
+    find('#done-platforms').onclick=()=>close(true);
+    find('#add-platform').onclick=()=>{
+      const input=find('#custom-platform'),name=input.value.trim(); find('#platform-error').textContent=''; if (!name) return;
+      if (owned.some(value=>key(value)===key(name))) { find('#platform-error').textContent='已添加该平台'; return; }
+      owned.push(name); input.value=''; render(); input.focus();
+    };
+    find('#custom-platform').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();find('#add-platform').click();}});
   }
-  find('#edit-platforms').onclick=()=>setOpen(find('#platform-editor').hidden);
-  find('#done-platforms').onclick=()=>setOpen(false);
-  find('#add-platform').onclick=()=>{
-    const input=find('#custom-platform'), name=input.value.trim(); find('#platform-error').textContent='';
-    if (!name) return;
-    if (owned.some(value=>key(value)===key(name))) { find('#platform-error').textContent='已添加该平台'; return; }
-    owned.push(name); input.value=''; render(); input.focus();
-  };
-  find('#custom-platform').addEventListener('keydown',event=>{ if (event.key==='Enter') { event.preventDefault(); find('#add-platform').click(); } });
-  render();
+  render(); return {mountEditor};
 })();
