@@ -14,12 +14,12 @@ import { usePersonalWriting } from './usePersonalWriting.ts';
 import './detail.css';
 
 interface Props {
-  item: MediaItem; onClose: () => void; onEdit: () => void;
+  item: MediaItem; availableItems?: MediaItem[]; onClose: () => void; onEdit: () => void;
   onPatch: (patch: Partial<MediaItem>) => boolean; onDelete: () => void; onHide: () => void;
   onRestore: () => void; onDeletePermanently: () => void;
   onFilterTag: (tag: string, group?: GameTagGroupKey) => void; guardRef: RefObject<(() => boolean) | null>;
 }
-export function DetailPanel({ item, onClose, onEdit, onPatch, onDelete, onHide, onRestore, onDeletePermanently, onFilterTag, guardRef }: Props) {
+export function DetailPanel({ item, availableItems, onClose, onEdit, onPatch, onDelete, onHide, onRestore, onDeletePermanently, onFilterTag, guardRef }: Props) {
   const panel = useRef<HTMLElement>(null);
   const factsId = useId();
   const [factsOpen, setFactsOpen] = useState(false);
@@ -50,11 +50,11 @@ export function DetailPanel({ item, onClose, onEdit, onPatch, onDelete, onHide, 
           {item.sourceUrl && <a className="source-link" href={item.sourceUrl} target="_blank" rel="noreferrer">查看来源页面 ↗</a>}
           <div className="detail-facts-heading"><h3>标签</h3>{!locked && <button className="text-button" onClick={() => openQuick('tags')}>编辑标签</button>}</div>
           {item.category === 'game' ? GAME_TAG_KEYS.map(group => <div className={`detail-game-tag-group tag-type--${group}`} key={group}><span>{GAME_TAG_LABELS[group]}</span><div className="detail-tag-list">{gameTagsFor(item)[group].map(tag => <button className="detail-tag" key={tag} onClick={() => onFilterTag(tag, group)}>{tag}</button>)}{!gameTagsFor(item)[group].length && <span className="detail-no-tag">—</span>}</div></div>) : <div className="detail-tag-list">{item.tags.map(tag => <button className="detail-tag" key={tag} onClick={() => onFilterTag(tag)}>{tag}</button>)}</div>}
-          <footer className="detail-manage">{locked ? <><button className="button button--secondary" onClick={onRestore}>恢复作品</button><button className="text-button detail-remove" onClick={onDeletePermanently}><Trash2 size={14} />永久删除</button></> : <><button className="text-button" onClick={onHide}><EyeOff size={14} />{item.hiddenAt ? '取消隐藏' : '隐藏作品'}</button><button className="text-button detail-remove" onClick={onDelete}><Trash2 size={14} />移到回收站</button></>}</footer>
+          <footer className="detail-manage">{locked ? <><button className="button button--secondary" onClick={onRestore}>恢复作品</button><button className="text-button detail-remove" onClick={onDeletePermanently}><Trash2 size={14} />永久删除</button></> : <>{item.hiddenAt && <button className="text-button" onClick={onHide}><EyeOff size={14} />取消隐藏</button>}<button className="text-button detail-remove" onClick={onDelete}><Trash2 size={14} />移到回收站</button></>}</footer>
         </aside>
       </div>
     </section>
-    {quickEdit && <QuickEditor item={item} mode={quickEdit} onClose={() => setQuickEdit(null)} onSave={onPatch} />}
+    {quickEdit && <QuickEditor item={item} availableItems={availableItems} mode={quickEdit} onClose={() => setQuickEdit(null)} onSave={onPatch} />}
     {experienceEdit && <ExperienceEditor initial={experienceEdit === 'new' ? undefined : experienceEdit} onClose={() => setExperienceEdit(null)} onSave={entry => onPatch({ experienceEntries: [...(item.experienceEntries ?? []).filter(value => value.id !== entry.id), entry] })} />}
   </div>;
 }

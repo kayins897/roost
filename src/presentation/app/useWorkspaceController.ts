@@ -82,7 +82,7 @@ export function useWorkspaceController() {
   const [selecting, setSelecting] = fields('selecting');
   const [selectionIds, setSelectionIds] = fields('selectionIds');
   const [batchEditOpen, setBatchEditOpen] = fields('batchEditOpen');
-  useEffect(() => { setSelecting(false); setSelectionIds(new Set()); setBatchEditOpen(false); }, [section]);
+  useEffect(() => { setSelecting(false); setSelectionIds(new Set()); setBatchEditOpen(false); setAssignment(null); }, [section]);
   const [status, setStatus] = fields('status');
   const [gameFilter, setGameFilterValue] = fields('gameFilter');
   const [experienceCategoryFilter, setExperienceCategoryFilter] = fields('experienceCategoryFilter');
@@ -166,11 +166,11 @@ export function useWorkspaceController() {
     const current = snapshotRef.current;
     const requested = new Set(plan.selectedIds);
     const eligible = current.items.filter(item => requested.has(item.id) && item.category === 'game' && !item.removedAt);
-    if (!requested.size || eligible.length !== requested.size) { setToast('所选作品已变化，请关闭并重新检查选择；未更新任何作品。'); return false; }
+    if (!requested.size || eligible.length !== requested.size || (assignment && eligible.some(item => item.hiddenAt))) { setToast('所选作品已变化，请关闭并重新检查选择；未更新任何作品。'); return false; }
     const next = createGameBatchEditPlan(current.items, plan.selectedIds, plan.input);
     if (!next.changedCount) { setToast('所选作品已符合本次设置，请返回调整。'); return false; }
     if (!commit({ ...current, items: next.items }, `已更新 ${next.changedCount} 款游戏`)) return false;
-    setSelecting(false); setSelectionIds(new Set());
+    setSelecting(false); setSelectionIds(new Set()); setAssignment(null);
     return true;
   }
   // 多选快捷定级：只传等级输入（不带状态）的纯等级补丁，不重写状态、不规范化旧别名；
@@ -242,14 +242,14 @@ export function useWorkspaceController() {
     const current = snapshotRef.current;
     const next = action === 'hide' || action === 'unhide' ? setItemsHidden(current, ids, action === 'hide') : action === 'trash' ? trashItems(current, ids) : action === 'restore' ? restoreItems(current, ids) : permanentlyDeleteItems(current, ids);
     if (commit(next, action === 'hide' ? '已隐藏，可在「数据与设置 → 数据与备份」找回' : action === 'unhide' ? '已取消隐藏' : action === 'trash' ? '已移到回收站' : action === 'restore' ? '已恢复作品' : '已永久删除')) {
-      detailGuard.current = null; setSelectedId(null); setSelecting(false); setSelectionIds(new Set()); setContextMenu(null);
+      detailGuard.current = null; setSelectedId(null); setSelecting(false); setSelectionIds(new Set()); setAssignment(null); setContextMenu(null);
     }
   }
   function changeLibraryView(next: LibraryView, plan = false) {
-    guardDetail(() => { setLibraryView(next); setGameFilter(plan ? 'unplayed' : 'all'); setSort(plan ? 'rank' : 'recent'); setQuery(''); setStatus('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSelecting(false); setSelectionIds(new Set()); setSelectedId(null); setContextMenu(null); });
+    guardDetail(() => { setLibraryView(next); setGameFilter(plan ? 'unplayed' : 'all'); setSort(plan ? 'rank' : 'recent'); setQuery(''); setStatus('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSelecting(false); setSelectionIds(new Set()); setAssignment(null); setSelectedId(null); setContextMenu(null); });
   }
   function assignTag(group: GameTagGroupKey, name: string) {
-    setTagManager(false); changeLibraryView('library'); startSelection(); setAssignment({ group, name }); setToast('请选择需要添加「' + name + '」的作品，再点底部「添加标签」');
+    setTagManager(false); changeLibraryView('library'); startSelection(); setAssignment({ group, name }); setToast('');
   }
   // 标签跨组移动：确认前展示来源/目标/影响数/合并情况；取消、零关联、同组不写库；
   // 一次构造完整结果一次提交；成功后正在使用该标签的筛选转到目标组，其他筛选保留。
