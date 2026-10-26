@@ -46,7 +46,10 @@
 - `node scripts/verify-tag-workflow.cjs`：14/14，8 张截图、24 次数据完整性检查与 12 次布局检查，0 页面错误；覆盖选择/取消/大小写/跨组、失败重试、搜索外选择、添加移除和旧隐藏恢复。
 - 专项发现分配开始时的 toast 会遮住应用按钮，已移除重复提示；宽/窄窗口 × 两模式共 4 次应用按钮前景命中检查通过。
 - 两套界面测试均对应最终 JS `index-DmryZfHC.js`（SHA-256 `c773ffbcffac1520dda27a75cb269afdc72976d2d5241d519238da43a7719bca`）、CSS `index-CTQLyDBG.css`。证据位于 `evidence/tag-workflow/validation.json` 与 `evidence/library-refinement/validation.json`，截图已目视检查；忽略的完整证据随本地交付提供。
-- 实现提交 `fc50b5e`；测试集成 `634b56d`、`4cb2e5c`。原生免安装验证完成后追加结果；不能用内存桥替代原生文件落盘证据。
+- 实现提交 `fc50b5e`；测试集成 `634b56d`、`4cb2e5c`。打包来源为干净提交 `e0612f48bef00efb05d9c7e632bfd573fb4d018e`；此后的文档提交只补验收记录，不改变应用代码。
+- `npm run pack` 与 `node scripts/make-noinstall.cjs` 通过，仅生成免安装程序及 ZIP。ZIP 大小 175549168 字节，SHA-256：`0CD6382F236388A13ADC6C8DE9CF55DD056F3B1FB6684FB270197BB900AA248A`。
+- 从 ZIP 全新解压的副本运行 `verify-package-assets.cjs`：13 个内部资源、5 个外部说明/演示资源一致；另精确检查 SOURCE 提交号/分支/clean，并逐文件核对 74 个程序文件与新构建一致。
+- `verify-refinement-package.cjs <fresh-bundle>`：11/11，真实 CMD 演示入口、独立原生目录，右键选择已有标签及取消零写、专用分配一次应用、分类/列表/设置/回收/Bento 回归、关闭重启磁盘原文读回通过，0 页面错误。报告 `evidence/refinement-package/2026-10-26T03-57-03-605Z/validation.json`。没有读取真实收藏。
 - 非作者代码审查：未见阻断问题；特别确认 casefold/组隔离、未知扩展、dirty、最新快照、失败保留与模式退出。GUI 另以专项结果为准。
 - 未运行完整历史 19 阶段工作流；本轮采用对应界面专项。不把历史测试结果计为本轮通过。
 - 未验证真实个人大库或 Steam 全库存在线标签读取；没有实现新网络抓取功能。
