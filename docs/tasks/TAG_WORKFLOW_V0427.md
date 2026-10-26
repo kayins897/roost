@@ -43,7 +43,10 @@
 
 - Windows、Node、项目锁定依赖；`npm run desktop:build`（含 TypeScript）通过；`npm test` 212/212。
 - `node scripts/verify-library-refinement.cjs`：23 组通过，24 张截图；包括浏览器真实 LocalStorageRepository 与 DesktopRepository + 内存桥、标签分配及原库/详情回归。
-- 新标签专项及原生免安装验证结果在完成后追加于下方；不能用内存桥替代原生文件落盘证据。
+- `node scripts/verify-tag-workflow.cjs`：14/14，8 张截图、24 次数据完整性检查与 12 次布局检查，0 页面错误；覆盖选择/取消/大小写/跨组、失败重试、搜索外选择、添加移除和旧隐藏恢复。
+- 专项发现分配开始时的 toast 会遮住应用按钮，已移除重复提示；宽/窄窗口 × 两模式共 4 次应用按钮前景命中检查通过。
+- 两套界面测试均对应最终 JS `index-DmryZfHC.js`（SHA-256 `c773ffbcffac1520dda27a75cb269afdc72976d2d5241d519238da43a7719bca`）、CSS `index-CTQLyDBG.css`。证据位于 `evidence/tag-workflow/validation.json` 与 `evidence/library-refinement/validation.json`，截图已目视检查；忽略的完整证据随本地交付提供。
+- 实现提交 `fc50b5e`；测试集成 `634b56d`、`4cb2e5c`。原生免安装验证完成后追加结果；不能用内存桥替代原生文件落盘证据。
 - 非作者代码审查：未见阻断问题；特别确认 casefold/组隔离、未知扩展、dirty、最新快照、失败保留与模式退出。GUI 另以专项结果为准。
 - 未运行完整历史 19 阶段工作流；本轮采用对应界面专项。不把历史测试结果计为本轮通过。
 - 未验证真实个人大库或 Steam 全库存在线标签读取；没有实现新网络抓取功能。
