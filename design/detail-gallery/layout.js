@@ -3,15 +3,15 @@
   const find = selector => document.querySelector(selector);
   const grid = find('.bento-grid');
   const definitions = [
-    ['cover', '封面', { small:[1,2,420], medium:[2,2,500], large:[2,3,680] }],
+    ['cover', '封面', { small:[1,2,420], medium:[2,3,690], large:[2,4,860] }],
     ['experience', '我的体验', { small:[1,1,270], medium:[2,1,270], large:[2,2,440] }],
-    ['facts', '作品资料', { small:[1,1,270], medium:[2,1,240], large:[4,1,240] }],
     ['hours', '游玩时长', { medium:[1,1,160], large:[2,1,160] }],
     ['count', '完成次数', { medium:[1,1,160], large:[2,1,160] }],
-    ['tags', '标签', { small:[1,1,210], medium:[2,1,210], large:[4,1,210] }],
-    ['impression', '一句话印象', { small:[1,1,180], medium:[2,1,200], large:[4,2,340] }],
-    ['footprint', '体验足迹', { small:[1,1,200], medium:[2,1,200], large:[2,2,340] }],
-    ['gallery', '我的截图', { small:[2,1,260], medium:[4,1,260], large:[4,2,400] }],
+    ['facts', '作品资料', { small:[1,1,270], medium:[2,1,250], large:[4,1,240] }],
+    ['impression', '一句话印象', { small:[1,1,180], medium:[3,1,190], large:[4,2,340] }],
+    ['footprint', '体验足迹', { small:[1,1,200], medium:[1,2,470], large:[2,2,440] }],
+    ['gallery', '我的截图', { small:[2,1,200], medium:[2,1,270], large:[4,2,400] }],
+    ['tags', '标签', { small:[1,1,210], medium:[1,1,270], large:[4,1,210] }],
     ['review', '长文测评', { small:[2,1,80], medium:[4,1,80] }],
   ];
   const fieldNames = { original:'作品名称', year:'发行年份', date:'收录日期', creator:'创作者', platform:'拥有平台', source:'来源链接', tag0:'玩法', tag1:'题材', tag2:'游玩场景', tag3:'其他' };
@@ -37,8 +37,9 @@
       element.style.setProperty('--cols', columns);
       element.style.setProperty('--rows', rows);
       element.style.setProperty('--card-height', height+'px');
-      element.style.setProperty('--medium-cols', card.size==='medium' && ['cover','experience'].includes(card.id) ? 1 : Math.min(columns,2));
-      element.classList.remove('col-span-1','col-span-2','col-span-4','row-span-1','row-span-2','row-span-3');
+      element.style.setProperty('--medium-cols', card.size==='medium' && ['cover','experience','gallery'].includes(card.id) ? 1 : Math.min(columns,2));
+      element.style.setProperty('--medium-rows', card.size==='medium' && ['cover','footprint'].includes(card.id) ? rows : 1);
+      element.classList.remove('col-span-1','col-span-2','col-span-3','col-span-4','row-span-1','row-span-2','row-span-3','row-span-4');
       element.classList.add('col-span-'+columns,'row-span-'+rows);
       element.querySelector('[data-action=size]').textContent = sizeNames[card.size] + ' ⌄';
       element.querySelectorAll('[data-size]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.size === card.size)));

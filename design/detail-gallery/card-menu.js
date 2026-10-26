@@ -1,11 +1,20 @@
 // Standalone design preview; these preferences are never written to storage.
 const cardDefaultColors = {
-  cover:'#14202B', experience:'#244E65', facts:'#343D5B', hours:'#304968', count:'#514261',
-  tags:'#3D435A', impression:'#644735', footprint:'#424961', gallery:'#293E49', review:'#403A4C',
+  cover:'#111317', experience:'#3654CE', facts:'#1C1C20', hours:'#242426', count:'#C91662',
+  tags:'#232327', impression:'#F79232', footprint:'#7825D0', gallery:'#151518', review:'#121214',
+};
+// Default surfaces carry hierarchy; choosing a custom color gives this card a solid surface.
+const cardDefaultSurfaces = {
+  cover:{border:'#41454D'},
+  experience:{stops:['#215AE4','#7638D6'],border:'transparent'},
+  facts:{border:'#3A3A43'}, hours:{border:'transparent'}, count:{border:'transparent'},
+  tags:{border:'#625476'}, impression:{stops:['#FB791B','#FFB046'],border:'transparent'},
+  footprint:{stops:['#6521D0','#8F2DD5'],border:'transparent'},
+  gallery:{border:'#44444C'}, review:{border:'#303038'},
 };
 const cardColorPresets = [
-  ['深湖','#264A5C'], ['夜蓝','#304968'], ['雾紫','#514261'], ['赤陶','#754D3E'],
-  ['苔绿','#455641'], ['暖棕','#665638'], ['石墨','#24272E'], ['浅雾','#DDE4ED'],
+  ['鸢尾蓝','#3654CE'], ['电光紫','#7825D0'], ['玫红','#C91662'], ['暖橘','#F79232'],
+  ['丁香','#D2C2F5'], ['深海青','#1E5362'], ['炭黑','#242426'], ['浅雾','#DDE4ED'],
 ];
 function applyCardColor(element, color) {
   if (!/^#[0-9a-f]{6}$/i.test(color)) return;
@@ -14,15 +23,19 @@ function applyCardColor(element, color) {
   const mix = (a,b,amount) => hex(rgb(a).map((v,i) => v*amount + rgb(b)[i]*(1-amount)));
   const luminance = value => rgb(value).map(v => v/255).map(v => v<=.04045 ? v/12.92 : ((v+.055)/1.055)**2.4).reduce((sum,v,i) => sum+v*[.2126,.7152,.0722][i],0);
   const ratio = (a,b) => (Math.max(luminance(a),luminance(b))+.05)/(Math.min(luminance(a),luminance(b))+.05);
-  const light = ratio('#F6F6FA',color) >= ratio('#161D27',color);
+  const id=element.dataset.widget;
+  const surfaceStyle=color.toLowerCase()===cardDefaultColors[id]?.toLowerCase() ? cardDefaultSurfaces[id] : null;
+  const stops=surfaceStyle?.stops || [], backgrounds=[color,...stops];
+  const contrast = ink => Math.min(...backgrounds.map(background=>ratio(ink,background)));
+  const light = contrast('#F6F6FA') >= contrast('#161D27');
   let ink = light ? '#F6F6FA' : '#161D27';
   // Near middle grey, neither softened ink reaches readable contrast.
-  if (ratio(ink,color)<4.5) ink=ratio('#FFFFFF',color)>ratio('#000000',color) ? '#FFFFFF' : '#000000';
+  if (contrast(ink)<4.5) ink=contrast('#FFFFFF')>contrast('#000000') ? '#FFFFFF' : '#000000';
   const surface = amount => {
     const raised=mix(ink,color,amount);
     return ratio(ink,raised)>=4.5 ? raised : mix(luminance(ink)>.5 ? '#000000' : '#FFFFFF',color,amount);
   };
-  const input=surface(.07), control=surface(.08), surfaces=[color,input,control];
+  const input=surface(.07), control=surface(.08), surfaces=[...backgrounds,input,control];
   const readable = foreground => {
     let strength=0, result=foreground;
     while (surfaces.some(background=>ratio(result,background)<4.5) && strength<1) {
@@ -33,6 +46,8 @@ function applyCardColor(element, color) {
   const muted=readable(mix(ink,color,.74));
   const tokens = {
     color, ink, muted, accent:ink, input, control,
+    surface:stops.length ? 'linear-gradient(135deg,'+stops.join(',')+')' : color,
+    border:surfaceStyle?.border || mix(ink,color,.22),
     line:mix(ink,color,.22), state:readable(light ? '#B3ECF2' : '#143A51'), scheme:light ? 'dark' : 'light',
   };
   Object.entries(tokens).forEach(([name,value]) => element.style.setProperty('--widget-'+name,value));
@@ -40,6 +55,7 @@ function applyCardColor(element, color) {
     element.style.setProperty('--widget-choice-'+index,readable(button.dataset.stateColor));
   });
   element.dataset.color = color.toUpperCase();
+  element.dataset.surface = stops.length ? 'gradient' : 'solid';
 }
 function installCardMenu({ grid, readCard, setSize, setColor, editLayout, manageCards }) {
   const menu = document.createElement('section');
