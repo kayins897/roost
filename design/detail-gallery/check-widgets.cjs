@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
+const { createHash } = require('node:crypto');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
@@ -17,6 +18,9 @@ const widgetIds = ['cover', 'experience', 'facts', 'hours', 'count', 'tags', 'im
 const fieldIds = ['original', 'year', 'date', 'creator', 'platform', 'source'];
 const report = {
   passed: false, scope: 'design-prototype', productionPersistenceValidated: false,
+  startedAt: new Date().toISOString(), testedFiles: {},
+  dragValidation: 'HTML DragEvent dispatch path only',
+  unverified: ['系统级真实鼠标拖动及原生拖放手感'],
   checks: [], errors: [], externalRequests: [], localStorageWrites: [], layouts: [], screenshots: [],
 };
 let server, browser, context, page, base, initialLayout, initialContent;
@@ -53,11 +57,19 @@ async function ready() {
 async function enterEdit() {
   await page.locator('#edit-layout').click();
   assert.equal(await page.locator('#layout-tools').isVisible(), true, '进入布局编辑');
+  assert.equal(await page.locator('#impression').evaluate(node => Boolean(node.closest('[inert]'))), true, '布局编辑期间业务内容禁止误操作');
 }
 
 async function manager() {
   if (!await page.locator('#widget-manager').isVisible()) await page.locator('#manage-widgets').click();
   assert.equal(await page.locator('#widget-manager').isVisible(), true, '卡片管理始终可打开');
+}
+
+async function fieldManager() {
+  await manager();
+  if (!await toggleField('original').isVisible()) {
+    await page.locator('#widget-manager details').filter({ has: page.locator('[data-toggle-field="original"]') }).locator('summary').click();
+  }
 }
 
 async function order() {
@@ -161,11 +173,15 @@ async function reloadDefaults() {
   await ready();
   assert.deepEqual(await captureLayout(), initialLayout, '刷新恢复默认布局与显示');
   assert.deepEqual(await captureContent(), initialContent, '刷新恢复示例内容');
+  assert.equal(await page.locator('#impression').evaluate(node => Boolean(node.closest('[inert]'))), false, '普通模式恢复内容编辑');
 }
 
 (async () => {
   assert.ok(fs.existsSync(path.join(directory, 'index.html')), '参数应为含 index.html 的组装预览目录');
   fs.mkdirSync(output, { recursive: true });
+  for (const file of ['index.html', 'preview.css', 'preview.js', 'layout.js']) {
+    report.testedFiles[file] = createHash('sha256').update(fs.readFileSync(path.join(directory, file))).digest('hex');
+  }
   server = http.createServer((request, response) => {
     let file;
     try {
@@ -185,6 +201,7 @@ async function reloadDefaults() {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
   browser = await chromium.launch({ channel: 'msedge', headless: true });
+  report.browser = 'Microsoft Edge ' + browser.version();
   context = await browser.newContext({ viewport: { width: 1440, height: 1060 }, reducedMotion: 'reduce' });
   await context.exposeBinding('__reportWidgetStorageWrite', (_, entry) => report.localStorageWrites.push(entry));
   await context.addInitScript(() => {
@@ -235,7 +252,7 @@ async function reloadDefaults() {
     await shot('01-default');
   });
 
-  await check('键盘按钮移动及拖动按上下半插入', async () => {
+  await check('键盘按钮移动及拖放事件路径按上下半插入（真实鼠标未验证）', async () => {
     await enterEdit();
     const start = await order(), index = start.indexOf('facts');
     assert.ok(index > 0 && index < start.length - 1, '资料卡可双向移动');
@@ -286,8 +303,10 @@ async function reloadDefaults() {
 
   await check('字段隐藏保留内容，取消只回退布局', async () => {
     const values = await widget('facts').locator('[data-field-row]').evaluateAll(nodes => nodes.map(node => [node.dataset.fieldRow, node.textContent]));
+    const impression = '取消布局时，这条新输入的印象仍应保留。';
+    await page.locator('#impression').fill(impression);
     await enterEdit();
-    await manager();
+    await fieldManager();
     for (const id of fieldIds) {
       await toggleField(id).setChecked(false);
       assert.equal(await page.locator('[data-field-row="' + id + '"]').evaluate(node => node.hidden), true, '字段仅隐藏：' + id);
@@ -296,10 +315,8 @@ async function reloadDefaults() {
     await page.locator('#layout-done').click();
     const atEntry = await captureLayout();
     await enterEdit();
-    await manager();
+    await fieldManager();
     for (const id of fieldIds) await toggleField(id).setChecked(true);
-    const impression = '取消布局时，这条新输入的印象仍应保留。';
-    await page.locator('#impression').fill(impression);
     await action('facts', 'move-down').click();
     await page.locator('#layout-cancel').click();
     assert.deepEqual(await captureLayout(), atEntry, '取消恢复进入时字段与顺序');
