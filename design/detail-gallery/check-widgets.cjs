@@ -20,7 +20,8 @@ const report = {
   passed: false, scope: 'design-prototype', productionPersistenceValidated: false,
   startedAt: new Date().toISOString(), testedFiles: {},
   dragValidation: 'HTML DragEvent dispatch path only',
-  unverified: ['系统级真实鼠标拖动及原生拖放手感'],
+  browserMouseDragValidated: false,
+  unverified: ['浏览器鼠标拖动未验证', '原生Electron/真实触屏拖动未验证'],
   checks: [], errors: [], externalRequests: [], localStorageWrites: [], layouts: [], screenshots: [],
 };
 let server, browser, context, page, base, initialLayout, initialContent;
@@ -134,6 +135,27 @@ async function drag(id, targetId, half) {
     await source.dispatchEvent('dragend', { dataTransfer: transfer });
   } finally {
     await transfer.dispose();
+  }
+  await settle();
+}
+
+async function mouseDrag(id, targetId, half) {
+  const handle = widget(id).locator('.widget-drag');
+  await handle.scrollIntoViewIfNeeded();
+  await settle();
+  const source = await handle.boundingBox(), target = await widget(targetId).boundingBox();
+  assert.ok(source && target, '鼠标拖动起点和目标必须可见');
+  const start = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+  const end = { x: target.x + target.width / 2, y: target.y + target.height * (half === 'before' ? 0.25 : 0.75) };
+  assert.ok(end.y > 0 && end.y < page.viewportSize().height, '鼠标拖动目标位于首屏');
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  try {
+    await page.mouse.move(start.x - 12, start.y + 8, { steps: 4 });
+    await page.mouse.move(end.x, end.y, { steps: 20 });
+    await page.mouse.move(end.x, end.y + 1, { steps: 2 });
+  } finally {
+    await page.mouse.up();
   }
   await settle();
 }
@@ -252,7 +274,21 @@ async function reloadDefaults() {
     await shot('01-default');
   });
 
-  await check('键盘按钮移动及拖放事件路径按上下半插入（真实鼠标未验证）', async () => {
+  await check('浏览器鼠标按住拖动可将资料卡移至体验卡之前', async () => {
+    await enterEdit();
+    const start = await order(), remaining = start.filter(id => id !== 'facts');
+    await mouseDrag('facts', 'experience', 'before');
+    assert.deepEqual(await order(), moved(start, 'facts', remaining.indexOf('experience')), '鼠标落在上半放到目标前');
+    report.browserMouseDragValidated = true;
+    report.dragValidation = 'Browser mouse down/move/up plus HTML DragEvent dispatch paths';
+    report.unverified = ['原生Electron/真实触屏拖动未验证'];
+    await shot('02-mouse-drag');
+    await page.locator('#layout-reset').click();
+    await page.locator('#layout-done').click();
+    assert.deepEqual(await captureLayout(), initialLayout, '鼠标测试后恢复默认再检查其他交互');
+  });
+
+  await check('键盘按钮移动及拖放事件路径按上下半插入', async () => {
     await enterEdit();
     const start = await order(), index = start.indexOf('facts');
     assert.ok(index > 0 && index < start.length - 1, '资料卡可双向移动');
