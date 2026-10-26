@@ -14,7 +14,7 @@ function renderTags() {
 }
 function renderStates() {
   $('#state-choices').replaceChildren(...states.map((state, index) => {
-    const button = document.createElement('button'); button.textContent = state; button.setAttribute('aria-pressed', String(state === currentState)); button.style.color = colors[index];
+    const button = document.createElement('button'); button.textContent = state; button.setAttribute('aria-pressed', String(state === currentState)); button.dataset.stateColor=colors[index]; button.style.setProperty('--choice-ink','var(--widget-choice-'+index+', '+colors[index]+')');
     button.onclick = () => { currentState = state; $('#current-state').textContent = state; document.documentElement.style.setProperty('--state', colors[index]); $('#priority-field').hidden = !['新作开荒', '游玩中', '未完待续', '新游戏+'].includes(state); $('#grade-field').hidden = !['新游戏+', '收官完结'].includes(state); $('#state-choices').hidden = true; $('#experience-toggle').setAttribute('aria-expanded', 'false'); renderStates(); $('#experience-toggle').focus(); };
     return button;
   }));
@@ -70,6 +70,6 @@ $('#photo-files').onchange = async event => {
   event.target.value = ''; renderPhotos(); $('#gallery-track').scrollLeft = $('#gallery-track').scrollWidth;
   if (failures.length) $('.gallery-error').textContent = '未能打开：' + failures.join('、');
 };
-$('#close-preview').onclick = () => { $('.detail-window').hidden = true; $('#preview-closed').hidden = false; $('#reopen').focus(); };
-$('#reopen').onclick = () => { $('.detail-window').hidden = false; $('#preview-closed').hidden = true; $('#close-preview').focus(); };
+$('#close-preview').onclick = () => { $('.detail-window').hidden = true; $('#close-preview').hidden = true; $('#preview-closed').hidden = false; $('#reopen').focus(); };
+$('#reopen').onclick = () => { $('.detail-window').hidden = false; $('#close-preview').hidden = false; $('#preview-closed').hidden = true; $('#close-preview').focus(); };
 renderTags(); renderStates(); renderPhotos(); impressionCount(); reviewCount();

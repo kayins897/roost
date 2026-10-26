@@ -51,6 +51,7 @@ async function layout(width, height) {
     await page.locator('.detail-window').evaluate(n => { n.dataset.originalHeight = n.style.maxHeight; n.style.maxHeight = 'none'; });
     await page.locator('.detail-window').screenshot({ path: path.join(output, '02-full-layout.png') });
     await page.locator('.detail-window').evaluate(n => { n.style.maxHeight = n.dataset.originalHeight; n.scrollTop = 0; });
+    await page.locator('.cover-card img').click({button:'right'}); await shot('11-card-menu');
     await page.locator('#edit-layout').click(); await shot('09-layout-editor');
     await page.locator('#manage-widgets').click(); await page.locator('#widget-manager details').evaluate(n => n.open = true); await shot('10-card-controls');
     await page.locator('#layout-cancel').click();

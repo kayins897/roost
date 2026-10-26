@@ -18,7 +18,7 @@
   const sizeNames = { small:'紧凑', medium:'标准', large:'加大' };
   const widgets = new Map();
   let layout = defaults(), entryLayout = null, editing = false, dragged = null, frame = 0;
-  function defaults() { return { cards:definitions.map(([id]) => ({ id, size:'medium', visible:true })), fields:Object.fromEntries(Object.keys(fieldNames).map(id => [id,true])) }; }
+  function defaults() { return { cards:definitions.map(([id]) => ({ id, size:'medium', visible:true, color:cardDefaultColors[id] })), fields:Object.fromEntries(Object.keys(fieldNames).map(id => [id,true])) }; }
   const clone = value => JSON.parse(JSON.stringify(value));
   const announce = text => { find('#layout-status').textContent = text; };
   const queueMeasure = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
@@ -44,6 +44,7 @@
     layout.cards.forEach((card, index) => {
       const widget = widgets.get(card.id), element = widget.element, [columns] = widget.sizes[card.size];
       element.hidden = !card.visible; element.dataset.size = card.size;
+      applyCardColor(element,card.color);
       element.style.setProperty('--cols', columns);
       element.style.setProperty('--medium-cols', ['hours','count'].includes(card.id) ? 3 : columns >= 8 ? 12 : 6);
       element.querySelector('[data-action=size]').textContent = sizeNames[card.size] + ' ⌄';
@@ -59,12 +60,11 @@
   function closeSizes() { document.querySelectorAll('.widget-sizes').forEach(node => node.hidden = true); document.querySelectorAll('[data-action=size]').forEach(node => node.setAttribute('aria-expanded', 'false')); }
   function setEditing(value) {
     editing = value; find('.detail-window').classList.toggle('layout-editing', value);
-    find('#layout-tools').hidden = !value; find('#edit-layout').hidden = value;
-    find('#edit-layout').setAttribute('aria-pressed', String(value));
+    find('#layout-tools').hidden = !value;
     find('#widget-manager').hidden = true; find('#manage-widgets').setAttribute('aria-expanded', 'false');
     widgets.forEach(widget => { widget.body.inert = value; widget.tools.hidden = !value; });
     closeSizes(); render();
-    (value ? find('#layout-done') : find('#edit-layout')).focus();
+    if (value) find('#layout-done').focus(); else cardMenu.focusOrigin();
   }
   function move(id, target, after = false) {
     if (!editing || id === target) return;
@@ -85,6 +85,7 @@
   definitions.forEach(([id,title,sizes]) => {
     const element = find('.' + id + '-card'), body = document.createElement('div'), tools = document.createElement('div');
     element.classList.add('widget'); element.dataset.widget = id; element.setAttribute('aria-label', title);
+    element.tabIndex=0; element.setAttribute('aria-haspopup','dialog');
     body.className = 'widget-body'; body.append(...element.childNodes); tools.className = 'widget-tools'; tools.hidden = true;
     const handle = makeButton('⠿', '拖动' + title), up = makeButton('↑', '上移' + title, 'move-up'), down = makeButton('↓', '下移' + title, 'move-down');
     handle.className = 'widget-drag'; handle.draggable = true;
@@ -128,7 +129,20 @@
     input.onchange = () => { layout.fields[id] = input.checked; applyFields(); queueMeasure(); };
     label.append(input,title); find('#field-toggles').append(label);
   });
-  find('#edit-layout').onclick = () => { entryLayout = clone(layout); setEditing(true); };
+  function beginEdit() { if (!editing) entryLayout = clone(layout); setEditing(true); }
+  function manageCards() {
+    beginEdit(); find('#widget-manager').hidden=false; find('#manage-widgets').setAttribute('aria-expanded','true');
+    find('#widget-toggles input').focus();
+  }
+  const cardMenu = installCardMenu({
+    grid,
+    readCard:id=>{ const widget=widgets.get(id), card=layout.cards.find(c=>c.id===id); return widget&&card ? {...card,title:widget.title,sizes:widget.sizes} : null; },
+    setSize:(id,size)=>{ const card=layout.cards.find(c=>c.id===id); if (card && widgets.get(id).sizes[size]) { card.size=size; render(); announce('卡片尺寸已调整'); } },
+    setColor:(id,color)=>{ const card=layout.cards.find(c=>c.id===id); if (card && /^#[0-9a-f]{6}$/i.test(color)) { card.color=color; render(); announce('卡片配色已调整'); } },
+    editLayout:beginEdit,
+    manageCards,
+  });
+  find('#restore-widgets').onclick=manageCards;
   find('#layout-done').onclick = () => { setEditing(false); announce('布局已应用于当前预览'); };
   find('#layout-cancel').onclick = () => { layout = clone(entryLayout); setEditing(false); announce('已恢复调整前的布局'); };
   find('#layout-reset').onclick = () => { layout = defaults(); closeSizes(); render(); find('#layout-reset').focus(); announce('已恢复默认布局，内容保留'); };

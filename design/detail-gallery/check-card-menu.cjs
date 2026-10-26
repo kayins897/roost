@@ -595,6 +595,71 @@ async function contrast(id, selector, minimum = 4.5, pseudo = null) {
     await reloadDefaults();
   });
 
+  await check('自定义浅色和中灰时悬停、分类及表单文字保持对比', async () => {
+    for (const color of ['#ffffff','#777777','#797979','#747474']) {
+      await customColor('review',color);
+      await page.locator('#review-toggle').hover();
+      await contrast('review','#review-toggle h2');
+      await customColor('experience',color);
+      await page.locator('#experience-toggle').click();
+      for (let index=0; index<7; index++) {
+        const selector='#state-choices button:nth-child('+(index+1)+')';
+        await contrast('experience',selector);
+        await widget('experience').locator(selector).hover();
+        await contrast('experience',selector);
+      }
+      await page.locator('#experience-toggle').click();
+      await contrast('experience','#priority-field select');
+      await customColor('facts',color);
+      await page.locator('#edit-facts').click();
+      await contrast('facts','.facts-edit input');
+      await page.locator('#edit-facts').click();
+    }
+    await shot('11-custom-gray-readable');
+    await reloadDefaults();
+  });
+
+  await check('全隐藏后重新打开可通过键盘恢复卡片，菜单Tab可退出', async () => {
+    await enterManage();
+    for (const id of widgetIds) await toggle(id).setChecked(false);
+    await page.locator('#layout-done').click();
+    await page.locator('#close-preview').click();
+    await page.locator('#reopen').click();
+    let found=false;
+    for (let index=0; index<8; index++) {
+      await page.keyboard.press('Tab');
+      if (await page.locator('#restore-widgets').evaluate(node=>document.activeElement===node)) { found=true; break; }
+    }
+    assert.equal(found,true,'重新打开后的空态有可Tab到达的恢复入口');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#widget-manager').isVisible(),true);
+    await page.keyboard.press('Space');
+    assert.equal(await widget('cover').isVisible(),true,'键盘恢复第一张封面卡');
+    await page.locator('#layout-done').click();
+    await rightClick('cover',true);
+    await page.locator('#context-manage').focus();
+    await page.keyboard.press('Tab');
+    assert.equal(await menu().isVisible(),false,'Tab离开菜单时关闭，不留下失焦菜单');
+    assert.equal(await widget('cover').evaluate(node=>document.activeElement===node),true);
+    await page.keyboard.press('Shift+F10');
+    await menu().locator('[data-menu-size]').first().focus();
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await menu().isVisible(),false,'反向Tab同样可以退出');
+    await shot('12-empty-keyboard-recovered');
+    await reloadDefaults();
+  });
+
+  await check('靠底菜单提示颜色错误后仍完全位于视口', async () => {
+    await widget('cover').evaluate(node=>node.dispatchEvent(new MouseEvent('contextmenu',{
+      button:2,clientX:innerWidth-2,clientY:innerHeight-2,bubbles:true,cancelable:true,
+    })));
+    await page.locator('#card-color-hex').fill('#bad');
+    await page.locator('#card-color-apply').click();
+    await menuBounds('非法颜色提示后的右下菜单',{x:1438,y:1058});
+    await closeMenu();
+    await reloadDefaults();
+  });
+
   await check('刷新复位、页面无存储写入与外网访问', async () => {
     await page.evaluate(() => window.__flushCardMenuStorageReports());
     assert.deepEqual(await page.evaluate(() => Object.keys(localStorage)), [], '浏览器存储保持空白');
