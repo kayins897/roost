@@ -3,36 +3,25 @@
   const find = selector => document.querySelector(selector);
   const grid = find('.bento-grid');
   const definitions = [
-    ['cover', '封面', { small:[3,4], medium:[4,5], large:[6,6] }],
-    ['experience', '我的体验', { small:[3,3], medium:[4,3], large:[6,4] }],
-    ['facts', '作品资料', { small:[3,3], medium:[4,3], large:[6,3] }],
-    ['hours', '游玩时长', { medium:[2,2], large:[4,2] }],
-    ['count', '完成次数', { medium:[2,2], large:[4,2] }],
-    ['tags', '标签', { small:[3,2], medium:[4,2], large:[6,2] }],
-    ['impression', '一句话印象', { small:[4,2], medium:[8,2], large:[12,3] }],
-    ['footprint', '体验足迹', { small:[3,2], medium:[4,2], large:[6,3] }],
-    ['gallery', '我的截图', { small:[6,3], medium:[12,3], large:[12,4] }],
-    ['review', '长文测评', { small:[6,1], medium:[12,1] }],
+    ['cover', '封面', { small:[1,2,420], medium:[2,2,500], large:[2,3,680] }],
+    ['experience', '我的体验', { small:[1,1,270], medium:[2,1,270], large:[2,2,440] }],
+    ['facts', '作品资料', { small:[1,1,270], medium:[2,1,240], large:[4,1,240] }],
+    ['hours', '游玩时长', { medium:[1,1,160], large:[2,1,160] }],
+    ['count', '完成次数', { medium:[1,1,160], large:[2,1,160] }],
+    ['tags', '标签', { small:[1,1,210], medium:[2,1,210], large:[4,1,210] }],
+    ['impression', '一句话印象', { small:[1,1,180], medium:[2,1,200], large:[4,2,340] }],
+    ['footprint', '体验足迹', { small:[1,1,200], medium:[2,1,200], large:[2,2,340] }],
+    ['gallery', '我的截图', { small:[2,1,260], medium:[4,1,260], large:[4,2,400] }],
+    ['review', '长文测评', { small:[2,1,80], medium:[4,1,80] }],
   ];
   const fieldNames = { original:'作品名称', year:'发行年份', date:'收录日期', creator:'创作者', platform:'拥有平台', source:'来源链接', tag0:'玩法', tag1:'题材', tag2:'游玩场景', tag3:'其他' };
   const sizeNames = { small:'紧凑', medium:'标准', large:'加大' };
   const widgets = new Map();
-  let layout = defaults(), entryLayout = null, editing = false, dragged = null, frame = 0;
+  let layout = defaults(), entryLayout = null, editing = false, dragged = null;
   function defaults() { return { cards:definitions.map(([id]) => ({ id, size:'medium', visible:true, color:cardDefaultColors[id] })), fields:Object.fromEntries(Object.keys(fieldNames).map(id => [id,true])) }; }
   const clone = value => JSON.parse(JSON.stringify(value));
   const announce = text => { find('#layout-status').textContent = text; };
-  const queueMeasure = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
-  function measure() {
-    const mobile = innerWidth <= 700, gap = innerWidth <= 1050 ? 14 : 16;
-    layout.cards.forEach(card => {
-      const widget = widgets.get(card.id); if (!card.visible || mobile) return;
-      const minimum = widget.sizes[card.size][1];
-      const padding = parseFloat(getComputedStyle(widget.element).paddingTop) + parseFloat(getComputedStyle(widget.element).paddingBottom);
-      const content = card.id === 'cover' ? 0 : widget.body.getBoundingClientRect().height + padding + 2;
-      const rows = Math.max(minimum, Math.ceil((content + gap) / (88 + gap)));
-      widget.element.style.setProperty('--rows', rows);
-    });
-  }
+  // Native auto-sized grid tracks grow with content; hover transforms never feed back into row sizing.
   function applyFields() {
     Object.entries(layout.fields).forEach(([id, visible]) => {
       const node = id.startsWith('tag') ? find('#tag-rows')?.children[Number(id.slice(3))] : find('[data-field-row="' + id + '"]');
@@ -42,11 +31,15 @@
   }
   function render() {
     layout.cards.forEach((card, index) => {
-      const widget = widgets.get(card.id), element = widget.element, [columns] = widget.sizes[card.size];
+      const widget = widgets.get(card.id), element = widget.element, [columns,rows,height] = widget.sizes[card.size];
       element.hidden = !card.visible; element.dataset.size = card.size;
       applyCardColor(element,card.color);
       element.style.setProperty('--cols', columns);
-      element.style.setProperty('--medium-cols', ['hours','count'].includes(card.id) ? 3 : columns >= 8 ? 12 : 6);
+      element.style.setProperty('--rows', rows);
+      element.style.setProperty('--card-height', height+'px');
+      element.style.setProperty('--medium-cols', card.size==='medium' && ['cover','experience'].includes(card.id) ? 1 : Math.min(columns,2));
+      element.classList.remove('col-span-1','col-span-2','col-span-4','row-span-1','row-span-2','row-span-3');
+      element.classList.add('col-span-'+columns,'row-span-'+rows);
       element.querySelector('[data-action=size]').textContent = sizeNames[card.size] + ' ⌄';
       element.querySelectorAll('[data-size]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.size === card.size)));
       element.querySelector('[data-action=move-up]').disabled = !layout.cards.slice(0,index).some(c => c.visible);
@@ -55,7 +48,7 @@
       grid.append(element);
     });
     find('#layout-empty').hidden = layout.cards.some(card => card.visible);
-    applyFields(); queueMeasure();
+    applyFields();
   }
   function closeSizes() { document.querySelectorAll('.widget-sizes').forEach(node => node.hidden = true); document.querySelectorAll('[data-action=size]').forEach(node => node.setAttribute('aria-expanded', 'false')); }
   function setEditing(value) {
@@ -84,7 +77,7 @@
   }
   definitions.forEach(([id,title,sizes]) => {
     const element = find('.' + id + '-card'), body = document.createElement('div'), tools = document.createElement('div');
-    element.classList.add('widget'); element.dataset.widget = id; element.setAttribute('aria-label', title);
+    element.classList.add('widget','group','rounded-3xl'); element.dataset.widget = id; element.setAttribute('aria-label', title);
     element.tabIndex=0; element.setAttribute('aria-haspopup','dialog');
     body.className = 'widget-body'; body.append(...element.childNodes); tools.className = 'widget-tools'; tools.hidden = true;
     const handle = makeButton('⠿', '拖动' + title), up = makeButton('↑', '上移' + title, 'move-up'), down = makeButton('↓', '下移' + title, 'move-down');
@@ -126,7 +119,7 @@
   Object.entries(fieldNames).forEach(([id,title],index) => {
     if (index === 0 || index === 6) { const heading = document.createElement('span'); heading.className = 'field-heading'; heading.textContent = index === 0 ? '作品资料' : '标签分组'; find('#field-toggles').append(heading); }
     const label = document.createElement('label'), input = document.createElement('input'); input.type = 'checkbox'; input.dataset.toggleField = id;
-    input.onchange = () => { layout.fields[id] = input.checked; applyFields(); queueMeasure(); };
+    input.onchange = () => { layout.fields[id] = input.checked; applyFields(); };
     label.append(input,title); find('#field-toggles').append(label);
   });
   function beginEdit() { if (!editing) entryLayout = clone(layout); setEditing(true); }
@@ -154,7 +147,6 @@
     closeSizes(); clearDrag();
     if (open) { event.preventDefault(); open.parentElement.querySelector('[data-action=size]').focus(); }
   });
-  new MutationObserver(() => { applyFields(); queueMeasure(); }).observe(find('#tag-rows'),{childList:true});
-  const observer = new ResizeObserver(queueMeasure); widgets.forEach(({body,element}) => { if (element.dataset.widget !== 'cover') observer.observe(body); });
-  addEventListener('resize',queueMeasure); document.fonts.ready.then(queueMeasure); render();
+  new MutationObserver(applyFields).observe(find('#tag-rows'),{childList:true});
+  render();
 })();

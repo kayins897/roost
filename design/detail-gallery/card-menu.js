@@ -48,12 +48,12 @@ function installCardMenu({ grid, readCard, setSize, setColor, editLayout, manage
   menu.innerHTML = '<div class="menu-title" id="context-card-name"></div><div class="menu-label">尺寸</div><div id="context-sizes"></div><div class="menu-label">卡片配色</div><div id="context-colors"></div><div class="custom-card-color"><input type="color" id="card-color-picker" aria-label="选择卡片颜色"><input id="card-color-hex" aria-label="自定义颜色" maxlength="7" spellcheck="false"><button id="card-color-apply">应用</button></div><div id="card-color-error" role="status"></div><button id="context-default-color" class="menu-text-button">恢复这张卡片的默认颜色</button><div class="context-actions"><button id="edit-layout">调整布局<span>移动 · 显隐</span></button><button id="context-manage">卡片与内容<span>显示内容</span></button></div>';
   document.body.append(menu);
   const query = selector => menu.querySelector(selector);
-  let selected = 'cover', origin = grid;
+  let selected = 'cover', origin = grid, menuScrollTop = 0;
   function focusOrigin() {
     const target = origin.isConnected && !origin.closest('[hidden]') ? origin : grid.querySelector('.widget:not([hidden])') || grid;
     target.focus({preventScroll:true});
   }
-  function close(restore = false) { const open = !menu.hidden; menu.hidden = true; if (open && restore) focusOrigin(); }
+  function close(restore = false) { const open = !menu.hidden; menu.hidden = true; detail.classList.remove('card-settings-open'); if (open && restore) focusOrigin(); }
   function position(x,y) {
     const box=menu.getBoundingClientRect(), margin=10;
     menu.style.left=Math.max(margin,Math.min(x,innerWidth-box.width-margin))+'px';
@@ -62,7 +62,7 @@ function installCardMenu({ grid, readCard, setSize, setColor, editLayout, manage
   function button(label, action) { const node=document.createElement('button'); node.type='button'; node.textContent=label; node.onclick=action; return node; }
   function open(id,anchor,x,y) {
     const card=readCard(id); if (!card) return;
-    selected=id; origin=anchor; menu.hidden=false; menu.scrollTop=0;
+    selected=id; origin=anchor; menuScrollTop=detail.scrollTop; menu.hidden=false; menu.scrollTop=0; detail.classList.add('card-settings-open');
     menu.setAttribute('aria-label',card.title+'设置'); query('#context-card-name').textContent=card.title;
     query('#context-sizes').replaceChildren(...Object.entries(card.sizes).map(([size,[columns,rows]]) => {
       const names={small:'紧凑',medium:'标准',large:'加大'};
@@ -121,7 +121,8 @@ function installCardMenu({ grid, readCard, setSize, setColor, editLayout, manage
     }
   });
   addEventListener('resize',()=>close());
-  detail.addEventListener('scroll',()=>close(),{passive:true});
+  // A queued event from focusing/scrolling to the card must not dismiss its newly opened menu.
+  detail.addEventListener('scroll',()=>{ if (Math.abs(detail.scrollTop-menuScrollTop)>.5) close(); },{passive:true});
   document.querySelector('#close-preview').addEventListener('click',()=>close());
   return { close, focusOrigin };
 }
