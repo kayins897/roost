@@ -3,5 +3,22 @@
 .rating-heading { justify-content: space-between; margin-bottom: 13px; }.rating-heading h3,.rating-finish { display: inline-flex; align-items: center; gap: 6px; }
 .rating-input-row select { padding: 8px 12px; min-width: 125px; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; }
 .rating-help { font-size: 11px; color: var(--muted); line-height: 1.8; }.game-rating > .rating-help { margin: 12px 0 0; }
-.rating-finish { font-size: 11px; color: var(--muted); }.rating-finish--silver { color: var(--foil-silver); }.rating-finish--gold { color: var(--foil-gold); }.rating-finish--holographic,.rating-finish--prismatic { color: var(--foil-holographic); }
+.rating-finish { font-size: 11px; color: var(--muted); }.rating-finish--silver { color: var(--foil-silver); }.rating-finish--gold { color: var(--foil-gold); }.rating-finish--foil { color: #a8ceff; }.rating-finish--holographic,.rating-finish--prismatic { color: var(--foil-holographic); }
 .card-personal-rating { display: flex; align-items: center; gap: 4px; margin-top: 7px; font-size: 10px; color: var(--muted); }.card-personal-rating strong { color: var(--text); font-weight: 600; }.card-personal-rating > span { margin-left: 3px; }
+.game-progress{display:grid;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.game-progress-unrecorded{font-size:11px;color:var(--muted);align-self:center}
+.completion-count-row{display:flex;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap}
+.completion-count-row strong{margin:0 2px}
+.completion-count-edit{display:inline-flex;gap:4px;align-items:center}
+.completion-count-edit input{width:88px;padding:5px 8px;border-radius:6px;border:1px solid var(--control-border);background:var(--field);color:var(--text)}
+.completion-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.completion-record-form{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}
+.completion-mark-row{display:flex;align-items:center;gap:6px;font-size:12px}
+.completion-event-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.completion-event-list li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:12px}
+.completion-event-list small{color:var(--muted)}
+.completion-event-edit{display:flex;gap:4px;align-items:center;flex:1}
+.completion-event-edit input{padding:4px 6px;border-radius:5px;border:1px solid var(--control-border);background:var(--field);color:var(--text);font-size:12px}
+.completion-options .status-option.is-selected{outline:2px solid var(--accent);outline-offset:1px}
+.detail-progress-summary,.detail-progress-summary>span{display:inline-flex;align-items:center;gap:6px}.detail-progress-summary{flex-wrap:wrap;gap:10px}.game-state--inactive{color:var(--muted)}
+.game-priority{padding:12px 0;border-bottom:1px solid var(--line);margin-bottom:12px}.game-priority h3{display:flex;align-items:center;gap:6px;margin:0 0 8px}.completion-event-edit{flex-wrap:wrap}.completion-event-edit input{max-width:100%;min-width:100px;flex:1}.completion-event-delete{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.completion-event-delete p{flex-basis:100%;margin:0}.completion-event-delete input:not([type=checkbox]){width:90px}.completion-events h4{font-size:12px;margin:12px 0 8px}.completion-event-list li{flex-wrap:wrap}.completion-count-edit{flex-wrap:wrap}

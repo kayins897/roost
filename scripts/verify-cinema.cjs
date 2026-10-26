@@ -101,7 +101,8 @@ async function closeDrawer(page) {
 
 async function inspectCollection(page, game = false) {
   const value = await page.evaluate(() => {
-    const variables = { want: '--purple', playing: '--blue', cleared: '--green', replaying: '--amber', ongoing: '--cyan', paused: '--amber', abandoned: '--danger' };
+    // v0.4.20+ 语义色系统：徽标颜色走 --play-state-color（tokens.css 的 --game-* 值），非旧 --purple/--danger 映射。
+    const variables = { want: '--game-want', playing: '--game-playing', cleared: '--game-cleared', replaying: '--game-ongoing', ongoing: '--game-ongoing', paused: '--game-paused', abandoned: '--game-abandoned' };
     const probe = document.createElement('span'); document.body.append(probe);
     const cards = [...document.querySelectorAll('.media-card')].map(card => {
       const state = card.querySelector('.card-game-state'), time = card.querySelector('.card-playtime');
@@ -164,9 +165,10 @@ async function checkOverlays(page, prefix) {
   await page.locator('.media-card').first().click();
   const detail = page.locator('.detail-panel');
   await inspectOverlay(page, prefix, 'detail', detail);
-  const summary = await detail.locator('.detail-personal-summary').evaluate(element => {
-    const time = element.querySelector('.detail-summary-playtime'), state = element.querySelector('.detail-summary-state');
-    return { timeBeforeState: !!(time.compareDocumentPosition(state) & Node.DOCUMENT_POSITION_FOLLOWING), stateClass: state.className, color: getComputedStyle(state).color };
+  // v0.4.24：详情摘要标记为 .detail-experience-summary（时长 .detail-hours + 关系 span）。
+  const summary = await detail.locator('.detail-experience-summary').evaluate(element => {
+    const time = element.querySelector('.detail-hours'), state = element.querySelector('span[class*=game-state--]');
+    return { timeBeforeState: !!(time && state && time.compareDocumentPosition(state) & Node.DOCUMENT_POSITION_FOLLOWING), stateClass: state ? state.className : '(none)', color: state ? getComputedStyle(state).color : 'none' };
   });
   assert.equal(summary.timeBeforeState, true);
   await detail.locator('.detail-toolbar').getByRole('button', { name: '关闭', exact: true }).click();
@@ -309,8 +311,8 @@ async function recordPreview(fixture, svgs) {
     const others = ['book', 'screen'].map(category => ({ ...demoSnapshot.items.find(item => item.category === category), id: `cinema-${category}` }));
     const fixture = { schemaVersion: 1, visualFixtureMarker: 'cinema-isolated-v1', items: [...games, ...others] };
     assert.equal(isValidSnapshot(fixture), true);
-    const svgs = Object.fromEntries(artworkNames.filter(name => name !== 'nier').map(name => [name, fs.readFileSync(path.join(root, '../design/2026-10-22-concepts/assets', `cover-${name}.svg`), 'utf8')]));
-    report.fixture = { items: fixture.items.length, games: games.length, music: 0, gameStates: GAME_PLAY_STATES };
+    const designBase = [path.join(root, '../../design'), path.join(root, '../design')].map(base => path.join(base, '2026-10-22-concepts', 'assets')).find(base => fs.existsSync(path.join(base, 'cover-hollow.svg'))) ?? path.join(root, '../design/2026-10-22-concepts/assets');
+    const svgs = Object.fromEntries(artworkNames.filter(name => name !== 'nier').map(name => [name, fs.readFileSync(path.join(designBase, `cover-${name}.svg`), 'utf8')]));
     const ambientReport = path.join(output, '..', 'ambient-validation.json');
     if (fs.existsSync(ambientReport)) { const raw = fs.readFileSync(ambientReport); const value = JSON.parse(raw); report.ambientReference = { path: path.relative(root, ambientReport), passed: value.passed, checks: value.checks?.length, sha256: digest(raw), scope: value.scope }; }
     base = await startServer();
@@ -333,11 +335,13 @@ async function recordPreview(fixture, svgs) {
           const sections = [];
           for (const name of categories) {
             await navigate(page, name);
+            if (name === '游戏') { await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click(); await page.locator('.completion-row').getByRole('button', { name: '全部进度', exact: true }).click(); }
             const inspection = await inspectCollection(page, name === '游戏');
             if (name === '音乐') assert.equal(inspection.empty, true);
             sections.push({ name, screenshot: await screenshot(page, `${prefix}-section-${name}`), ...inspection });
           }
           await navigate(page, '游戏');
+          await page.locator('.library-views').getByRole('button', { name: '全部游戏', exact: true }).click(); await page.locator('.completion-row').getByRole('button', { name: '全部进度', exact: true }).click();
           const views = [];
           for (const view of ['grid', 'list']) {
             await page.getByRole('button', { name: view === 'grid' ? '卡片视图' : '列表视图', exact: true }).click();

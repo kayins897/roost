@@ -8,7 +8,9 @@ export function BackToTop({ scrollRef, focusRef, onReturn }: { scrollRef: RefObj
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
-    const update = () => setVisible(element.scrollTop > 320);
+    const update = () => {
+      setVisible(element.scrollTop > 320);
+    };
     update();
     element.addEventListener('scroll', update, { passive: true });
     return () => element.removeEventListener('scroll', update);

@@ -1,4 +1,5 @@
-import { gamePlayStateFor, isValidPersonalGrade } from './library.ts';
+import { isValidPersonalGrade } from './library.ts';
+import { gradeEditable, priorityEditable } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
 import type { MediaItem } from './types.ts';
 import type { SortDirection } from './librarySort.ts';
@@ -7,9 +8,9 @@ export type RankMode = 'priority' | 'rating';
 export type RankedGameGroup = { id: string; label: string; items: MediaItem[] };
 const orderKey = (mode: RankMode) => mode === 'priority' ? 'priorityOrder' : 'ratingOrder';
 const normalGame = (item: MediaItem) => item.category === 'game' && !item.hiddenAt && !item.removedAt;
+const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? priorityEditable(item) : gradeEditable(item));
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 function rankId(item: MediaItem, mode: RankMode): string {
-  if (mode === 'priority' && gamePlayStateFor(item) === 'paused') return 'paused';
   const grade = mode === 'priority' ? item.playPriority : item.personalGrade;
   return isValidPersonalGrade(grade) ? grade : 'unranked';
 }
@@ -28,23 +29,24 @@ export function groupRankedGames(items: MediaItem[], mode: RankMode, manualOrder
   const grades = direction === 'asc' ? [...GAME_GRADES].reverse() : GAME_GRADES;
   const groups: RankedGameGroup[] = grades.map(id => ({ id, label: id, items: [] }));
   groups.push({ id: 'unranked', label: mode === 'priority' ? '未设置优先级' : '未评级', items: [] });
-  if (mode === 'priority') groups.push({ id: 'paused', label: '以后再说 · 暂时搁置', items: [] });
   const byId = new Map(groups.map(group => [group.id, group]));
-  for (const item of items) if (normalGame(item)) byId.get(rankId(item, mode))!.items.push(item);
+  for (const item of items) if (inRankView(item, mode)) byId.get(rankId(item, mode))!.items.push(item);
   if (manualOrder) for (const group of groups) group.items = sortRank(group.items, mode);
   return groups;
 }
 
 /** Move to the target's old position, so both drag and up/down commands use the same action.
- * Only the normal, same-state/same-rank subset receives an explicit order. No dates or grades change. */
+ * Only the normal, eligible same-rank subset receives an explicit order. No dates or grades change. */
 export function moveGameWithinRank(allItems: MediaItem[], sourceId: string, targetId: string, mode: RankMode): { items: MediaItem[]; changedCount: number } {
   const unchanged = { items: allItems, changedCount: 0 };
   if (sourceId === targetId || new Set(allItems.map(item => item.id)).size !== allItems.length) return unchanged;
   const sources = allItems.filter(item => item.id === sourceId), targets = allItems.filter(item => item.id === targetId);
   if (sources.length !== 1 || targets.length !== 1) return unchanged;
   const source = sources[0], target = targets[0];
-  if (!normalGame(source) || !normalGame(target) || gamePlayStateFor(source) !== gamePlayStateFor(target) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
-  const group = sortRank(allItems.filter(item => normalGame(item) && gamePlayStateFor(item) === gamePlayStateFor(source) && rankId(item, mode) === rankId(source, mode)), mode);
+  // 同组判定只看有效视图资格与等级档，不再比较旧单轴状态——
+  // 两款分类资格匹配的作品即使旧轴分别是 cleared 与 playing 也可同级移动。
+  if (!inRankView(source, mode) || !inRankView(target, mode) || rankId(source, mode) !== rankId(target, mode)) return unchanged;
+  const group = sortRank(allItems.filter(item => inRankView(item, mode) && rankId(item, mode) === rankId(source, mode)), mode);
   const from = group.findIndex(item => item.id === sourceId), to = group.findIndex(item => item.id === targetId);
   group.splice(from, 1); group.splice(to, 0, source);
   const positions = new Map(group.map((item, index) => [item.id, index])), key = orderKey(mode);

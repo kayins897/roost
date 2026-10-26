@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { availableTags, deleteTag, filterLibrary, flattenGameTags, formatPlaytime, GAME_PLAY_LABELS, GAME_PLAY_STATES, gamePlayStateFor, gameTagCounts, gameTagsFor, isExperienceDate, isValidSnapshot, legacyStatusForGameState, normalizePlatforms, normalizeTags, platformsFor, renameTag, shouldShowPlaytime } from './library.ts';
+import { availableTags, deleteTag, filterLibrary, flattenGameTags, formatPlaytime, GAME_PLAY_LABELS, GAME_PLAY_STATES, gamePlayStateFor, gameTagCounts, gameTagsFor, isExperienceDate, isValidSnapshot, legacyStatusForGameState, moveGameTag, normalizePlatforms, normalizeTags, platformsFor, renameTag, shouldShowPlaytime } from './library.ts';
 import type { MediaItem } from './types.ts';
 
 const make = (id: string, tags: string[]): MediaItem => ({
@@ -204,4 +204,47 @@ test('可选扩展字段保持schemaVersion 1与未知字段，不接受损坏�
     { platforms: [''] }, { platforms: 'Steam' }, { externalIds: [{ provider: 'unknown', id: '1' }] },
     { externalIds: [{ provider: 'steam', id: '' }] }, { externalIds: [{ provider: 'steam', id: '1', url: 'javascript:alert(1)' }] },
   ]) assert.equal(isValidSnapshot({ schemaVersion: 1, items: [{ ...item, ...change }] }), false);
+});
+
+test('标签跨组移动：来源移除、目标合并、跨组同名保持、仅改受影响作品', () => {
+  const withGroups = (id: string, gameTags: NonNullable<MediaItem['gameTags']>): MediaItem => ({ ...make(id, []), gameTags, tags: flattenGameTags(gameTags) });
+  const a = withGroups('a', { gameplay: ['肉鸽', '动作'], theme: ['科幻'], scenario: [], other: [] });
+  const b = withGroups('b', { gameplay: ['平台跳跃'], theme: ['科幻'], scenario: [], other: [] });
+  const c = withGroups('c', { gameplay: [], theme: [], scenario: ['碎片时间'], other: ['肉鸽'] });
+  const moved = moveGameTag([a, b, c], '肉鸽', 'gameplay', 'theme');
+  assert.deepEqual(gameTagsFor(moved[0]).gameplay, ['动作']);
+  assert.deepEqual(gameTagsFor(moved[0]).theme, ['科幻', '肉鸽']);
+  assert.deepEqual(moved[0].tags, flattenGameTags(gameTagsFor(moved[0])));
+  assert.equal(moved[1], b, '未含来源标签的作品引用不变');
+  assert.deepEqual(gameTagsFor(moved[2]).other, ['肉鸽'], '其他分组的同名标签保持');
+});
+test('标签移动目标组已有同名（大小写不同）按既有去重合并', () => {
+  const a: MediaItem = { ...make('a', []), gameTags: { gameplay: ['Roguelike'], theme: ['Roguelike'], scenario: [], other: [] }, tags: [] };
+  const moved = moveGameTag([a], 'roguelike', 'gameplay', 'theme');
+  assert.deepEqual(gameTagsFor(moved[0]).gameplay, []);
+  assert.deepEqual(gameTagsFor(moved[0]).theme, ['Roguelike'], '目标组保留既有大小写形式');
+});
+test('同组移动、非游戏与未命中标签零变化；旧平铺格式可从其他组显式移出', () => {
+  const a: MediaItem = { ...make('a', []), gameTags: { gameplay: ['动作'], theme: [], scenario: [], other: [] }, tags: ['动作'] };
+  assert.equal(moveGameTag([a], '动作', 'gameplay', 'gameplay')[0], a);
+  const book: MediaItem = { ...make('b', []), category: 'book', tags: ['小说'] };
+  assert.equal(moveGameTag([book], '小说', 'other', 'theme')[0], book, '非游戏不受影响');
+  assert.equal(moveGameTag([a], '不存在的标签', 'gameplay', 'theme')[0], a);
+  const legacy = make('legacy', ['旧平铺']);
+  const movedLegacy = moveGameTag([legacy], '旧平铺', 'other', 'theme');
+  assert.deepEqual(gameTagsFor(movedLegacy[0]).theme, ['旧平铺']);
+  assert.deepEqual(gameTagsFor(movedLegacy[0]).other, []);
+});
+test('标签移动保留 gameTags 未知扩展组与个人字段', () => {
+  const base: MediaItem = { ...make('a', []), impression: '个人印象', gameTags: { gameplay: ['动作'], theme: [], scenario: [], other: [], futureGroup: ['原样'] } as NonNullable<MediaItem['gameTags']>, tags: [] };
+  const moved = moveGameTag([base], '动作', 'gameplay', 'theme');
+  assert.deepEqual((moved[0].gameTags as Record<string, unknown>).futureGroup, ['原样']);
+  assert.equal(moved[0].impression, '个人印象');
+});
+
+test('标签移动保留未涉及分组的原始存储值（空白与大小写不归一）', () => {
+  const a: MediaItem = { ...make('a', []), gameTags: { gameplay: ['Action'], theme: [' History ', 'history'], scenario: [], other: [] }, tags: [] };
+  const moved = moveGameTag([a], 'Action', 'gameplay', 'scenario');
+  assert.deepEqual((moved[0].gameTags as NonNullable<MediaItem['gameTags']>).theme, [' History ', 'history'], '未涉及组逐字保留');
+  assert.deepEqual((moved[0].gameTags as NonNullable<MediaItem['gameTags']>).gameplay, []);
 });

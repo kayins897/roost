@@ -20,3 +20,4 @@
 .platform-suggestions button.is-active { color: #b9e8d4; background: rgba(120,200,165,.12); }
 .detail-tags-heading { display: flex; justify-content: space-between; align-items: center; }
 @media (max-width: 700px) { .timeline-row { grid-template-columns: 82px 1fr; } .timeline-row > span { grid-column: 2; } .topbar-actions .metadata-add { padding: 8px; font-size: 12px; } }
+.demo-mode-banner{flex:0 0 auto;display:flex;gap:12px;align-items:center;padding:7px 16px;font-size:12px;line-height:1.5;background:var(--accent-soft);color:var(--text);border-bottom:1px solid var(--accent-line)}

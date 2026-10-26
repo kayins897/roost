@@ -1,7 +1,6 @@
 import { useState, type DragEvent, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, GripVertical } from 'lucide-react';
 import { groupRankedGames, type RankMode } from '../../../domain/gamePlanning.ts';
-import { gamePlayStateFor } from '../../../domain/library.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 import type { SortDirection } from '../../../domain/librarySort.ts';
 import './ranked-gallery.css';
@@ -22,7 +21,7 @@ export function RankedGallery({ items, mode, view, manualOrder, rankDirection = 
   }
   function allowed(sourceId: string, target: MediaItem, groupItems: MediaItem[]) {
     const source = groupItems.find(item => item.id === sourceId);
-    return reorderEnabled && source !== undefined && sourceId !== target.id && gamePlayStateFor(source) === gamePlayStateFor(target);
+    return reorderEnabled && source !== undefined && sourceId !== target.id;
   }
   function start(event: DragEvent<HTMLDivElement>, item: MediaItem) {
     if (!reorderEnabled || (event.target instanceof Element && event.target.closest('[data-rank-controls] button,.card-menu-button'))) { event.preventDefault(); return; }
@@ -41,8 +40,8 @@ export function RankedGallery({ items, mode, view, manualOrder, rankDirection = 
       </summary>
       <div className={`media-gallery media-gallery--${view} ranked-gallery__items`}>
         {group.items.map(item => {
-          const peers = group.items.filter(peer => gamePlayStateFor(peer) === gamePlayStateFor(item)), position = peers.findIndex(peer => peer.id === item.id);
-          return <div key={item.id} className={`ranked-gallery__entry ${dragging === item.id ? 'is-dragging' : ''} ${over === item.id ? 'is-drop-target' : ''}`} data-rank-item={item.id} draggable={reorderEnabled} onDragStart={event => start(event, item)} onDragEnd={() => { setDragging(null); setOver(null); }} onDragOver={event => {
+          const peers = group.items, position = peers.findIndex(peer => peer.id === item.id);
+          return <div key={item.id} className={`ranked-gallery__entry ${dragging === item.id ? 'is-dragging' : ''} ${over === item.id ? 'is-drop-target' : ''}`} data-rank-item={item.id} draggable={reorderEnabled} onDragStart={event => { if ((event.target as HTMLElement).closest('input,textarea')) { event.preventDefault(); return; } start(event, item); }} onDragEnd={() => { setDragging(null); setOver(null); }} onDragOver={event => {
             if (dragging && allowed(dragging, item, group.items)) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setOver(item.id); }
           }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(null); }} onDrop={event => {
             const source = event.dataTransfer.getData(dragType);

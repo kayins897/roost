@@ -3,16 +3,29 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { LibraryStore } from './store.ts';
+import { assertDemoProfile, resolveLaunchMode } from './launchMode.ts';
 import { lookupMetadata } from './metadata.ts';
 import { enrichSteamLibrary, readSteamLibrary, SteamConnectionStore } from './steam.ts';
 
 const ENTRY_URL = 'qiyu://app/index.html';
-const testing = process.env.QIYU_E2E === '1';
+const runtime = (() => {
+  try {
+    const mode = resolveLaunchMode(process.argv, process.env, app.getPath('appData'));
+    if (mode.mode === 'demo') assertDemoProfile(mode.dataDirectory);
+    else fs.mkdirSync(mode.dataDirectory, { recursive: true });
+    return mode;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '启动参数无效';
+    console.error(`QIYU_STARTUP_FAILED: ${message}`);
+    dialog.showErrorBox('栖域启动已停止', message);
+    app.exit(1);
+    throw error;
+  }
+})();
+const testing = runtime.mode === 'test';
+const demoMode = runtime.mode === 'demo';
+const dataDirectory = runtime.dataDirectory;
 app.setName('栖域');
-const dataDirectory = testing && process.env.QIYU_TEST_DATA_DIR
-  ? path.resolve(process.env.QIYU_TEST_DATA_DIR)
-  : path.join(app.getPath('appData'), 'QIYU');
-fs.mkdirSync(dataDirectory, { recursive: true });
 app.setPath('userData', dataDirectory);
 protocol.registerSchemesAsPrivileged([{ scheme: 'qiyu', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 let mainWindow: BrowserWindow | null = null;
@@ -98,7 +111,7 @@ function registerIpc() {
     finally { metadataBusy = false; }
   });
   const handlers: Record<string, (value: unknown) => unknown> = {
-    'qiyu:info': () => ({ version: app.getVersion(), dataDirectory, windowVisible: windowVisible() }),
+    'qiyu:info': () => ({ version: app.getVersion(), dataDirectory, windowVisible: windowVisible(), ...(demoMode ? { demo: true } : {}) }),
     'qiyu:load': () => store.load(),
     'qiyu:save': value => {
       if (!value || typeof value !== 'object') throw new Error('保存请求无效');
@@ -129,7 +142,7 @@ function externalLink(value: string) {
 }
 function createWindow() {
   mainWindow = new BrowserWindow({
-    title: '栖域', width: 1440, height: 960, minWidth: 880, minHeight: 640,
+    title: demoMode ? '栖域（演示数据）' : '栖域', width: 1440, height: 960, minWidth: 880, minHeight: 640,
     backgroundColor: '#08090b', show: false,
     ...(process.platform === 'win32' ? {
       titleBarStyle: 'hidden' as const,

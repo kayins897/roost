@@ -21,3 +21,10 @@
 .plan-divider { grid-column: 1 / -1; display: flex; align-items: center; gap: 15px; margin: 15px 0 0; color: var(--muted); font-size: 12px; }.plan-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 @media (hover:none) { .media-card-shell .card-menu-button { opacity: 1; } }
 @media(max-width:760px) { .selection-actionbar { left: 50%; width: calc(100% - 24px); max-width: calc(100% - 24px); bottom: 8px; gap: 6px; padding: 10px; }.selection-summary { grid-column: 1 / -1; }.selection-management { grid-column: 1 / -1; justify-content: start; }.selection-actionbar .button { font-size: 11px; padding: 6px 10px; }.app-shell:has(.selection-actionbar) .content-wrap { padding-bottom: 250px; }.app-shell:has(.selection-actionbar) .mobile-add { display: none; }.library-views button { padding: 8px 9px; } }
+.context-rank .menu-section-label { display: flex; align-items: center; gap: 5px; }
+.context-grades { display: flex; gap: 4px; padding: 2px 0 8px; border-bottom: 1px solid var(--line); }
+.context-grades button { flex: 1; justify-content: center; min-width: 0; padding: 7px 2px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+.context-grades button[aria-checked='true'] { background: var(--control-selected); color: var(--control-selected-ink); border-color: var(--control-selected-border); }
+
+.game-status-tabs > small { color: var(--muted); font-size: 11px; font-weight: 400; align-self: center; margin-left: 4px; }
+.experience-category-filters { flex-basis: 100%; margin-top: 8px; }

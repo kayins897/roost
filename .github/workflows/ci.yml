@@ -11,6 +11,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +19,6 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm test
-      - run: npm run desktop:build
-      - run: node scripts/verify-desktop.cjs
-      - run: node scripts/verify-features.cjs
+      - run: npm run setup:desktop
+      - run: npx playwright install msedge
+      - run: npm run test:workflow

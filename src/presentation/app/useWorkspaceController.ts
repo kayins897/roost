@@ -1,22 +1,25 @@
 import type { ChangeEvent } from 'react';
 import { useCallback,useEffect,useMemo,useRef } from 'react';
 import type { GameBatchEditPlan } from '../../domain/batchEdit.ts';
-import { createGameBatchEditPlan } from '../../domain/batchEdit.ts';
+import { createBulkGradePatch, createGameBatchEditPlan } from '../../domain/batchEdit.ts';
 import type { MetadataCandidate } from '../../domain/catalog.ts';
 import { isImportExcluded } from '../../domain/importExclusions.ts';
+import { gradeEditable, priorityEditable } from '../../domain/gameProgress.ts';
+import { experienceCategoryFor, experienceClassificationPatch, type GameExperienceClassification } from '../../domain/gameExperience.ts';
 import { moveGameWithinRank, type RankMode } from '../../domain/gamePlanning.ts';
 import { defaultSortDirection, sortLibraryItems, type LibrarySort, type SortDirection } from '../../domain/librarySort.ts';
-import { deleteTag,emptyGameTags,filterLibrary,GAME_TAG_KEYS,gamePlayStateFor,isValidSnapshot,normalizeTags,platformsFor,renameTag } from '../../domain/library.ts';
+import { deleteTag,emptyGameTags,filterLibrary,GAME_TAG_KEYS,GAME_TAG_LABELS,gameTagsFor,isValidSnapshot,moveGameTag,normalizeTags,platformsFor,renameTag } from '../../domain/library.ts';
 import { permanentlyDeleteItems,restoreItems,setItemsHidden,trashItems,visibleLibraryItems,type LibraryView } from '../../domain/lifecycle.ts';
 import { previewSteamImport } from '../../domain/steamImport.ts';
 import type { SteamLibraryGame,SteamSyncOptions } from '../../domain/steamSync.ts';
 import { applySteamSync } from '../../domain/steamSync.ts';
-import type { GamePlayState,GameTagGroupKey,GameTagGroups,LibrarySnapshot,MediaItem,MediaType,ProgressStatus } from '../../domain/types.ts';
+import type { GameTagGroupKey,GameTagGroups,LibrarySnapshot,MediaItem,MediaType,ProgressStatus } from '../../domain/types.ts';
 import { demoIds } from '../../infrastructure/demoData.ts';
 import { createRepository } from '../../infrastructure/repository.ts';
 import { useAmbientMotion } from '../AmbientScene.tsx';
 import { type BatchAction,type TagAssignment } from '../BatchEdit.tsx';
 import { useAppearance } from '../appearance.ts';
+import { classificationRankMode } from '../features/library/experienceOptions.ts';
 import { type ItemMenu } from '../features/library/ContextMenu.tsx';
 import { type TagScope } from '../features/tags/TagManager.tsx';
 import { useCoverDepth } from '../useCoverDepth.ts';
@@ -43,12 +46,13 @@ export function useWorkspaceController() {
     selectionIds: ((() => new Set())()) as Set<string>,
     batchEditOpen: false,
     status: ('all') as ProgressStatus | 'all',
-    gameFilter: ('plan') as GamePlayState | 'all' | 'plan',
+    gameFilter: 'unplayed' as 'unplayed' | 'experienced' | 'all',
+    experienceCategoryFilter: 'all' as GameExperienceClassification | 'all',
     libraryView: 'library' as LibraryView,
-    batchAction: 'state' as BatchAction,
+    batchAction: 'add-tags' as BatchAction,
     assignment: null as TagAssignment | null,
     contextMenu: null as ItemMenu | null,
-    quickItem: null as { id: string; mode: 'time' | 'tags' | 'priority' | 'rating' } | null,
+    quickItem: null as { id: string; mode: 'time' | 'tags' } | null,
     subtypeFilter: 'all',
     query: '',
     selectedTags: ([]) as string[],
@@ -66,7 +70,7 @@ export function useWorkspaceController() {
     steamOpen: false,
     metadataCandidate: (null) as MetadataCandidate | null,
     importedDraft: (null) as MediaItem | null,
-    tagManager: false,
+    tagManager: false as boolean | 'create',
     settings: false,
     menuOpen: false,
     toast: ''
@@ -80,7 +84,9 @@ export function useWorkspaceController() {
   const [batchEditOpen, setBatchEditOpen] = fields('batchEditOpen');
   useEffect(() => { setSelecting(false); setSelectionIds(new Set()); setBatchEditOpen(false); }, [section]);
   const [status, setStatus] = fields('status');
-  const [gameFilter, setGameFilter] = fields('gameFilter');
+  const [gameFilter, setGameFilterValue] = fields('gameFilter');
+  const [experienceCategoryFilter, setExperienceCategoryFilter] = fields('experienceCategoryFilter');
+  function setGameFilter(next: 'unplayed' | 'experienced' | 'all') { setGameFilterValue(next); setExperienceCategoryFilter('all'); }
   const [libraryView, setLibraryView] = fields('libraryView');
   const [batchAction, setBatchAction] = fields('batchAction');
   const [assignment, setAssignment] = fields('assignment');
@@ -130,12 +136,14 @@ export function useWorkspaceController() {
   const selectedGames = useMemo(() => items.filter(item => item.category === 'game' && selectionIds.has(item.id)), [items, selectionIds]);
   const subtypes = useMemo(() => [...new Set(scope.flatMap(item => section === 'game' ? platformsFor(item) : [item.subcategory.trim()]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-CN')), [scope, section]);
   const visible = useMemo(() => {
-    const result = filterLibrary(libraryItems, { category: section, subcategory: subtypeFilter === 'all' ? undefined : subtypeFilter, status: section === 'game' ? 'all' : status, gamePlayState: section === 'game' && gameFilter !== 'plan' ? gameFilter : 'all', search: query, tags: selectedTags, gameTags: selectedGameTags, favoriteOnly });
-    const planned = section === 'game' && gameFilter === 'plan' ? result.filter(item => ['want','paused'].includes(gamePlayStateFor(item))) : result;
-    const grouped = section === 'game' && libraryView === 'library' && ['plan','want','cleared'].includes(gameFilter);
+    // 主类双选 OR，二级、客观通关事实与其他条件 AND；旧状态仅用于只读兼容。
+    let result = filterLibrary(libraryItems, { category: section, subcategory: subtypeFilter === 'all' ? undefined : subtypeFilter, status: section === 'game' ? 'all' : status, gameExperienceStatuses: section === 'game' && gameFilter !== 'all' ? [gameFilter] : undefined, search: query, tags: selectedTags, gameTags: selectedGameTags, favoriteOnly });
+    if (section === 'game' && gameFilter === 'experienced' && experienceCategoryFilter !== 'all') result = result.filter(item => experienceCategoryFilter === 'unclassified' ? experienceCategoryFor(item) === undefined : experienceCategoryFor(item) === experienceCategoryFilter);
+    const rankMode = classificationRankMode(gameFilter, experienceCategoryFilter);
+    const grouped = section === 'game' && libraryView === 'library' && rankMode !== undefined;
     // Group direction changes grades, never the fallback/manual order within a grade.
-    return sortLibraryItems(planned, { sort: sort === 'rank' && grouped ? 'recent' : sort, direction: sort === 'rank' && grouped ? 'desc' : sortDirection, rankMode: gameFilter === 'cleared' ? 'rating' : 'priority', pausedLast: section === 'game' && gameFilter === 'plan' });
-  }, [libraryItems, section, status, gameFilter, subtypeFilter, query, selectedTags, selectedGameTags, favoriteOnly, sort, sortDirection, libraryView]);
+    return sortLibraryItems(result, { sort: sort === 'rank' && grouped ? 'recent' : sort, direction: sort === 'rank' && grouped ? 'desc' : sortDirection, rankMode, pausedLast: false });
+  }, [libraryItems, section, status, gameFilter, experienceCategoryFilter, subtypeFilter, query, selectedTags, selectedGameTags, favoriteOnly, sort, sortDirection, libraryView]);
   const hasDemos = useMemo(() => items.some(item => demoIds.has(item.id)), [items]);
   const totalGameMinutes = useMemo(() => scope.filter(item => item.category === 'game').reduce((sum, item) => sum + (item.playtimeMinutes ?? 0), 0), [scope]);
   const appliedFilterCount = selectedTags.length + GAME_TAG_KEYS.reduce((sum, key) => sum + selectedGameTags[key].length, 0) + (subtypeFilter === 'all' ? 0 : 1) + (favoriteOnly ? 1 : 0);
@@ -154,15 +162,40 @@ export function useWorkspaceController() {
     setSelectionIds(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }
   function startSelection() { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSelectionIds(new Set()); setAssignment(null); setSelecting(true); }); }
-  function applyBatchEdit(plan: GameBatchEditPlan) {
+  function applyBatchEdit(plan: Pick<GameBatchEditPlan, 'selectedIds' | 'input' | 'changedCount' | 'items'>) {
     const current = snapshotRef.current;
+    const requested = new Set(plan.selectedIds);
+    const eligible = current.items.filter(item => requested.has(item.id) && item.category === 'game' && !item.removedAt);
+    if (!requested.size || eligible.length !== requested.size) { setToast('所选作品已变化，请关闭并重新检查选择；未更新任何作品。'); return false; }
     const next = createGameBatchEditPlan(current.items, plan.selectedIds, plan.input);
     if (!next.changedCount) { setToast('所选作品已符合本次设置，请返回调整。'); return false; }
     if (!commit({ ...current, items: next.items }, `已更新 ${next.changedCount} 款游戏`)) return false;
     setSelecting(false); setSelectionIds(new Set());
     return true;
   }
-  function changeGameFilter(next: GamePlayState | 'all' | 'plan') { setGameFilter(next); setSort(['want','plan','cleared'].includes(next) ? 'rank' : 'recent'); }
+  // 多选快捷定级：只传等级输入（不带状态）的纯等级补丁，不重写状态、不规范化旧别名；
+  // 仅作用于当前状态与维度匹配（want→优先级 / cleared→评级）的所选游戏。成功后保持多选便于连续整理。
+  function applyBulkClassification(value: GameExperienceClassification) {
+    const current = snapshotRef.current;
+    const chosen = current.items.filter(item => selectionIds.has(item.id));
+    if (!chosen.length || chosen.some(item => item.category !== 'game' || item.removedAt)) { setToast('所选作品已变化，请重新检查选择。'); return false; }
+    const patch = experienceClassificationPatch(value);
+    const changed = chosen.filter(item => Object.entries(patch).some(([key, value]) => item[key as keyof MediaItem] !== value));
+    if (!changed.length) { setToast('所选作品已经是该分类。'); return true; }
+    const ids = new Set(changed.map(item => item.id));
+    const now = new Date().toISOString();
+    return commit({ ...current, items: current.items.map(item => ids.has(item.id) ? { ...item, ...patch, updatedAt: now } : item) }, `已更新 ${changed.length} 款游戏的体验分类`);
+  }
+  function applyBulkGrade(mode: 'priority' | 'rating', value: NonNullable<MediaItem['playPriority']> | undefined) {
+    const current = snapshotRef.current;
+    const selected = current.items.filter(item => selectionIds.has(item.id));
+    const eligible = selected.filter(item => item.category === 'game' && !item.removedAt && (mode === 'priority' ? priorityEditable(item) : gradeEditable(item))).map(item => item.id);
+    if (!eligible.length || eligible.length !== selectionIds.size) { setToast('所选作品并非全部适用该等级；未更新任何作品。'); return false; }
+    const patch = createBulkGradePatch(current.items, eligible, mode, value);
+    if (!patch.changedCount) { setToast('所选游戏已符合该等级，无需更新。'); return false; }
+    return commit({ ...current, items: patch.items }, `已更新 ${patch.changedCount} 款游戏的${mode === 'priority' ? '游玩优先级' : '通关评级'}`);
+  }
+  function changeGameFilter(next: 'unplayed' | 'experienced' | 'all') { setGameFilter(next); setSort(next === 'unplayed' ? 'rank' : 'recent'); }
   function reorderGame(sourceId: string, targetId: string, mode: RankMode) {
     const current = snapshotRef.current.items;
     const fallbackOrder = sortLibraryItems(current, { sort: 'recent', direction: 'desc' });
@@ -177,7 +210,7 @@ export function useWorkspaceController() {
   function closeDetail() { guardDetail(() => { detailGuard.current = null; setSelectedId(null); }); }
   function openItem(id: string) { guardDetail(() => { detailGuard.current = null; setSelectedId(id); }); }
   function openEditor() { guardDetail(() => setEditor('new')); }
-  function navigate(next: Section) { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSection(next); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setStatus('all'); setGameFilter(next === 'game' ? 'plan' : 'all'); setLibraryView('library'); setContextMenu(null); setSubtypeFilter('all'); setSort(next === 'game' ? 'rank' : 'recent'); setQuery(''); setFiltersOpen(false); setMenuOpen(false); }); }
+  function navigate(next: Section) { guardDetail(() => { detailGuard.current = null; setSelectedId(null); setSection(next); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setStatus('all'); setGameFilter(next === 'game' ? 'unplayed' : 'all'); setLibraryView('library'); setContextMenu(null); setSubtypeFilter('all'); setSort(next === 'game' ? 'rank' : 'recent'); setQuery(''); setFiltersOpen(false); setMenuOpen(false); }); }
   function saveWork(item: MediaItem) {
     if (!items.some(existing => existing.id === item.id) && isImportExcluded(item, snapshotRef.current.importExclusions)) { setToast('这件作品已被移除，导入会跳过。未永久删除的作品可从回收站恢复。'); return; }
     if (updateItems(current => current.some(existing => existing.id === item.id) ? current.map(existing => existing.id === item.id ? item : existing) : [item, ...current], items.some(existing => existing.id === item.id) ? '作品已更新' : '已加入收藏库')) {
@@ -208,15 +241,36 @@ export function useWorkspaceController() {
     if (action === 'delete' && !window.confirm('永久删除这 ' + ids.length + ' 件作品及个人记录？无法撤销。导入排除记录仍保留。')) return;
     const current = snapshotRef.current;
     const next = action === 'hide' || action === 'unhide' ? setItemsHidden(current, ids, action === 'hide') : action === 'trash' ? trashItems(current, ids) : action === 'restore' ? restoreItems(current, ids) : permanentlyDeleteItems(current, ids);
-    if (commit(next, action === 'hide' ? '已隐藏，可从「已隐藏」找回' : action === 'unhide' ? '已取消隐藏' : action === 'trash' ? '已移到回收站' : action === 'restore' ? '已恢复作品' : '已永久删除')) {
+    if (commit(next, action === 'hide' ? '已隐藏，可在「数据与设置 → 数据与备份」找回' : action === 'unhide' ? '已取消隐藏' : action === 'trash' ? '已移到回收站' : action === 'restore' ? '已恢复作品' : '已永久删除')) {
       detailGuard.current = null; setSelectedId(null); setSelecting(false); setSelectionIds(new Set()); setContextMenu(null);
     }
   }
   function changeLibraryView(next: LibraryView, plan = false) {
-    guardDetail(() => { setLibraryView(next); setGameFilter(plan ? 'plan' : 'all'); setSort(plan ? 'rank' : 'recent'); setQuery(''); setStatus('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSelecting(false); setSelectionIds(new Set()); setSelectedId(null); setContextMenu(null); });
+    guardDetail(() => { setLibraryView(next); setGameFilter(plan ? 'unplayed' : 'all'); setSort(plan ? 'rank' : 'recent'); setQuery(''); setStatus('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setSelecting(false); setSelectionIds(new Set()); setSelectedId(null); setContextMenu(null); });
   }
   function assignTag(group: GameTagGroupKey, name: string) {
     setTagManager(false); changeLibraryView('library'); startSelection(); setAssignment({ group, name }); setToast('请选择需要添加「' + name + '」的作品，再点底部「添加标签」');
+  }
+  // 标签跨组移动：确认前展示来源/目标/影响数/合并情况；取消、零关联、同组不写库；
+  // 一次构造完整结果一次提交；成功后正在使用该标签的筛选转到目标组，其他筛选保留。
+  function moveTagAction(name: string, from: GameTagGroupKey, to: GameTagGroupKey) {
+    const label = name.trim(), lower = label.toLocaleLowerCase();
+    if (!label || from === to) return false;
+    const active = snapshotRef.current.items.filter(item => !item.hiddenAt && !item.removedAt);
+    const affected = active.filter(item => item.category === 'game' && gameTagsFor(item)[from].some(tag => tag.toLocaleLowerCase() === lower));
+    if (!affected.length) { setToast('该标签当前没有关联作品，无需移动。'); return false; }
+    const merges = affected.some(item => gameTagsFor(item)[to].some(tag => tag.toLocaleLowerCase() === lower));
+    if (!window.confirm(`将「${label}」从「${GAME_TAG_LABELS[from]}」移动到「${GAME_TAG_LABELS[to]}」？\n${affected.length} 件作品的该标签将移入新分组${merges ? '；部分作品的目标组已有同名标签，将按既有规则合并' : ''}。其他分组的同名标签保持不变。`)) return false;
+    const saved = updateItems(items => {
+      const scope = items.filter(item => !item.hiddenAt && !item.removedAt);
+      const edited = new Map(moveGameTag(scope, label, from, to).map(item => [item.id, item]));
+      return items.map(item => edited.get(item.id) ?? item);
+    }, `已将「${label}」移动到${GAME_TAG_LABELS[to]}`);
+    if (!saved) return false;
+    setSelectedGameTags(current => current[from].some(tag => tag.toLocaleLowerCase() === lower)
+      ? { ...current, [from]: current[from].filter(tag => tag.toLocaleLowerCase() !== lower), [to]: normalizeTags([...current[to], label]) }
+      : current);
+    return true;
   }
   function manageTag(oldName: string, newName: string | undefined, tagScope: TagScope) {
     const saved = updateItems(current => {
@@ -228,6 +282,8 @@ export function useWorkspaceController() {
     return saved;
   }
   function openMenu(id: string, x: number, y: number) { guardDetail(() => { setContextMenu({ id, x, y }); }); }
+  // v0.4.24 右键/详情双维度保存：只写新字段（domain 补丁），旧轴冻结。
+  function patchClassification(id: string, value: GameExperienceClassification) { return patchItem(id, experienceClassificationPatch(value)); }
   function patchItem(id: string, patch: Partial<MediaItem>) { return updateItems(current => current.map(item => item.id === id && !item.removedAt ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item)); }
   function exportBackup() {
     if (loadError) { setToast('收藏库尚未恢复，无法导出有效备份。请先导入备份恢复。'); return; }
@@ -265,5 +321,5 @@ export function useWorkspaceController() {
   }
 
   
-  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
+  return { reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, experienceCategoryFilter, setExperienceCategoryFilter, patchClassification, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkClassification, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
 }

@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
 
 const root = path.resolve(__dirname, '..');
 const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
-const dist = path.join(root, 'dist');
+const dist = path.resolve(process.env.QIYU_DETAIL_DIST || path.join(root, 'dist'));
 const evidence = path.join(root, 'evidence', `steam-batch-v${version.replaceAll('.', '')}`);
 const key = 'qiyu.library.v1';
 const checks = [], pageErrors = [], remoteRequests = [];
@@ -18,6 +18,7 @@ const fixture = {
   items: [{
     id: 'existing-steam-123', title: '已有收藏', originalTitle: 'Existing Game', category: 'game', subcategory: 'Switch', platforms: ['Switch', 'PS5'],
     creator: '我的开发商', year: '2020', status: 'paused', gamePlayState: 'paused', playtimeMinutes: 360,
+    experienceStatus: 'experienced', experienceCategory: 'replayable', playEngagement: 'playing', completion: 'cleared', completionCount: 2,
     tags: ['私人标签'], gameTags: { gameplay: [], theme: [], scenario: [], other: ['私人标签'] },
     impression: '我的印象必须保留', favorite: true, artwork: 'default', createdAt: '2020-01-01', updatedAt: '2020-01-01',
     externalIds: [{ provider: 'steam', id: '123' }], experienceEntries: [{ id: 'e1', date: '2024-08', kind: 'note', note: '实际经历' }], futureItem: { preserve: 9 },
@@ -72,6 +73,7 @@ async function screenshot(name) {
 (async () => {
   try {
     const { isValidSnapshot } = await import(pathToFileURL(path.join(root, 'src/domain/library.ts')).href);
+    const { experienceStatusFor, experienceCategoryFor } = await import(pathToFileURL(path.join(root, 'src/domain/gameExperience.ts')).href);
     assert.ok(isValidSnapshot(fixture));
     base = await startServer();
     browser = await chromium.launch({ channel: 'msedge', headless: true });
@@ -152,6 +154,9 @@ async function screenshot(name) {
       assert.deepEqual(updated.items.find(item => item.id === fixture.items[1].id), fixture.items[1]);
       const added = updated.items.find(item => !fixture.items.some(previous => previous.id === item.id));
       assert.equal(added.title, '新游戏甲'); assert.equal(added.playtimeMinutes, 90); assert.equal(added.status, 'want'); assert.equal(added.gamePlayState, 'want');
+      assert.equal(added.experienceStatus, undefined); assert.equal(added.experienceCategory, undefined);
+      assert.equal(experienceStatusFor(added), 'experienced'); assert.equal(experienceCategoryFor(added), undefined);
+      assert.equal(added.completion, 'unknown'); assert.equal(added.completionCount, undefined); assert.equal(added.completionEvents, undefined);
       assert.equal(added.impression, ''); assert.equal(added.experienceEntries, undefined); assert.equal(added.externalIds[0].id, '456');
       assert.ok(isValidSnapshot(updated));
       assert.equal(await page.evaluate(() => localStorage.getItem('qiyu.library.before-import')), baseline);
@@ -228,13 +233,15 @@ async function screenshot(name) {
           externalIds: [{ provider: 'steam', id: '2345678' }] },
         { title: '清单整数分钟游戏', category: 'game', platforms: ['Steam', 'PS5'], playtimeMinutes: 2468,
           externalIds: [{ provider: 'steam', id: '2345679' }], status: 'finished', gamePlayState: 'cleared',
+          experienceStatus: 'unplayed', experienceCategory: 'completed', playEngagement: 'abandoned', completion: 'cleared', completionCount: 9, personalGrade: 'SSS',
           favorite: true, impression: '清单个人字段不带入', experienceEntries: [{ id: 'outside', date: '2020-01-01', kind: 'completed', note: '不生成记录' }] },
       ] };
       await openImport();
       await source(JSON.stringify(gameManifest));
       const gamesSummary = await modal().locator('.steam-import-summary').innerText();
       assert.match(gamesSummary, /2\s*件可新增/); assert.match(gamesSummary, /0\s*件重复/); assert.match(gamesSummary, /0\s*行未识别/);
-      assert.equal(await modal().getByRole('combobox', { name: '新增作品的初始状态', exact: true }).inputValue(), 'want');
+      assert.equal(await modal().getByRole('combobox', { name: '新增游戏的体验分类', exact: true }).inputValue(), 'auto');
+      assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).inputValue(), 'unknown');
       assert.equal(await stored(), beforeGames, '游戏清单预览不写入收藏');
       await modal().getByRole('button', { name: '导入选中的 2 件', exact: true }).click();
       await modal().waitFor({ state: 'detached' });
@@ -248,12 +255,42 @@ async function screenshot(name) {
         assert.equal(game.playtimeMinutes, expected.playtimeMinutes); assert.deepEqual(game.platforms, expected.platforms);
         assert.deepEqual(game.externalIds, expected.externalIds);
         assert.equal(game.status, 'want'); assert.equal(game.gamePlayState, 'want');
+        assert.equal(game.playEngagement, 'planned'); assert.equal(game.completion, 'unknown');
+        assert.equal(game.experienceStatus, undefined); assert.equal(game.experienceCategory, undefined);
+        assert.equal(experienceStatusFor(game), expected.playtimeMinutes > 0 ? 'experienced' : 'unplayed'); assert.equal(experienceCategoryFor(game), undefined);
+        assert.equal(game.completionCount, undefined); assert.equal(game.completionEvents, undefined); assert.equal(game.personalGrade, undefined);
         assert.equal(game.impression, ''); assert.equal(game.favorite, false); assert.equal(game.experienceEntries, undefined);
       }
       assert.ok(isValidSnapshot(withGames));
       assert.equal(await page.evaluate(() => localStorage.getItem('qiyu.library.before-import')), beforeGames);
       await page.reload();
       assert.deepEqual(JSON.parse(await stored()), withGames, '重开后明确分钟与所有原资料完整保留');
+    });
+    await check('新增游戏明确主类与二级分类落盘，不代填客观通关或次数日志', async () => {
+      for (const classification of ['unplayed', 'completed']) {
+        const beforeRaw = await stored(), before = JSON.parse(beforeRaw);
+        const title = classification === 'unplayed' ? '明确待体验但有时长' : '明确分类已通关但未记通关事实';
+        await openImport();
+        await source(JSON.stringify({ format: 'qiyu.batch.v1', items: [{ title, category: 'game', playtimeMinutes: classification === 'unplayed' ? 90 : 0 }] }));
+        assert.equal(await modal().getByRole('combobox', { name: '新增游戏的体验分类', exact: true }).inputValue(), 'auto');
+        await modal().getByRole('combobox', { name: '新增游戏的体验分类', exact: true }).selectOption(classification);
+        assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).inputValue(), 'unknown');
+        assert.equal(await stored(), beforeRaw, '分类预览仍不写库');
+        await modal().getByRole('button', { name: '导入选中的 1 件', exact: true }).click();
+        await modal().waitFor({ state: 'detached' });
+        const after = JSON.parse(await stored()), added = after.items.find(item => item.title === title);
+        assert.equal(after.items.length, before.items.length + 1); assert.deepEqual(after.futureRoot, before.futureRoot);
+        for (const old of before.items) assert.deepEqual(after.items.find(item => item.id === old.id), old);
+        assert.ok(added); assert.equal(added.experienceStatus, classification === 'unplayed' ? 'unplayed' : 'experienced');
+        assert.equal(added.experienceCategory, classification === 'unplayed' ? undefined : 'completed');
+        assert.equal(experienceStatusFor(added), added.experienceStatus); assert.equal(experienceCategoryFor(added), added.experienceCategory);
+        assert.equal(added.playtimeMinutes, classification === 'unplayed' ? 90 : 0);
+        assert.equal(added.status, 'want'); assert.equal(added.gamePlayState, 'want'); assert.equal(added.playEngagement, 'planned');
+        assert.equal(added.completion, 'unknown'); assert.equal(added.completionCount, undefined); assert.equal(added.completionEvents, undefined);
+        assert.equal(added.experienceEntries, undefined); assert.equal(added.personalGrade, undefined); assert.equal(added.impression, '');
+        assert.ok(isValidSnapshot(after)); assert.equal(await page.evaluate(() => localStorage.getItem('qiyu.library.before-import')), beforeRaw);
+        await page.reload(); assert.deepEqual(JSON.parse(await stored()), after, '手动分类与客观字段重开保持');
+      }
     });
     await check('无页面异常且本地清单导入不发起任何远程请求', async () => {
       assert.deepEqual(pageErrors, []); assert.deepEqual(remoteRequests, []);

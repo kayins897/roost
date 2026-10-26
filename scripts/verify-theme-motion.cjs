@@ -4,11 +4,20 @@ const http = require('node:http');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { chromium } = require('playwright');
-const root = path.resolve(__dirname, '..'), dist = path.join(root, 'dist'), version = require('../package.json').version;
+const root = path.resolve(__dirname, '..'), dist = path.resolve(process.env.QIYU_DETAIL_DIST || path.join(root, 'dist')), version = require('../package.json').version;
 const output = path.join(root, 'evidence', `theme-motion-v${version.replaceAll('.', '')}`);
 const digest = value => createHash('sha256').update(value).digest('hex');
 const report = { passed: false, version, isolatedDataOnly: true, userLibraryAccessed: false, checks: [], captures: [], palettes: [], transitions: [], cadence: [], runtime: [], integrity: [], errors: [], notes: ['60 Hz 为渲染目标，实际帧率受 GPU、窗口尺寸和刷新率影响；实测时间与计数原样记录，不承诺任意设备恒定60帧。', '仅使用合成收藏和全新浏览器上下文，不读写真实 AppData/QIYU。'] };
-const fixture = JSON.stringify({ schemaVersion: 1, futureRoot: { preserve: 'theme' }, items: [{ id: 'theme-fixture', category: 'game', subcategory: 'Steam', title: '配色隔离作品', status: 'want', gamePlayState: 'want', creator: '隔离测试', year: '2026', platforms: ['Steam'], tags: [], gameTags: { gameplay: [], theme: [], scenario: [], other: [] }, impression: '不能改写的个人记录。', favorite: false, artwork: 'outer', playtimeMinutes: 120, futureItem: 42, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }] });
+const classificationCases = [
+  { state: 'unplayed', label: '新作开荒', token: '--game-want' },
+  { state: 'continue', label: '未完待续', token: '--game-playing' },
+  { state: 'replayable', label: '可重玩', token: '--game-ongoing' },
+  { state: 'long-term', label: '长线游玩', color: '#bf94e8' },
+  { state: 'completed', label: '已通关', token: '--game-cleared' },
+  { state: 'put-aside', label: '已放下', token: '--game-paused' },
+];
+const originalItem = { id: 'theme-fixture', category: 'game', subcategory: 'Steam', title: '配色隔离作品', status: 'want', gamePlayState: 'want', creator: '隔离测试', year: '2026', platforms: ['Steam'], tags: [], gameTags: { gameplay: [], theme: [], scenario: [], other: [] }, impression: '不能改写的个人记录。', favorite: false, artwork: 'outer', playtimeMinutes: 120, futureItem: 42, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' };
+const fixture = JSON.stringify({ schemaVersion: 1, futureRoot: { preserve: 'theme' }, items: classificationCases.map(({ state, label }) => ({ ...originalItem, id: state === 'unplayed' ? originalItem.id : 'theme-' + state, title: state === 'unplayed' ? originalItem.title : '配色隔离作品 · ' + label, experienceStatus: state === 'unplayed' ? 'unplayed' : 'experienced', ...(state === 'unplayed' ? {} : { experienceCategory: state }) })) });
 let server, browser, context, page, base, stage = '';
 fs.mkdirSync(output, { recursive: true });
 report.distAssets = [...fs.readFileSync(path.join(dist, 'index.html'), 'utf8').matchAll(/(?:src|href)="((?:\.\/|\/)?assets\/[^\"]+\.(?:js|css))"/g)].map(m => ({ path: m[1], sha256: digest(fs.readFileSync(path.join(dist, m[1]))) }));
@@ -21,7 +30,11 @@ async function colors() {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1; const ctx = canvas.getContext('2d');
     function resolve(value) { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = value; ctx.fillRect(0, 0, 1, 1); return Array.from(ctx.getImageData(0, 0, 1, 1).data); }
     const button = document.querySelector('.topbar .button--primary');
-    return { time: performance.now(), hue: root.dataset.themeTone, selected: resolve(style.getPropertyValue('--control-selected')), ink: resolve(style.getPropertyValue('--control-selected-ink')), accent: resolve(style.getPropertyValue('--accent')), ambient: resolve(style.getPropertyValue('--theme-ambient')), fill: resolve(getComputedStyle(button).backgroundColor), border: getComputedStyle(document.querySelector('.media-card[data-game-state="want"] .card-cover')).borderColor, variables: ['--game-want','--game-playing','--game-cleared','--game-ongoing','--game-paused','--game-abandoned'].map(key => style.getPropertyValue(key).trim()), gl: structuredClone(window.__themeStats.colors), motion: document.querySelector('.ambient-scene').dataset.motion };
+    const classificationColors = [...document.querySelectorAll('.media-card[data-game-state]')].map(card => {
+      const cover = getComputedStyle(card.querySelector('.card-cover'));
+      return { state: card.dataset.gameState, border: cover.borderColor, borderWidth: cover.borderTopWidth, borderRgba: resolve(cover.borderColor), label: getComputedStyle(card.querySelector('.card-game-state')).color };
+    }).sort((a, b) => a.state.localeCompare(b.state));
+    return { time: performance.now(), hue: root.dataset.themeTone, selected: resolve(style.getPropertyValue('--control-selected')), ink: resolve(style.getPropertyValue('--control-selected-ink')), accent: resolve(style.getPropertyValue('--accent')), ambient: resolve(style.getPropertyValue('--theme-ambient')), fill: resolve(getComputedStyle(button).backgroundColor), border: getComputedStyle(document.querySelector('.media-card[data-game-state="unplayed"] .card-cover')).borderColor, classificationColors, variables: ['--game-want','--game-playing','--game-cleared','--game-ongoing','--game-paused','--game-abandoned'].map(key => style.getPropertyValue(key).trim()), gl: structuredClone(window.__themeStats.colors), motion: document.querySelector('.ambient-scene').dataset.motion };
     };
     return window.__readThemeColors();
   });
@@ -73,13 +86,38 @@ function serverStart() {
     await page.evaluate(raw => { localStorage.setItem('qiyu.library.v1', raw); localStorage.setItem('qiyu.background.v1', JSON.stringify({ enabled: true, hue: 33, fluidEnabled: true, starsEnabled: true })); }, fixture);
     await page.goto(base); await page.getByRole('heading', { name: '游戏', exact: true }).waitFor(); await page.waitForTimeout(650);
     const themeButton = page.getByRole('button', { name: '切换背景主题配色', exact: true });
+    await check('默认待体验保留显式主类，双主类筛选显示完整六分类且不写库', async () => {
+      assert.equal(await page.locator('.media-card').count(), 1);
+      const original = page.getByRole('button', { name: '查看配色隔离作品详情', exact: true });
+      assert.equal(await original.isVisible(), true); assert.equal(await original.getAttribute('data-game-state'), 'unplayed');
+      const filters = page.getByRole('group', { name: '按体验分类筛选', exact: true });
+      for (const name of ['新作开荒', '已体验']) {
+        const target = filters.getByRole('button', { name, exact: true });
+        if (await target.getAttribute('aria-pressed') !== 'true') await target.click();
+      }
+      assert.equal(await page.locator('.media-card').count(), classificationCases.length);
+      for (const { state, label } of classificationCases) {
+        const target = page.locator(`.media-card[data-game-state="${state}"]`);
+        assert.equal(await target.count(), 1); assert.equal(await target.isVisible(), true);
+        assert.equal(await target.locator('.card-game-state').textContent(), label);
+      }
+    });
     let semantic;
-    await check('五色主题同步改变按钮、边框、文字与实际WebGL调色，六状态语义色保持', async () => {
+    await check('五色主题同步改变按钮、边框、文字与实际WebGL调色，六状态变量及主次分类语义色保持', async () => {
       const colorsByHue = [];
       for (const hue of [44, 210, 160, 268, 355]) {
         await page.waitForTimeout(450); const value = await colors(); semantic ??= value.variables; assert.equal(Number(value.hue), hue); assert.deepEqual(value.variables, semantic); colorsByHue.push(value.selected.join(','));
         const composite = value.fill.slice(0, 3).map(v => v * value.fill[3] / 255); value.minimumPrimaryContrast = (luminance(composite) + .05) / (luminance(value.ink) + .05); assert.ok(value.minimumPrimaryContrast >= 4.5, JSON.stringify(value));
         if (report.palettes.length) assert.equal(value.border, report.palettes[0].border);
+        assert.deepEqual(value.classificationColors.map(entry => entry.state), classificationCases.map(entry => entry.state).sort());
+        for (const entry of value.classificationColors) {
+          const expected = classificationCases.find(item => item.state === entry.state);
+          const hex = expected.color || value.variables[['--game-want','--game-playing','--game-cleared','--game-ongoing','--game-paused','--game-abandoned'].indexOf(expected.token)];
+          const rgba = [...hex.slice(1).match(/../g).map(channel => parseInt(channel, 16)), 255];
+          assert.equal(entry.borderWidth, '2px'); assert.equal(entry.label, entry.border); assert.deepEqual(entry.borderRgba, rgba, entry.state);
+        }
+        assert.equal(new Set(value.classificationColors.map(entry => entry.border)).size, classificationCases.length);
+        if (report.palettes.length) assert.deepEqual(value.classificationColors, report.palettes[0].classificationColors);
         report.palettes.push(value); await capture('theme-' + hue); await themeButton.click();
       }
       assert.equal(new Set(colorsByHue).size, 5);

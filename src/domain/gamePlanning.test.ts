@@ -5,7 +5,8 @@ import { GAME_GRADES } from './gameRating.ts';
 import { isValidSnapshot } from './library.ts';
 import type { MediaItem } from './types.ts';
 
-const item = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '', year: '', status: 'want', gamePlayState: 'want', tags: ['自己的标签'], impression: '旧印象', review: '长文测评', favorite: true, artwork: 'default', playtimeMinutes: 150, createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra });
+// 新游戏+同时具备两套排序资格；客观已通关与正时长独立保留，不用于授予等级资格。
+const item = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: 'Steam', platforms: ['Steam'], creator: '', year: '', status: 'want', gamePlayState: 'want', experienceStatus: 'experienced', experienceCategory: 'replayable', completion: 'cleared', tags: ['自己的标签'], impression: '旧印象', review: '长文测评', favorite: true, artwork: 'default', playtimeMinutes: 150, createdAt: '2026-01-01', updatedAt: '2026-01-02', ...extra });
 const ids = (items: MediaItem[]) => items.map(work => work.id);
 const groupIds = (items: MediaItem[], mode: RankMode, group: string) => ids(groupRankedGames(items, mode).find(entry => entry.id === group)!.items);
 
@@ -21,12 +22,12 @@ test('计划和评级分别读取六档等级，未设置另成组，不推断�
   assert.equal(JSON.stringify(data), raw); assert.equal(Object.hasOwn(data[0], 'playPriority'), false);
 });
 
-test('暂时搁置始终位于优先级最后分区，保留原优先级且不影响个人评级分组', () => {
+test('旧搁置按原优先级分组，不另设末档，保留原等级且不影响个人评级分组', () => {
   const data = [item('paused-top', { gamePlayState: 'paused', status: 'paused', playPriority: 'SSS', personalGrade: 'A' }), item('want-low', { playPriority: 'C' }), item('old-paused', { gamePlayState: undefined, status: 'paused', playPriority: 'SS' })];
-  const groups = groupRankedGames(data, 'priority');
-  assert.equal(groups.at(-1)?.id, 'paused'); assert.equal(groups.at(-1)?.label, '以后再说 · 暂时搁置');
-  assert.deepEqual(ids(groups.at(-1)!.items), ['paused-top', 'old-paused']); assert.deepEqual(groupIds(data, 'priority', 'SSS'), []);
-  assert.deepEqual(groupIds(data, 'rating', 'A'), ['paused-top']); assert.equal(data[0].playPriority, 'SSS');
+  const raw = JSON.stringify(data), groups = groupRankedGames(data, 'priority');
+  assert.equal(groups.at(-1)?.id, 'unranked'); assert.equal(groups.some(group => group.id === 'paused'), false);
+  assert.deepEqual(groupIds(data, 'priority', 'SSS'), ['paused-top']); assert.deepEqual(groupIds(data, 'priority', 'SS'), ['old-paused']); assert.deepEqual(groupIds(data, 'priority', 'C'), ['want-low']);
+  assert.deepEqual(groupIds(data, 'rating', 'A'), ['paused-top']); assert.equal(data[0].playPriority, 'SSS'); assert.equal(JSON.stringify(data), raw);
 });
 
 test('分组过滤非游戏、隐藏及回收记录，不让其他收藏参与排序', () => {
@@ -69,28 +70,65 @@ test('评级排序只处理同状态同评级，未知个人资料与未选组�
   assert.equal(JSON.stringify(data), raw); assert.equal(isValidSnapshot({ schemaVersion: 1, items: moved.items }), true);
 });
 
-test('暂停逻辑末档内部可排序，跨原优先级不改优先级值', () => {
-  const data = [item('a', { gamePlayState: 'paused', status: 'paused', playPriority: 'SSS' }), item('b', { gamePlayState: 'paused', status: 'paused', playPriority: 'C' })];
-  const moved = moveGameWithinRank(data, 'b', 'a', 'priority');
-  assert.equal(moved.changedCount, 2); assert.deepEqual(groupIds(moved.items, 'priority', 'paused'), ['b', 'a']); assert.deepEqual(moved.items.map(work => work.playPriority), ['SSS', 'C']);
+test('旧搁置按原优先级同档可排序，跨档零修改且保留未知字段与旧轴', () => {
+  const data = [item('a', { gamePlayState: 'paused', status: 'paused', playPriority: 'SSS' }), { ...item('b', { gamePlayState: 'paused', status: 'paused', playPriority: 'C' }), futureItem: { keep: true } }, item('c', { gamePlayState: 'paused', status: 'paused', playPriority: 'C' })];
+  const raw = JSON.stringify(data), crossRank = moveGameWithinRank(data, 'b', 'a', 'priority');
+  assert.equal(crossRank.changedCount, 0); assert.equal(crossRank.items, data);
+  const moved = moveGameWithinRank(data, 'c', 'b', 'priority');
+  assert.equal(moved.changedCount, 2); assert.deepEqual(groupIds(moved.items, 'priority', 'C'), ['c', 'b']); assert.deepEqual(groupIds(moved.items, 'priority', 'SSS'), ['a']);
+  assert.deepEqual(moved.items.map(work => work.playPriority), ['SSS', 'C', 'C']); assert.equal(moved.items[0], data[0]);
+  for (let index = 0; index < data.length; index++) { const { priorityOrder: _old, ...before } = data[index], { priorityOrder: _new, ...after } = moved.items[index]; assert.deepEqual(after, before); }
+  assert.equal(JSON.stringify(data), raw);
 });
 
-test('旧replaying与ongoing按同一展示状态可排序，存储枚举仍保持原值', () => {
-  const data = [item('legacy', { status: 'active', gamePlayState: 'replaying', playPriority: 'A' }), item('new', { status: 'active', gamePlayState: 'ongoing', playPriority: 'A' })];
+test('旧replaying与ongoing显式新游戏+后可排序，存储枚举仍保持原值', () => {
+  const data = [item('legacy', { status: 'active', gamePlayState: 'replaying', playEngagement: 'planned', playPriority: 'A' }), item('new', { status: 'active', gamePlayState: 'ongoing', playEngagement: 'planned', playPriority: 'A' })];
   const moved = moveGameWithinRank(data, 'new', 'legacy', 'priority');
   assert.equal(moved.changedCount, 2); assert.deepEqual(moved.items.map(work => work.gamePlayState), ['replaying', 'ongoing']);
 });
 
-test('不存在、同件、跨档、跨状态、非游戏、隐藏和回收拖动均为零修改', () => {
-  const data = [item('a', { playPriority: 'A', personalGrade: 'A' }), item('b', { playPriority: 'B', personalGrade: 'B' }), item('active', { gamePlayState: 'playing', playPriority: 'A', personalGrade: 'A' }), item('hidden', { playPriority: 'A', personalGrade: 'A', hiddenAt: '2026-01-03T00:00:00Z' }), item('trash', { playPriority: 'A', personalGrade: 'A', removedAt: '2026-01-03T00:00:00Z' }), item('book', { category: 'book', playPriority: 'A', personalGrade: 'A' })];
+test('不存在、同件、跨档、非游戏、隐藏和回收拖动均为零修改；同档不再比较旧单轴状态', () => {
+  const data = [item('a', { playPriority: 'A', personalGrade: 'A' }), item('b', { playPriority: 'B', personalGrade: 'B' }), item('hidden', { playPriority: 'A', personalGrade: 'A', hiddenAt: '2026-01-03T00:00:00Z' }), item('trash', { playPriority: 'A', personalGrade: 'A', removedAt: '2026-01-03T00:00:00Z' }), item('book', { category: 'book', playPriority: 'A', personalGrade: 'A' })];
   const raw = JSON.stringify(data);
-  for (const mode of ['priority', 'rating'] as const) for (const [from, to] of [['a', 'missing'], ['missing', 'a'], ['a', 'a'], ['a', 'b'], ['a', 'active'], ['a', 'hidden'], ['a', 'trash'], ['a', 'book']]) {
+  // v0.4.24 语义更新：同组判定只看分组维度；跨旧单轴状态（如 playing 与 planned 同优先级档）
+  // 不再拒绝——评级档下"旧轴 cleared 与 playing+completion cleared"两款已通关作品可同级移动。
+  for (const mode of ['priority', 'rating'] as const) for (const [from, to] of [['a', 'missing'], ['missing', 'a'], ['a', 'a'], ['a', 'b'], ['a', 'hidden'], ['a', 'trash'], ['a', 'book']]) {
     const moved = moveGameWithinRank(data, from, to, mode); assert.equal(moved.items, data); assert.equal(moved.changedCount, 0);
   }
   assert.equal(JSON.stringify(data), raw);
+  const clearedLegacy = item('legacy', { gamePlayState: 'cleared', personalGrade: 'S' });
+  const clearedPlaying = item('still-playing', { gamePlayState: 'playing', playEngagement: 'playing', completion: 'cleared', personalGrade: 'S' });
+  const moved = moveGameWithinRank([clearedLegacy, clearedPlaying], 'legacy', 'still-playing', 'rating');
+  assert.equal(moved.changedCount, 2, '两款有效通关作品同评级档确实移动，不再被旧轴差异拒绝');
+  assert.deepEqual(groupIds(moved.items, 'rating', 'S'), ['still-playing', 'legacy']);
 });
 
 test('重复实体编号拒绝排序，不依编号误写隐藏或其他作品', () => {
   const data = [item('a'), item('b'), item('c'), item('c', { hiddenAt: '2026-01-03T00:00:00Z' })];
   const moved = moveGameWithinRank(data, 'a', 'b', 'priority'); assert.equal(moved.items, data); assert.equal(moved.changedCount, 0);
+});
+
+test('拖动只写当前分档视图成员，不改同档但不在视图中的历史等级作品', () => {
+  const rating = [
+    item('first', { personalGrade: 'S' }),
+    item('outside-unknown', { experienceCategory: 'continue', personalGrade: 'S', completion: 'unknown', ratingOrder: 55 }),
+    item('outside-na', { experienceCategory: 'put-aside', personalGrade: 'S', completion: 'not-applicable', ratingOrder: 66 }),
+    item('last', { personalGrade: 'S', playEngagement: 'playing' }),
+  ];
+  const changed = moveGameWithinRank(rating, 'last', 'first', 'rating');
+  assert.equal(changed.changedCount, 2);
+  assert.equal(changed.items[1], rating[1]);
+  assert.equal(changed.items[2], rating[2]);
+  assert.deepEqual(groupIds(changed.items, 'rating', 'S'), ['last', 'first']);
+  assert.equal(moveGameWithinRank(rating, 'outside-na', 'first', 'rating').changedCount, 0);
+  const priority = [
+    item('first', { playPriority: 'A' }),
+    item('outside', { playPriority: 'A', experienceStatus: 'experienced', experienceCategory: 'completed', playEngagement: 'playing', priorityOrder: 55 }),
+    item('last', { playPriority: 'A' }),
+  ];
+  const reordered = moveGameWithinRank(priority, 'last', 'first', 'priority');
+  assert.equal(reordered.changedCount, 2);
+  assert.equal(reordered.items[1], priority[1]);
+  assert.deepEqual(groupIds(reordered.items, 'priority', 'A'), ['last', 'first']);
+  assert.equal(moveGameWithinRank(priority, 'outside', 'first', 'priority').changedCount, 0);
 });

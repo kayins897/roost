@@ -214,7 +214,7 @@ test('补全输入只保留允许字段，未知时长不变0，拒绝重复ID�
 
 test('补全已有封面不重复下载，保留明确时长和原有开发商，公共请求不携带Key', async () => {
   const urls: string[] = []; const progress: number[] = [];
-  const input = [{ appId: '123', title: '自定义标题', playtimeMinutes: 0, creator: '自己保留', coverUrl: COVER, apiKey: KEY }, { appId: '456', title: '缺图作品', playtimeMinutes: 2345, creator: '开发商', year: '2020' }];
+  const input = [{ appId: '123', title: '自定义标题', playtimeMinutes: 0, creator: '自己保留', originalTitle: '自定义标题', coverUrl: COVER, apiKey: KEY }, { appId: '456', title: '缺图作品', playtimeMinutes: 2345, creator: '开发商', originalTitle: '缺图作品', year: '2020' }];
   const before = JSON.stringify(input);
   const result = await enrichSteamLibrary(input, {
     fetch: fake((value, init) => {
@@ -239,7 +239,7 @@ test('补全已有封面不重复下载，保留明确时长和原有开发商�
 
 test('取消补全保留完整原清单和已取得部分资料，不继续排队工作', async () => {
   const controller = new AbortController(); let calls = 0;
-  const games = Array.from({ length: 6 }, (_, index) => ({ appId: String(index + 1), title: `Game ${index}`, creator: '已有', year: '2020', playtimeMinutes: index }));
+  const games = Array.from({ length: 6 }, (_, index) => ({ appId: String(index + 1), title: `Game ${index}`, creator: '已有', originalTitle: `Game ${index}`, year: '2020', playtimeMinutes: index }));
   const result = await enrichSteamLibrary(games, {
     signal: controller.signal,
     fetch: fake(() => { calls++; return new Response(png, { headers: { 'content-type': 'image/png' } }); }),
@@ -267,6 +267,17 @@ test('元数据429停止后续详细资料请求，保留全部清单、原时�
   assert.deepEqual(result.games.map(game => game.playtimeMinutes), games.map(game => game.playtimeMinutes));
 });
 
+test('仅原名缺失也会读取详情：来源有不同原名则补，相同则保持 (N3-C)', async () => {
+  const hosts: string[] = [];
+  const result = await enrichSteamLibrary([{ appId: '123', title: '本地标题', creator: '已有', year: '2020', playtimeMinutes: 5 }, { appId: '456', title: 'Same Title', creator: '已有', year: '2021', playtimeMinutes: 6 }], {
+    fetch: fake(value => { hosts.push(new URL(value).hostname); if (new URL(value).hostname === 'store.steampowered.com') return json({ '123': { success: true, data: { type: 'game', name: 'API 不同原名', developers: ['d'], release_date: { date: '2024-01-01' } } }, '456': { success: true, data: { type: 'game', name: 'Same Title', developers: ['d'], release_date: { date: '2021-01-01' } } } }); return new Response(png, { headers: { 'content-type': 'image/png' } }); }),
+    imageToDataUrl: () => COVER,
+  });
+  assert.ok(hosts.filter(host => host === 'store.steampowered.com').length >= 1, '原名缺失触发详情请求');
+  assert.equal(result.games[0].originalTitle, 'API 不同原名');
+  assert.equal(result.games[1].originalTitle, 'Same Title', '来源确认同名也记录，重读幂等');
+});
+
 test('公共封面跨域跳转被拦截，HTML冒充图片也不进入本地收藏', async () => {
   const calls: string[] = []; let decoded = 0;
   const result = await enrichSteamLibrary([{ appId: '123', title: 'Game', creator: '已有', year: '2020' }], {
@@ -282,7 +293,7 @@ test('公共封面跨域跳转被拦截，HTML冒充图片也不进入本地收�
 
 test('封面来源限流后停止整批继续请求，已有资料和时长仍然保留', async () => {
   let calls = 0;
-  const games = Array.from({ length: 8 }, (_, index) => ({ appId: String(index + 1), title: `Game ${index}`, creator: '已有', year: '2020', playtimeMinutes: index }));
+  const games = Array.from({ length: 8 }, (_, index) => ({ appId: String(index + 1), title: `Game ${index}`, creator: '已有', originalTitle: `Game ${index}`, year: '2020', playtimeMinutes: index }));
   const result = await enrichSteamLibrary(games, { fetch: fake(() => { calls++; return new Response('', { status: 429 }); }) });
   assert.ok(calls > 0 && calls <= 2);
   assert.equal(result.detailsRateLimited, true);

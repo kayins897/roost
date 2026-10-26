@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createGameBatchEditPlan } from './batchEdit.ts';
 import { applyMetadataCandidate } from './catalog.ts';
+import { experienceClassificationPatch } from './gameExperience.ts';
 import { coverFinishFor, GAME_GRADE_TIERS, GAME_GRADES, isValidPersonalGrade } from './gameRating.ts';
 import { GAME_PLAY_STATES, isValidSnapshot } from './library.ts';
 import { restoreItems, setItemsHidden, trashItems } from './lifecycle.ts';
@@ -10,7 +11,7 @@ import type { LibrarySnapshot, MediaItem } from './types.ts';
 
 const item = (extra: Partial<MediaItem> = {}): MediaItem => ({
   id: 'original', title: '自己的游戏', category: 'game', subcategory: 'Steam', creator: '', year: '',
-  status: 'finished', gamePlayState: 'cleared', playtimeMinutes: 120, tags: ['自己的标签'],
+  status: 'finished', gamePlayState: 'cleared', experienceStatus: 'experienced', experienceCategory: 'completed', playtimeMinutes: 120, tags: ['自己的标签'],
   impression: '自己的测评', favorite: false, artwork: 'default', createdAt: '2020-01-01', updatedAt: '2020-01-02',
   externalIds: [{ provider: 'steam', id: '123' }], ...extra,
 });
@@ -49,26 +50,36 @@ test('旧库读取、材质派生及JSON往返不补评级，保留根与作品�
   assert.equal(JSON.stringify(original), raw);
 });
 
-test('六个评级明确映射标准、银箔、金箔、镭射全息与棱彩星辉，派生不改记录', () => {
-  const expected = { SSS: 'prismatic', SS: 'holographic', S: 'gold', A: 'silver', B: 'standard', C: 'standard' };
+test('六档分别映射多彩、镭射、闪箔、烫金、烫银与标准，派生不改记录', () => {
+  const expected = { SSS: 'prismatic', SS: 'holographic', S: 'foil', A: 'gold', B: 'silver', C: 'standard' };
+  const labels = { SSS: '多彩', SS: '镭射', S: '闪箔', A: '烫金', B: '烫银', C: '标准' };
   for (const personalGrade of GAME_GRADES) {
     const work = Object.freeze(item({ personalGrade }));
     const raw = JSON.stringify(work);
     assert.equal(coverFinishFor(work), expected[personalGrade]);
     assert.equal(GAME_GRADE_TIERS[personalGrade].finish, expected[personalGrade]);
+    assert.equal(GAME_GRADE_TIERS[personalGrade].label, labels[personalGrade]);
     assert.equal(JSON.stringify(work), raw);
   }
   assert.equal(coverFinishFor({ ...item(), personalGrade: 'D' } as unknown as MediaItem), 'standard');
 });
 
-test('只有当前已通关的游戏使用评级材质，兼容旧finished且不展示其他板块遗留评级', () => {
+test('材质只依分类资格，不依旧通关状态；其他板块及无资格游戏保留评级但不出箔面', () => {
   for (const gamePlayState of GAME_PLAY_STATES) {
     const work = item({ gamePlayState, personalGrade: 'SS' });
-    assert.equal(coverFinishFor(work), gamePlayState === 'cleared' ? 'holographic' : 'standard');
+    assert.equal(coverFinishFor(work), 'holographic');
     assert.equal(work.personalGrade, 'SS');
   }
-  assert.equal(coverFinishFor(item({ gamePlayState: 'replaying', personalGrade: 'S' })), 'standard');
-  assert.equal(coverFinishFor(item({ gamePlayState: undefined, status: 'finished', personalGrade: 'S' })), 'gold');
+  assert.equal(coverFinishFor(item({ gamePlayState: 'replaying', personalGrade: 'S' })), 'foil');
+  assert.equal(coverFinishFor(item({ gamePlayState: undefined, status: 'finished', personalGrade: 'S' })), 'foil');
+  for (const extra of [
+    { experienceStatus: 'unplayed' as const },
+    { experienceCategory: undefined }, { experienceCategory: 'continue' as const }, { experienceCategory: 'put-aside' as const },
+  ]) {
+    const work = item({ ...extra, personalGrade: 'SSS', completion: 'cleared' });
+    assert.equal(coverFinishFor(work), 'standard'); assert.equal(work.personalGrade, 'SSS');
+  }
+  for (const experienceCategory of ['replayable', 'long-term', 'completed'] as const) assert.equal(coverFinishFor(item({ experienceCategory, completion: 'unknown', personalGrade: 'B' })), 'silver');
   for (const category of ['book', 'screen', 'music'] as const) {
     const work = item({ category, personalGrade: 'SSS' });
     assert.equal(isValidSnapshot(snapshot(work)), true);
@@ -77,17 +88,20 @@ test('只有当前已通关的游戏使用评级材质，兼容旧finished且不
   }
 });
 
-test('状态切换与批量标签编辑保留评级，切回已通关恢复原材质且原对象不变', () => {
+test('分类切换与批量标签编辑保留评级，切回收官完结恢复材质且原事实与对象不变', () => {
   const original = item({ personalGrade: 'SSS' });
   const raw = JSON.stringify(original);
-  const paused = createGameBatchEditPlan([original], [original.id], { gamePlayState: 'paused' }).items[0];
+  const paused = { ...original, ...experienceClassificationPatch('put-aside') };
   assert.equal(paused.personalGrade, 'SSS');
   assert.equal(coverFinishFor(paused), 'standard');
   const tagged = createGameBatchEditPlan([paused], [paused.id], { tags: { mode: 'add', groups: { theme: ['科幻'] } } }).items[0];
   assert.equal(tagged.personalGrade, 'SSS');
-  const cleared = createGameBatchEditPlan([tagged], [tagged.id], { gamePlayState: 'cleared' }).items[0];
+  const cleared = { ...tagged, ...experienceClassificationPatch('completed') };
   assert.equal(cleared.personalGrade, 'SSS');
   assert.equal(coverFinishFor(cleared), 'prismatic');
+  assert.equal(cleared.gamePlayState, original.gamePlayState); assert.equal(cleared.playtimeMinutes, original.playtimeMinutes);
+  const legacyStateEdit = createGameBatchEditPlan([original], [original.id], { gamePlayState: 'paused' }).items[0];
+  assert.equal(legacyStateEdit.personalGrade, 'SSS'); assert.equal(coverFinishFor(legacyStateEdit), 'prismatic', '旧状态编辑不改变明确分类的材质资格');
   assert.equal(JSON.stringify(original), raw);
 });
 

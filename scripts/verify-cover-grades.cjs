@@ -16,6 +16,13 @@ const labels = ['待体验', '游玩中', '已通关', '持续游玩', '暂时�
 const grades = ['SSS', 'SS', 'S', 'A', 'B', 'C'];
 const finishes = { SSS: 'prismatic', SS: 'holographic', S: 'gold', A: 'silver', B: 'standard', C: 'standard' };
 const artworks = ['hollow', 'spire', 'disco', 'outer', 'hades', 'dave'];
+// Inline original fixture: runnable from a clean clone without private design files.
+const fixtureSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="360" viewBox="0 0 240 360">
+  <defs><linearGradient id="sky" x2=".8" y2="1"><stop stop-color="#0f1640"/><stop offset="1" stop-color="#28325e"/></linearGradient><linearGradient id="shape" x2="1" y2="1"><stop stop-color="#f2cf8a"/><stop offset="1" stop-color="#b7738e"/></linearGradient></defs>
+  <rect width="240" height="360" fill="url(#sky)"/><circle cx="154" cy="99" r="49" fill="#d09a98" opacity=".6"/>
+  <path d="M38 230 120 100 202 230Z" fill="url(#shape)"/><path d="m82 234 38-114 38 114Z" fill="#32436d"/><path d="m120 120 38 114 44-4Z" fill="#976b90"/>
+  <path d="M30 273H210" stroke="#e8d4b5" stroke-opacity=".5"/><text x="24" y="309" fill="#fff3db" font-family="sans-serif" font-size="27" font-weight="bold">QIYU</text><text x="25" y="330" fill="#c5cfdf" font-family="sans-serif" font-size="10" letter-spacing="2">SYNTHETIC COVER</text>
+</svg>`;
 const legacyStatus = state => state === 'cleared' ? 'finished' : ['paused', 'abandoned'].includes(state) ? 'paused' : state === 'want' ? 'want' : 'active';
 const work = (id, title, state, index, extra = {}) => ({ id, title, category: 'game', subcategory: 'Steam', platforms: ['Steam', '本地收藏'], creator: '栖域隔离图像测试', year: '2026', status: legacyStatus(state), gamePlayState: state,
   tags: ['保留标签'], gameTags: { gameplay: [], theme: [], scenario: [], other: ['保留标签'], futureGroup: ['保留扩展'] }, impression: '保留亲手写的测评，评级不影响这些内容。', favorite: false,
@@ -28,13 +35,13 @@ const fixture = { schemaVersion: 1, futureRoot: { keep: ['未知根扩展'] }, i
   ...['SSS', 'SS', 'S', 'A'].map((grade, i) => work(`bright-${grade}`, `浅色封面 · ${grade}`, 'cleared', i + 13, { personalGrade: grade })),
 ] };
 const report = { passed: false, version, scope: previewOnly ? 'preview-only' : finalSmoke ? 'final-copy-navigation-smoke' : visualOnly ? 'visual-only' : 'full', isolatedDataOnly: true, userLibraryAccessed: false, checks: [], screenshots: [], integrity: [], colors: [], reflections: [], brightPixels: [], scrollToTop: [], layouts: [], pageErrors: [], resourceErrors: [], notes: [
-  '全新 Edge 上下文与本地 dist，仅使用设计目录原创 SVG 转 PNG 的合成收藏；不连接真实窗口或收藏。',
+  '全新 Edge 上下文与本地 dist，仅使用内联原创 SVG 转 PNG 的合成收藏；不依赖仓库外设计目录，不连接真实窗口或收藏。',
   'browser 使用真实浏览器 repository；bridge 使用真实 DesktopRepository 加隔离内存桥接，不能代替原生文件系统检查。',
   '评级 JSON 往返走界面导出与文件导入；图片原文及其他个人字段逐字段核对。',
-  'v0.4.20 恢复初版大部分箔面可见度，去掉网点、网格与局部遮罩，保留柔和对角方向；白区像素变化仍仅作诊断，另以截图目视检查原封面可读性。',
+  'SS 使用冷色线性镭射，SSS 使用更强的锥形多彩光谱，允许连续对角高光；无网点、网格与重复纹理。白区像素变化仅作诊断，另以截图目视检查原封面可读性。',
 ] };
-if (visualOnly) report.notes.push('本次只验收最终视觉、回顶部交互与收藏原文保护；评级保存/失败/JSON往返的10组交互保留在 validation-intermediate.json，不计入本报告场景数。');
-if (finalSmoke) report.notes.push('同版最后补验：只刷新深浅宽窄原始封面文案、回顶部hover对比与指针点击；不重复 validation.json 中已通过的23组视觉及回顶部验收。');
+if (visualOnly) report.notes.push('本次只验收视觉、回顶部交互与收藏原文保护；不执行或计入评级保存、失败和JSON往返交互。');
+if (finalSmoke) report.notes.push('本次仅检查原始封面文案、回顶部hover与指针点击；不代替其他模式或历史报告的结果。');
 const sha = value => createHash('sha256').update(value).digest('hex');
 report.distAssets = [...fs.readFileSync(path.join(dist, 'index.html'), 'utf8').matchAll(/(?:src|href)="((?:\.\/|\/)?assets\/[^\"]+\.(?:js|css))"/g)].map(match => ({ path: match[1], sha256: sha(fs.readFileSync(path.join(dist, match[1]))) }));
 let browser, server, base, page, context, mode, stage, baseline;
@@ -80,7 +87,7 @@ async function prepare(currentMode, theme = 'dark', width = 1440, extra = {}) {
   page.on('dialog', browserDialog => browserDialog.accept());
   await page.route('**/*', route => route.request().url().startsWith(base) || route.request().url().startsWith('data:') ? route.continue() : route.abort('blockedbyclient'));
   await page.goto(`${base}/__fixture-init`);
-  const svgs = Object.fromEntries(artworks.map(name => [name, fs.readFileSync(path.join(root, '../design/2026-10-22-concepts/assets', `cover-${name}.svg`), 'utf8')]));
+  const svgs = Object.fromEntries(artworks.map(name => [name, fixtureSvg]));
   baseline = await page.evaluate(async ({ fixture, svgs, theme, currentMode }) => {
     const covers = {}; for (const [name, svg] of Object.entries(svgs)) { const image = new Image(); await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))); }); const canvas = document.createElement('canvas'); canvas.width = 240; canvas.height = 360; canvas.getContext('2d').drawImage(image, 0, 0, 240, 360); covers[name] = canvas.toDataURL('image/png'); }
     for (const item of fixture.items) {
@@ -95,9 +102,12 @@ async function prepare(currentMode, theme = 'dark', width = 1440, extra = {}) {
 }
 async function interactive(currentMode) {
   await prepare(currentMode);
-  await check('旧记录与全部评级仅读不写，非通关已有评级禁改且无特殊箔面', async () => {
+  await check('旧记录与全部评级仅读不写，非通关已有评级仅提示保留且无特殊箔面', async () => {
     assert.equal(await page.evaluate(() => window.__gradeSaves), 0); assert.equal(await card('保留 · 进行中').locator('.card-cover').getAttribute('data-finish'), 'standard');
-    await card('保留 · 进行中').click(); const select = dialog('保留 · 进行中').getByRole('combobox', { name: '我的评级', exact: true }); assert.equal(await select.inputValue(), 'SSS'); assert.equal(await select.isDisabled(), true); assert.equal(await button('清除个人评级', dialog('保留 · 进行中')).count(), 0); await closeDetail('保留 · 进行中');
+    await card('保留 · 进行中').click(); const panel = dialog('保留 · 进行中');
+    assert.equal(await panel.getByRole('combobox', { name: '我的评级', exact: true }).count(), 0, '非通关旧评级不能显示可编辑下拉');
+    assert.equal(await panel.getByText('已保留通关评级 SSS，标回已通关后可编辑。', { exact: true }).count(), 1);
+    assert.equal(await button('清除个人评级', panel).count(), 0); await closeDetail('保留 · 进行中');
     await card('状态 · 待体验').click(); assert.equal(await dialog('状态 · 待体验').getByRole('combobox', { name: '我的评级', exact: true }).count(), 0); await closeDetail('状态 · 待体验'); await unchanged('未通关浏览不推测评级', baseline);
   });
   await check('通关作品六档评级自动保存与清除，只有评级和修改时间改变', async () => {
@@ -110,13 +120,21 @@ async function interactive(currentMode) {
     await page.evaluate(() => { window.__gradeFail = false; }); await select.selectOption('SSS'); assert.equal(byId(await data(), 'grade-S').personalGrade, 'SSS'); await select.selectOption('S'); await closeDetail(title);
   });
   await check('改变游玩状态保留原评级，离开通关只撤销箔面，回通关恢复', async () => {
-    const title = '评级 · SSS', before = await data(); await card(title).click(); await button('游玩中', dialog(title)).click(); const select = dialog(title).getByRole('combobox', { name: '我的评级', exact: true }); assert.equal(await select.isDisabled(), true); assert.equal(await select.inputValue(), 'SSS'); await closeDetail(title); assert.equal(await card(title).locator('.card-cover').getAttribute('data-finish'), 'standard'); preserved(before, await data(), 'grade-SSS', ['status', 'gamePlayState', 'updatedAt']);
+    const title = '评级 · SSS', before = await data(); await card(title).click(); await button('游玩中', dialog(title)).click();
+    assert.equal(await dialog(title).getByRole('combobox', { name: '我的评级', exact: true }).count(), 0);
+    assert.equal(await dialog(title).getByText('已保留通关评级 SSS，标回已通关后可编辑。', { exact: true }).count(), 1);
+    assert.equal(await button('清除个人评级', dialog(title)).count(), 0);
+    assert.equal(byId(await data(), 'grade-SSS').personalGrade, 'SSS');
+    await closeDetail(title); assert.equal(await card(title).locator('.card-cover').getAttribute('data-finish'), 'standard'); preserved(before, await data(), 'grade-SSS', ['status', 'gamePlayState', 'updatedAt']);
     await card(title).click(); await button('已通关', dialog(title)).click(); assert.equal(await dialog(title).getByRole('combobox', { name: '我的评级', exact: true }).isEnabled(), true); await closeDetail(title); assert.equal(await card(title).locator('.card-cover').getAttribute('data-finish'), 'prismatic');
   });
   await check('重载及真实备份导出/导入往返保留评级、封面原文及未知字段', async () => {
     const before = await raw(); await page.reload({ waitUntil: 'networkidle' }); await unchanged('重载不写原文', before);
     const downloadPromise = page.waitForEvent('download'); await button('导出备份').click(); const download = await downloadPromise, stream = await download.createReadStream(); const chunks = []; for await (const chunk of stream) chunks.push(chunk); const buffer = Buffer.concat(chunks), exported = JSON.parse(buffer.toString('utf8')); const previous = JSON.parse(before); assert.deepEqual(exported.items, previous.items); assert.deepEqual(exported.futureRoot, previous.futureRoot); assert.ok(exported.exportedAt);
-    await button('数据与设置').click(); const settings = page.getByRole('dialog', { name: '数据与设置', exact: true }), chooserPromise = page.waitForEvent('filechooser'); await button('导入', settings).click(); const chooser = await chooserPromise; await chooser.setFiles({ name: 'isolated-grades.json', mimeType: 'application/json', buffer }); await settings.waitFor({ state: 'hidden' }); assert.deepEqual(await data(), exported); assert.equal(byId(await data(), 'grade-SSS').personalGrade, 'SSS'); report.integrity.push({ mode, name: '实际 JSON 备份往返', sameItems: true, beforeItemsSha256: sha(JSON.stringify(previous.items)), afterItemsSha256: sha(JSON.stringify((await data()).items)) });
+    await button('数据与设置').click(); const settings = page.getByRole('dialog', { name: '数据与设置', exact: true });
+    await button('数据与备份', settings.getByRole('navigation', { name: '设置分类', exact: true })).click();
+    const chooserPromise = page.waitForEvent('filechooser'); await button('导入', settings).click(); const chooser = await chooserPromise;
+    await chooser.setFiles({ name: 'isolated-grades.json', mimeType: 'application/json', buffer }); await settings.waitFor({ state: 'hidden' }); assert.deepEqual(await data(), exported); assert.equal(byId(await data(), 'grade-SSS').personalGrade, 'SSS'); report.integrity.push({ mode, name: '实际 JSON 备份往返', sameItems: true, beforeItemsSha256: sha(JSON.stringify(previous.items)), afterItemsSha256: sha(JSON.stringify((await data()).items)) });
   });
   await context.close(); context = null;
 }
@@ -129,14 +147,34 @@ async function geometry(target) {
   });
 }
 function colorConsistency(value) { for (const field of ['border', 'text', 'icon']) assert.equal(value[field], value.expected, `${value.state} 的 ${field} 与语义色不一致`); assert.equal(value.borderWidth, '2px', '边框只应轻度增强，不增加实线宽度'); }
-function softReflection(value) {
+function visibleFoil(value, grade) {
+  const bounds = { SSS: [.52, .65], SS: [.45, .57], S: [.3, .45], A: [.3, .45] }[grade];
+  assert.ok(bounds, 'only rated foil covers have visible strength bounds');
+  assert.ok(Number(value.foil.opacity) >= bounds[0] && Number(value.foil.opacity) <= bounds[1], `${grade} 应保留对应等级的可见反光强度`);
+}
+function softReflection(value, grade) {
+  visibleFoil(value, grade);
   assert.ok(Math.abs(parseFloat(value.angle) - 45) <= 6.1, '主光 CSS 法线应为 45±6°，光带沿左上到右下');
   const lightX = parseFloat(value.coverProperties['--cover-light-x']), lightY = parseFloat(value.coverProperties['--cover-light-y']);
   assert.ok(lightX >= 55.9 && lightX <= 68.1 && lightY >= 32.9 && lightY <= 43.1, '亮带中心应克制地停留在右上区域');
   const shineAngle = Number(value.shine.image.match(/linear-gradient\(([-.\d]+)deg/)?.[1]); assert.ok(Math.abs(shineAngle - 45) <= 6.1, '主高光与箔面应使用同一对角方向');
-  for (const image of [value.foil.image, value.foil.before, value.foil.after, value.foil.maskImage, value.shine.image]) assert.ok(!/repeating-|conic-gradient/.test(image), '不应残留点阵、棋盘、环线或重复纹理');
-  assert.equal(value.foil.before, 'none', '箔面伪元素不应残留网点/网格'); assert.equal(value.foil.after, 'none', '箔面伪元素不应残留星芒/点阵');
-  assert.ok((value.foil.maskImage.match(/gradient\(/g) ?? []).length <= 1, '材质只使用单层柔和遮罩');
+  for (const image of [value.foil.image, value.foil.before, value.foil.after, value.foil.maskImage, value.shine.image]) assert.ok(!/repeating-|radial-gradient|url\(/.test(image), '不应残留点阵、棋盘、环线或平铺图片纹理');
+  assert.equal(value.foil.before, 'none', '箔面不应残留网点/网格伪元素');
+  assert.equal(value.foil.maskImage, 'none', '保留连续反光，不叠加点状或网格遮罩');
+  if (grade === 'SSS') {
+    assert.ok(value.foil.image.startsWith('conic-gradient('), 'SSS 应为棱彩光谱，而非与 SS 相同的线性光带');
+    const colors = [...value.foil.image.matchAll(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/g)].map(match => match.slice(1).map(Number));
+    assert.ok(colors.some(([red, green]) => red > green) && colors.some(([red, , blue]) => blue > red), 'SSS 光谱应覆盖暖色与冷色');
+  } else assert.ok(value.foil.image.startsWith('linear-gradient('), 'SS／S／A 应使用线性箔面');
+  if (grade === 'SS') {
+    const colors = [...value.foil.image.matchAll(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/g)].map(match => match.slice(1).map(Number));
+    assert.ok(colors.length >= 4 && colors.filter(([red, , blue]) => blue > red).length >= colors.length * .75, 'SS 镭射应以冷色银蓝为主');
+  }
+  if (grade === 'SS' || grade === 'SSS') {
+    assert.ok(value.foil.after.startsWith('linear-gradient('), 'SS／SSS 可以使用连续对角高光');
+    const angle = Number(value.foil.after.match(/linear-gradient\(([-.\d]+)deg/)?.[1]);
+    assert.ok(Math.abs(angle - 45) <= 6.1, '高光仍沿左上到右下方向');
+  } else assert.equal(value.foil.after, 'none', '银箔／金箔无附加多彩高光');
 }
 async function point(target, x, y) {
   await target.scrollIntoViewIfNeeded(); const bounds = await target.boundingBox(), cover = await target.locator('.card-cover').boundingBox(); await page.mouse.move(bounds.x + cover.width * x, bounds.y + cover.height * y, { steps: 14 }); await page.waitForTimeout(320); return geometry(target);
@@ -159,7 +197,7 @@ async function visual(theme, width) {
   await check('通关评级材质映射正确，四种箔面随角度反射而文字和时长固定', async () => {
     for (const grade of grades) { const title = `评级 · ${grade}`; await query(title); const target = card(title); assert.equal(await target.locator('.card-cover').getAttribute('data-finish'), finishes[grade]);
       if (['B', 'C'].includes(grade)) { assert.equal(await target.locator('.cover-foil').count(), 0); continue; }
-      await target.scrollIntoViewIfNeeded(); await page.mouse.move(5, 5); await page.waitForTimeout(300); const rest = await geometry(target); assert.equal(Number(rest.foil.opacity), 0); assert.equal(Number(rest.shine.opacity), 0); const left = await point(target, .1, .1), right = await point(target, .9, .85); assert.equal(left.depth, 'active'); assert.equal(right.depth, 'active'); assert.notEqual(left.transform, right.transform); assert.notEqual(left.image, right.image); assert.notDeepEqual([left.foil.image, left.foil.position, left.foil.maskImage, left.foil.maskPosition, left.shine.image], [right.foil.image, right.foil.position, right.foil.maskImage, right.foil.maskPosition, right.shine.image]); assert.notEqual(left.angle, right.angle); assert.ok(Number(right.foil.opacity) >= .3 && Number(right.foil.opacity) < .52, '箔面应保留初版大部分可见度，并略低于初版0.52'); softReflection(left); softReflection(right); colorConsistency(right);
+      await target.scrollIntoViewIfNeeded(); await page.mouse.move(5, 5); await page.waitForTimeout(300); const rest = await geometry(target); assert.equal(Number(rest.foil.opacity), 0); assert.equal(Number(rest.shine.opacity), 0); const left = await point(target, .1, .1), right = await point(target, .9, .85); assert.equal(left.depth, 'active'); assert.equal(right.depth, 'active'); assert.notEqual(left.transform, right.transform); assert.notEqual(left.image, right.image); assert.notDeepEqual([left.foil.image, left.foil.position, left.foil.maskImage, left.foil.maskPosition, left.shine.image], [right.foil.image, right.foil.position, right.foil.maskImage, right.foil.maskPosition, right.shine.image]); assert.notEqual(left.angle, right.angle); softReflection(left, grade); softReflection(right, grade); colorConsistency(right);
       assert.deepEqual(left.title, rest.title); assert.deepEqual(right.title, rest.title); assert.deepEqual(right.time, rest.time); await capture(`foil-${finishes[grade]}`); await page.mouse.move(5, 5); await page.waitForTimeout(300); const reset = await geometry(target); assert.equal(reset.depth, null); assert.equal(reset.rx, ''); assert.equal(Number(reset.foil.opacity), 0); assert.equal(Number(reset.shine.opacity), 0); report.reflections.push({ mode, grade, rest, left, right, reset });
     }
     await query('评级 · SSS'); await card('评级 · SSS').click(); const panel = dialog('评级 · SSS'); assert.equal(await panel.getByRole('combobox', { name: '我的评级', exact: true }).inputValue(), 'SSS'); await layout('rating-detail'); await capture('rating-detail'); await closeDetail('评级 · SSS');
@@ -170,7 +208,7 @@ async function visual(theme, width) {
     assert.equal(colors.length, 6); for (const value of colors) { assert.equal(value.selected, 'false'); assert.equal(value.color, value.expected, value.state); } await capture('batch-state-colors'); await button('取消', panel).click(); await button('退出多选').click();
   });
   if (width === 1440) await check('大面积浅色几何封面保留原图并展示四种材质供目视检查', async () => {
-    for (const grade of ['SSS', 'SS', 'S', 'A']) { const title = `浅色封面 · ${grade}`; await query(title); const target = card(title); await target.scrollIntoViewIfNeeded(); await page.mouse.move(5, 5); await page.waitForTimeout(300); await capture(`bright-${finishes[grade]}-rest`); const rest = await whitePixels(target); const value = await point(target, .88, .2); assert.ok(Number(value.foil.opacity) >= .3 && Number(value.foil.opacity) < .52); await capture(`bright-${finishes[grade]}-hover`); const hover = await whitePixels(target); assert.equal(hover.length, rest.length); const differences = hover.map((pixel, i) => Math.max(...pixel.map((channel, j) => Math.abs(channel - rest[i][j])))); const changedRatio = differences.filter(difference => difference > 5).length / differences.length; report.brightPixels.push({ mode, grade, finish: finishes[grade], pixels: differences.length, changedRatio, meanMaxChannelDifference: differences.reduce((sum, value) => sum + value, 0) / differences.length, originalImageBytesUnchanged: true, diagnosticOnly: true }); }
+    for (const grade of ['SSS', 'SS', 'S', 'A']) { const title = `浅色封面 · ${grade}`; await query(title); const target = card(title); await target.scrollIntoViewIfNeeded(); await page.mouse.move(5, 5); await page.waitForTimeout(300); await capture(`bright-${finishes[grade]}-rest`); const rest = await whitePixels(target); const value = await point(target, .88, .2); visibleFoil(value, grade); await capture(`bright-${finishes[grade]}-hover`); const hover = await whitePixels(target); assert.equal(hover.length, rest.length); const differences = hover.map((pixel, i) => Math.max(...pixel.map((channel, j) => Math.abs(channel - rest[i][j])))); const changedRatio = differences.filter(difference => difference > 5).length / differences.length; report.brightPixels.push({ mode, grade, finish: finishes[grade], pixels: differences.length, changedRatio, meanMaxChannelDifference: differences.reduce((sum, value) => sum + value, 0) / differences.length, originalImageBytesUnchanged: true, diagnosticOnly: true }); }
     await query('评级 · SSS');
   });
   await check('减少动态及多选模式停止倾斜和箔面，视觉浏览不改收藏', async () => {
@@ -206,8 +244,16 @@ async function video() {
 async function finalSupplement(theme, width) {
   await prepare('browser', theme, width); mode = `final-${theme}-${width}`;
   await check('详情原始封面文案和宽窄布局正确，浏览不写库', async () => {
-    await card('评级 · B').click(); const panel = dialog('评级 · B'); await panel.getByRole('combobox', { name: '我的评级', exact: true }).scrollIntoViewIfNeeded();
-    assert.equal((await panel.locator('.rating-finish').innerText()).trim(), '原始封面'); assert.ok((await panel.locator('.game-rating').innerText()).includes('B／C 原始封面')); assert.equal((await panel.innerText()).includes('普通反光'), false); await layout('final-detail-copy'); await capture('original-cover-copy'); await closeDetail('评级 · B'); mode = 'browser'; await unchanged('最终文案浏览不写库', baseline); mode = `final-${theme}-${width}`;
+    for (const grade of ['B', 'C']) {
+      const title = `评级 · ${grade}`; await card(title).click(); const panel = dialog(title), select = panel.getByRole('combobox', { name: '我的评级', exact: true });
+      await select.scrollIntoViewIfNeeded(); assert.equal(await select.inputValue(), grade);
+      assert.equal((await panel.locator('.rating-finish').innerText()).trim(), '原始封面');
+      assert.ok((await panel.locator('.game-rating').innerText()).includes('仅代表你的个人喜好'));
+      assert.equal((await panel.innerText()).includes('普通反光'), false);
+      await layout(`final-detail-copy-${grade}`); await capture(`original-cover-copy-${grade}`); await closeDetail(title);
+      assert.equal(await card(title).locator('.card-cover').getAttribute('data-finish'), 'standard');
+    }
+    mode = 'browser'; await unchanged('最终文案浏览不写库', baseline); mode = `final-${theme}-${width}`;
   });
   await check('回顶部hover图标沿用强调色且可点击，返回后恢复搜索焦点', async () => {
     await page.emulateMedia({ reducedMotion: 'no-preference' }); const scroller = page.locator('.main-scroll'), topButton = button('回到顶部'); await scroller.evaluate(element => element.scrollTo({ top: element.scrollHeight, behavior: 'instant' })); if (width === 390) await button('打开菜单').click(); await topButton.click({ trial: true }); await topButton.hover(); await page.waitForTimeout(200);

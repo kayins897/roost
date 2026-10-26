@@ -1,5 +1,9 @@
-import type { GamePlayState, GameTagGroupKey, GameTagGroups, LibrarySnapshot, MediaItem, MediaType, PersonalGrade, ProgressStatus } from './types.ts';
+import { completionFor, engagementFor, inPlanView, isValidCompletionEvent, PLAY_ENGAGEMENTS, COMPLETION_STATUSES } from './gameProgress.ts';
+import type { GamePlayState, GameTagGroupKey, GameTagGroups, LibrarySnapshot, MediaItem, MediaType, PersonalGrade, ProgressStatus
+, CompletionStatus, PlayEngagement } from './types.ts';
 import { isValidImportExclusion } from './importExclusions.ts';
+import { experienceCategoryFor, experienceStatusFor, isGameExperienceCategory, isGameExperienceStatus } from './gameExperience.ts';
+import type { GameExperienceCategory, GameExperienceStatus } from './types.ts';
 
 export const MEDIA_LABELS: Record<MediaType, string> = {
   game: '游戏', book: '书籍', screen: '影视', music: '音乐',
@@ -120,6 +124,11 @@ export interface FilterParams {
   subcategory?: string;
   status?: ProgressStatus | 'all';
   gamePlayState?: GamePlayState | 'all';
+  gameEngagement?: PlayEngagement | 'all' | 'plan';
+  gameCompletion?: CompletionStatus | 'all';
+  /** 两一级采用 OR；与二级及其他筛选 AND 组合。空数组表示空结果，由界面保护全空。 */
+  gameExperienceStatuses?: readonly GameExperienceStatus[];
+  gameExperienceCategories?: readonly GameExperienceCategory[];
   search?: string;
   tags?: string[];
   favoriteOnly?: boolean;
@@ -136,6 +145,16 @@ export function filterLibrary(items: MediaItem[], params: FilterParams): MediaIt
       : item.subcategory !== params.subcategory)) return false;
     if (params.favoriteOnly && !item.favorite) return false;
     if (params.status && params.status !== 'all' && item.status !== params.status) return false;
+    // v0.4.24 双维度筛选：当前关系（plan=计划+搁置）与通关进度独立 AND 组合。
+    if (item.category === 'game') {
+      if (params.gameExperienceStatuses && !params.gameExperienceStatuses.includes(experienceStatusFor(item))) return false;
+      if (params.gameExperienceCategories && !params.gameExperienceCategories.some(value => experienceCategoryFor(item) === (value === 'long-term' ? 'replayable' : value))) return false;
+      if (params.gameEngagement && params.gameEngagement !== 'all') {
+        if (params.gameEngagement === 'plan') { if (!inPlanView(item)) return false; }
+        else if (engagementFor(item) !== params.gameEngagement) return false;
+      }
+      if (params.gameCompletion && params.gameCompletion !== 'all' && completionFor(item) !== params.gameCompletion) return false;
+    }
     if (gameState && gameState !== 'all' &&
       (item.category !== 'game' || gamePlayStateFor(item) !== gameState)) return false;
     if (params.tags?.some(tag => !tagsFor(item).some(t => t.toLocaleLowerCase() === tag.toLocaleLowerCase()))) return false;
@@ -176,6 +195,26 @@ export function deleteTag(items: MediaItem[], name: string, scope?: TagScope): M
     if (item.category !== 'game') return { ...item, tags: remove(item.tags) };
     const before = gameTagsFor(item);
     const gameTags = Object.fromEntries(GAME_TAG_KEYS.map(key => [key, !scope?.group || scope.group === key ? remove(before[key]) : before[key]])) as GameTagGroups;
+    return { ...item, tags: flattenGameTags(gameTags), gameTags: { ...item.gameTags, ...gameTags } };
+  });
+}
+
+/** 把游戏标签从一组移动到另一组：来源组移除、目标组按既有去重规则合并同名，
+ * 其他分组（含跨组同名）保持不变；一次构造完整结果。仅改动来源组含该标签的作品。 */
+export function moveGameTag(items: MediaItem[], name: string, from: GameTagGroupKey, to: GameTagGroupKey): MediaItem[] {
+  const source = name.trim();
+  const target = source.toLocaleLowerCase();
+  if (!target || from === to) return items;
+  return items.map(item => {
+    if (item.category !== 'game') return item;
+    const before = gameTagsFor(item);
+    if (!before[from].some(tag => tag.toLocaleLowerCase() === target)) return item;
+    const gameTags = Object.fromEntries(GAME_TAG_KEYS.map(key => {
+      if (key === from) return [key, before[from].filter(tag => tag.toLocaleLowerCase() !== target)];
+      if (key === to) return [key, normalizeTags([...before[to], source])];
+      // 未涉及的分组保持原始存储值（不归一化）；仅旧平铺格式（无 gameTags）经推导重建时统一规范化。
+      return [key, item.gameTags?.[key] ?? before[key]];
+    })) as GameTagGroups;
     return { ...item, tags: flattenGameTags(gameTags), gameTags: { ...item.gameTags, ...gameTags } };
   });
 }
@@ -233,6 +272,8 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
     typeof item.creator === 'string' && typeof item.year === 'string' &&
     statuses.includes(item.status) && Array.isArray(item.tags) &&
     (item.gamePlayState === undefined || item.gamePlayState === 'replaying' || GAME_PLAY_STATES.includes(item.gamePlayState)) &&
+    (item.category !== 'game' || item.experienceStatus === undefined || isGameExperienceStatus(item.experienceStatus)) &&
+    (item.category !== 'game' || item.experienceCategory === undefined || isGameExperienceCategory(item.experienceCategory)) &&
     item.tags.every((tag: unknown) => typeof tag === 'string') &&
     (item.playtimeMinutes === undefined || (typeof item.playtimeMinutes === 'number' && Number.isSafeInteger(item.playtimeMinutes) && item.playtimeMinutes >= 0)) &&
     (item.personalGrade === undefined || isValidPersonalGrade(item.personalGrade)) &&
@@ -253,6 +294,10 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
         ['started', 'progress', 'completed', 'note'].includes(entry.kind as string) && typeof entry.note === 'string' &&
         (entry.minutes === undefined || isMinutes(entry.minutes));
     }) && new Set(item.experienceEntries.map(entry => entry.id)).size === item.experienceEntries.length)) &&
+    (item.playEngagement === undefined || PLAY_ENGAGEMENTS.includes(item.playEngagement)) &&
+    (item.completion === undefined || COMPLETION_STATUSES.includes(item.completion)) &&
+    (item.completionCount === undefined || (typeof item.completionCount === 'number' && Number.isSafeInteger(item.completionCount) && item.completionCount >= 0)) &&
+    (item.completionEvents === undefined || (Array.isArray(item.completionEvents) && item.completionEvents.every((entry: unknown) => isValidCompletionEvent(entry)) && new Set(item.completionEvents.map(entry => entry.id)).size === item.completionEvents.length)) &&
     (item.gameTags === undefined || (item.gameTags && typeof item.gameTags === 'object' && GAME_TAG_KEYS.every(key =>
       Array.isArray(item.gameTags?.[key]) && item.gameTags[key].every((tag: unknown) => typeof tag === 'string')))) &&
     typeof item.impression === 'string' && (item.review === undefined || typeof item.review === 'string') && typeof item.favorite === 'boolean' &&
