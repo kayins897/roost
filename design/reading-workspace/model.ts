@@ -26,7 +26,8 @@ export function reducer(state: PreviewState, action: Action): PreviewState {
   if (action.type === 'move') {
     const current = state.plans.find(p => p.id === action.id);
     if (!current) return state;
-    const ordered = state.plans.filter(p => p.state === current.state).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+    const category = state.works.find(w => w.id === current.workId)?.category;
+    const ordered = state.plans.filter(p => p.state === current.state && state.works.find(w => w.id === p.workId)?.category === category).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
     const at = ordered.findIndex(p => p.id === action.id), target = at + action.direction;
     if (target < 0 || target >= ordered.length) return state;
     [ordered[at], ordered[target]] = [ordered[target], ordered[at]];
