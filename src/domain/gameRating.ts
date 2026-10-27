@@ -5,15 +5,15 @@ import type { MediaItem } from './types.ts';
 
 export { isValidPersonalGrade } from './library.ts';
 
-/** Only two finishes survive: 镭射 (9.0-9.4) and 多彩 (9.5-10). */
+/** Only two finishes survive: 多彩 (9.0-9.4) and 镭射 (9.5-10). */
 export type CoverFinish = 'standard' | 'holographic' | 'prismatic';
 
 export const GAME_GRADES = ['SSS', 'SS', 'S', 'A', 'B', 'C'] as const;
 
 /** Presentation mapping only; it never infers or changes a personal grade. */
 export const GAME_GRADE_TIERS = {
-  SSS: { finish: 'prismatic', label: '多彩' },
-  SS: { finish: 'holographic', label: '镭射' },
+  SSS: { finish: 'holographic', label: '镭射' },
+  SS: { finish: 'prismatic', label: '多彩' },
   S: { finish: 'standard', label: '标准' },
   A: { finish: 'standard', label: '标准' },
   B: { finish: 'standard', label: '标准' },
@@ -30,7 +30,7 @@ export function coverFinishFor(item: MediaItem): CoverFinish {
 /** A stored zero is a real score. Unrated/lower scores use the original artwork. */
 export function scoreFinishFor(score: number): CoverFinish {
   if (!isPersonalScore(score)) return 'standard';
-  if (score >= 9.5) return 'prismatic';
-  if (score >= 9) return 'holographic';
+  if (score >= 9.5) return 'holographic';
+  if (score >= 9) return 'prismatic';
   return 'standard';
 }

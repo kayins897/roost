@@ -51,8 +51,8 @@ test('旧库读取、材质派生及JSON往返不补评级，保留根与作品�
 });
 
 test('只有多彩与镭射保留材质，其余评级回到原始封面，派生不改记录', () => {
-  const expected = { SSS: 'prismatic', SS: 'holographic', S: 'standard', A: 'standard', B: 'standard', C: 'standard' };
-  const labels = { SSS: '多彩', SS: '镭射', S: '标准', A: '标准', B: '标准', C: '标准' };
+  const expected = { SSS: 'holographic', SS: 'prismatic', S: 'standard', A: 'standard', B: 'standard', C: 'standard' };
+  const labels = { SSS: '镭射', SS: '多彩', S: '标准', A: '标准', B: '标准', C: '标准' };
   for (const personalGrade of GAME_GRADES) {
     const work = Object.freeze(item({ personalGrade }));
     const raw = JSON.stringify(work);
@@ -67,7 +67,7 @@ test('只有多彩与镭射保留材质，其余评级回到原始封面，派�
 test('材质只依分类资格，不依旧通关状态；其他板块及无资格游戏保留评级但不出箔面', () => {
   for (const gamePlayState of GAME_PLAY_STATES) {
     const work = item({ gamePlayState, personalGrade: 'SS' });
-    assert.equal(coverFinishFor(work), 'holographic');
+    assert.equal(coverFinishFor(work), 'prismatic');
     assert.equal(work.personalGrade, 'SS');
   }
   assert.equal(coverFinishFor(item({ gamePlayState: 'replaying', personalGrade: 'S' })), 'standard');
@@ -98,10 +98,10 @@ test('分类切换与批量标签编辑保留评级，切回收官完结恢复�
   assert.equal(tagged.personalGrade, 'SSS');
   const cleared = { ...tagged, ...experienceClassificationPatch('completed') };
   assert.equal(cleared.personalGrade, 'SSS');
-  assert.equal(coverFinishFor(cleared), 'prismatic');
+  assert.equal(coverFinishFor(cleared), 'holographic');
   assert.equal(cleared.gamePlayState, original.gamePlayState); assert.equal(cleared.playtimeMinutes, original.playtimeMinutes);
   const legacyStateEdit = createGameBatchEditPlan([original], [original.id], { gamePlayState: 'paused' }).items[0];
-  assert.equal(legacyStateEdit.personalGrade, 'SSS'); assert.equal(coverFinishFor(legacyStateEdit), 'prismatic', '旧状态编辑不改变明确分类的材质资格');
+  assert.equal(legacyStateEdit.personalGrade, 'SSS'); assert.equal(coverFinishFor(legacyStateEdit), 'holographic', '旧状态编辑不改变明确分类的材质资格');
   assert.equal(JSON.stringify(original), raw);
 });
 

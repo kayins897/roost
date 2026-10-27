@@ -9,13 +9,13 @@ import { sortLibraryItems } from './librarySort.ts';
 import type { MediaItem } from './types.ts';
 const game = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, title: id, category: 'game', subcategory: 'Steam', creator: '', year: '', status: 'finished', experienceStatus: 'experienced', experienceCategory: 'completed', personalGrade: 'A', playPriority: 'SS', tags: [], impression: '', favorite: false, artwork: 'default', createdAt: '2026-01-01', updatedAt: '2026-01-01', ...extra });
 test('数值评分的全部边界、真实零与未设置，不覆盖历史评级', () => {
-  for (const [score, finish] of [[0, 'standard'], [8.9, 'standard'], [9, 'holographic'], [9.4, 'holographic'], [9.5, 'prismatic'], [10, 'prismatic']] as const) {
+  for (const [score, finish] of [[0, 'standard'], [8.9, 'standard'], [9, 'prismatic'], [9.4, 'prismatic'], [9.5, 'holographic'], [10, 'holographic']] as const) {
     const item = Object.freeze(game('a', { personalScore: score })); const before = JSON.stringify(item);
     assert.equal(scoreFinishFor(score), finish); assert.equal(coverFinishFor(item), finish);
     assert.equal(JSON.stringify(item), before); assert.equal(isValidSnapshot({ schemaVersion: 1, items: [item] }), true);
   }
   for (const value of [-1, 10.1, NaN, Infinity, 9.45, '9', null]) assert.equal(isPersonalScore(value), false);
-  assert.equal(coverFinishFor(game('a', { personalGrade: 'SS' })), 'holographic');
+  assert.equal(coverFinishFor(game('a', { personalGrade: 'SS' })), 'prismatic');
   assert.equal(coverFinishFor(game('a', { personalScore: 0, personalGrade: 'SSS' })), 'standard');
 });
 test('评分按十个固定区间分组，段内默认按真实分降序，同段可拖动且历史字母独立保存', () => {

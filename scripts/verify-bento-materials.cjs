@@ -11,7 +11,7 @@ fs.mkdirSync(evidence, { recursive: true });
 let data = fs.mkdtempSync(path.join(os.tmpdir(), 'qiyu-bento-integration-'));
 let app, page; const checks = [], errors = [];
 const item = (id, score, more = {}) => ({ id, title: `星际档案 ${id}`, originalTitle: `Astral Archive ${id}`, category: 'game', subcategory: 'Steam', platforms: ['Steam', 'PS5'], creator: '合成测试工作室', year: '2025', status: 'finished', experienceStatus: 'experienced', experienceCategory: 'completed', personalGrade: 'A', ...(score === undefined ? {} : { personalScore: score }), tags: ['太空', '探索'], gameTags: { gameplay: ['探索'], theme: ['太空'], scenario: [], other: [] }, impression: '在星海中，留住每一次出发的勇气。', review: '完整保留的长文测评。\n这里是第二段。', favorite: false, artwork: 'default', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', completionCount: 0, ...more });
-const initial = { schemaVersion: 1, items: [item('多彩', 9.8, { playtimeMinutes: 120, lastPlayedAt: '2026-10-26T12:30:21.123Z' }), item('镭射', 9.4), item('标准', 8.9), item('未评分', undefined), item('零分', 0, { playtimeMinutes: 0 }), item('新作', undefined, { status: 'want', experienceStatus: 'unplayed', experienceCategory: undefined, personalGrade: undefined, playPriority: 'SSS' })] };
+const initial = { schemaVersion: 1, items: [item('多彩', 9.4, { playtimeMinutes: 120, lastPlayedAt: '2026-10-26T12:30:21.123Z' }), item('镭射', 9.8), item('标准', 8.9), item('未评分', undefined), item('零分', 0, { playtimeMinutes: 0 }), item('新作', undefined, { status: 'want', experienceStatus: 'unplayed', experienceCategory: undefined, personalGrade: undefined, playPriority: 'SSS' })] };
 const libraryFile = () => path.join(data, 'library.json');
 const snapshot = () => JSON.parse(fs.readFileSync(libraryFile(), 'utf8'));
 const check = (name, details) => { checks.push({ name, passed: true, ...(details ? { details } : {}) }); console.log(`PASS ${name}`); };
@@ -66,7 +66,7 @@ async function setScore(scope, value, label = '通关评分') {
   }));
   initial.items.forEach((game, i) => { game.coverUrl = covers[i % 3]; }); fs.writeFileSync(libraryFile(), JSON.stringify(initial, null, 2)); await page.reload(); await all();
   for (const [name, finish] of [['多彩', 'prismatic'], ['镭射', 'holographic'], ['标准', 'standard'], ['零分', 'standard']]) assert.equal(await card(name).locator('.card-cover').getAttribute('data-finish'), finish);
-  check('9.0到9.4镭射、9.5以上多彩，8.9与0分保留原图');
+  check('9.0到9.4多彩、9.5以上镭射，8.9与0分保留原图');
   for (const [name, filename] of [['镭射', 'holographic'], ['多彩', 'polychrome']]) {
     await card(name).locator('.card-cover').hover({ position: { x: 135, y: 100 } }); await page.waitForTimeout(150); await card(name).locator('.card-cover').hover({ position: { x: 136, y: 101 } });
     await card(name).locator('[data-webgl-material="active"]').waitFor(); assert.equal(await page.locator('.cover-material-canvas').count(), 1); await picture(filename);
