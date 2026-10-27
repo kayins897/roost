@@ -1,0 +1,82 @@
+.cal-period-year { min-width: 0; container-type: inline-size; }
+.cal-period-year-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+.cal-period-mini-month { min-width: 0; padding: 18px 16px 15px; border-radius: 16px; background: linear-gradient(145deg, #1c2723a6, #171e20); }
+.cal-period-mini-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; margin-bottom: 14px; }
+.cal-period-mini-heading button { display: inline-flex; align-items: baseline; gap: 5px; border: 0; padding: 0; border-radius: 4px; background: none; color: #b9d3c1; }
+.cal-period-mini-heading button strong { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.cal-period-mini-heading button span { font-size: 11px; color: #899e90; }
+.cal-period-mini-heading button span:last-child { color: #739580; margin-left: 3px; }
+.cal-period-mini-heading button:hover { color: #e0ecdf; }
+.cal-period-mini-count { margin-left: auto; color: #809184; font-size: 10px; white-space: nowrap; }
+.cal-period-mini-weekdays, .cal-period-mini-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.cal-period-mini-weekdays { text-align: center; color: #73887c; font-size: 10px; margin-bottom: 5px; }
+.cal-period-mini-weekdays > span:nth-last-child(-n+2) { color: #8c9987; }
+.cal-period-mini-days > button { display: flex; min-width: 0; min-height: 31px; padding: 3px 0 2px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #b3c3b9; font-size: 11px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.cal-period-mini-days > button:hover { background: #bddcc412; color: #dce8dc; }
+.cal-period-mini-days > button.is-selected { color: #d9ecdb; background: #a8ccb421; border-color: #b0d7bd66; }
+.cal-period-day-marks { display: flex; justify-content: center; align-items: center; height: 5px; gap: 3px; }
+.cal-period-record-mark { display: inline-block; flex: 0 0 auto; width: 4px; height: 4px; border-radius: 50%; background: #a6c9b0; }
+.cal-period-plan-mark { display: inline-block; flex: 0 0 auto; width: 5px; height: 5px; border: 1px solid #c1b494; border-radius: 1px; background: transparent; transform: rotate(45deg); }
+.cal-period-legend { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 11px 18px; padding: 16px 3px 0; color: #91a493; font-size: 11px; }
+.cal-period-legend > span { display: inline-flex; align-items: center; gap: 7px; }
+.cal-period-legend > .rw-muted { font-size: 10px; }
+.cal-period-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 9px; align-items: stretch; min-width: 0; }
+.cal-period-week-day { min-width: 0; padding: 13px 10px 17px; border-radius: 16px; background: linear-gradient(160deg, #2030286b, #171e20); }
+.cal-period-week-day.is-selected { border-color: #b2d5bf61; background: linear-gradient(160deg, #30453883, #1b2623); }
+.cal-period-week-heading { display: flex; flex-direction: column; align-items: flex-start; width: 100%; gap: 6px; padding: 0 0 14px; margin: 0 0 14px; border: 0; border-radius: 4px; border-bottom: 1px solid #d4e6da16; background: none; text-align: left; color: #b5ccbb; }
+.cal-period-week-heading > span:first-child { font-size: 11px; color: #93a696; }
+.cal-period-week-heading > strong { display: flex; flex-wrap: wrap; gap: 7px; align-items: baseline; font-size: 25px; font-weight: 500; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.cal-period-week-heading small { color: #849c8b; font-size: 10px; font-weight: 400; white-space: nowrap; }
+.cal-period-week-heading:hover { color: #e4ecdd; }
+.cal-period-week-open { color: #799681; font-size: 10px; }
+.cal-period-week-empty { padding: 22px 0 28px; color: #788b7d; font-size: 12px; line-height: 1.9; text-align: center; }
+.cal-period-entry-list { list-style: none; display: flex; flex-direction: column; gap: 10px; padding: 0; margin: 0; }
+.cal-period-entry-list--plans { margin-top: 12px; }
+.cal-period-week-entry { min-width: 0; padding: 0 0 11px; border-bottom: 1px solid #c4d7c30d; }
+.cal-period-entry-kind { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; color: #859d8b; font-size: 9px; line-height: 1.7; }
+.cal-period-week-entry strong, .cal-period-week-plan strong { display: block; color: #c3d5c6; font-size: 14px; font-weight: 500; line-height: 1.7; overflow-wrap: anywhere; margin: 7px 0 5px; }
+.cal-period-entry-duration { display: block; color: #8da28f; font-size: 10px; line-height: 1.7; }
+.cal-period-week-entry--game .cal-period-record-mark { background: #b5a1cc; }
+.cal-period-week-entry--screen .cal-period-record-mark { background: #d3ae86; }
+.cal-period-week-entry--music .cal-period-record-mark { background: #b0b8cf; }
+.cal-period-week-plan { border: 1px dashed #bfae8c3d; border-radius: 9px; padding: 9px 8px 10px; background: #b9a16c06; min-width: 0; }
+.cal-period-week-plan .cal-period-entry-kind { color: #b4a58a; }
+.cal-period-week-plan strong { color: #c0baa3; }
+.cal-period-week-plan p { color: #968e78; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; margin: 7px 0 0; }
+@container (min-width: 1050px) { .cal-period-year-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (max-width: 650px) { .cal-period-year-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 330px) { .cal-period-year-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1120px) {
+  .cal-period-week { gap: 7px; }
+  .cal-period-week-day { padding: 12px 8px 15px; }
+  .cal-period-week-heading > strong { font-size: 23px; gap: 5px; }
+}
+@media (max-width: 960px) {
+  .cal-period-week { grid-template-columns: minmax(0, 1fr); gap: 11px; }
+  .cal-period-week-day { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: start; gap: 20px; padding: 19px 20px; }
+  .cal-period-week-heading { border: 0; border-right: 1px solid #d4e6da16; padding: 0 17px 0 0; margin: 0; min-height: 93px; }
+  .cal-period-week-content { min-width: 0; }
+  .cal-period-week-empty { padding: 18px 0; text-align: left; }
+  .cal-period-week-empty br { display: none; }
+  .cal-period-entry-list { gap: 14px; }
+  .cal-period-week-entry { padding-bottom: 12px; }
+  .cal-period-entry-kind { font-size: 10px; }
+  .cal-period-entry-duration { font-size: 11px; }
+  .cal-period-week-plan { padding: 12px 14px; }
+  .cal-period-week-plan p { font-size: 14px; }
+}
+@media (max-width: 600px) {
+  .cal-period-year-grid { gap: 10px; }
+  .cal-period-mini-month { padding: 14px 10px 12px; }
+  .cal-period-mini-heading { align-items: flex-start; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .cal-period-mini-count { margin: 0; font-size: 9px; }
+  .cal-period-mini-days, .cal-period-mini-weekdays { gap: 1px; }
+  .cal-period-mini-days > button { min-height: 29px; font-size: 10px; }
+  .cal-period-mini-weekdays { font-size: 9px; }
+  .cal-period-mini-heading button strong { font-size: 21px; }
+  .cal-period-legend { justify-content: flex-start; gap: 10px 16px; }
+  .cal-period-legend > .rw-muted { flex-basis: 100%; }
+  .cal-period-week-day { grid-template-columns: 73px minmax(0, 1fr); gap: 16px; padding: 17px; }
+  .cal-period-week-heading { padding-right: 11px; }
+  .cal-period-week-heading > strong { font-size: 24px; }
+}
