@@ -1,0 +1,51 @@
+.rd-cover {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 2px;
+  line-height: 0;
+  background: #ded9ce;
+}
+
+.rd-cover > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.rd-cover .rd-cover__title {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', SimSun, serif;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+}
+
+.rd-cover .rd-cover__title--sans {
+  font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-weight: 500;
+  letter-spacing: -.7px;
+}
+
+.rd-cover .rd-cover__eyebrow {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 1.65px;
+}
+
+.rd-cover .rd-cover__author {
+  font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+}
+
+.rd-cover .rd-cover__micro {
+  font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 1.1px;
+}
