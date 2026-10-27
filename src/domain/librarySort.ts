@@ -1,5 +1,6 @@
 import { GAME_GRADES } from './gameRating.ts';
 import { engagementFor } from './gameProgress.ts';
+import { isPersonalScore } from './gameAssets.ts';
 import type { RankMode } from './gamePlanning.ts';
 import type { MediaItem } from './types.ts';
 
@@ -11,9 +12,11 @@ function numberFor(item: MediaItem, sort: LibrarySort, rankMode: RankMode) {
   if (sort === 'playtime') return finite(item.playtimeMinutes);
   if (sort === 'year') return /^\d{1,4}$/.test(item.year.trim()) && Number(item.year) > 0 ? Number(item.year) : undefined;
   if (sort === 'recent') return item.createdAt.trim() && Number.isFinite(Date.parse(item.createdAt)) ? Date.parse(item.createdAt) : undefined;
+  if (rankMode === 'rating' && isPersonalScore(item.personalScore)) return item.personalScore;
   const grade = rankMode === 'rating' ? item.personalGrade : item.playPriority;
   const index = GAME_GRADES.findIndex(value => value === grade);
-  return index < 0 ? undefined : GAME_GRADES.length - index;
+  // Historical letters remain a separate tail; they are never converted into numeric ratings.
+  return index < 0 ? undefined : (rankMode === 'rating' ? -100 : 0) + GAME_GRADES.length - index;
 }
 function compareKnown(first: number | undefined, second: number | undefined, direction: SortDirection): number {
   if (first === undefined || second === undefined) return first === second ? 0 : first === undefined ? 1 : -1;

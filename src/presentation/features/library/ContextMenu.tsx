@@ -6,9 +6,10 @@ import type { MediaItem, PersonalGrade } from '../../../domain/types.ts';
 import type { GameExperienceClassification } from '../../../domain/gameExperience.ts';
 import { CLASSIFICATIONS, CLASSIFICATION_LABELS, classificationFor } from './experienceOptions.ts';
 import './library.css';
+import { ScoreControl } from './ScoreControl.tsx';
 
 export interface ItemMenu { id: string; x: number; y: number }
-interface Props { menu: ItemMenu; item: MediaItem; onClose: () => void; onClassification: (value: GameExperienceClassification) => boolean; onGrade: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean; onQuick: (mode: 'time' | 'tags') => void; onEdit: () => void; onFavorite: () => void; onHide: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void }
+interface Props { menu: ItemMenu; item: MediaItem; onClose: () => void; onClassification: (value: GameExperienceClassification) => boolean; onGrade: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean; onScore: (value: number | undefined) => boolean; onQuick: (mode: 'time' | 'tags') => void; onEdit: () => void; onFavorite: () => void; onHide: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void }
 
 // 待体验/已通关在菜单内附等级行。保存失败时菜单留在原位供重试，成功按约定关闭或就地展示等级行，
 // 避免"菜单已关、误以为已保存"。
@@ -20,12 +21,15 @@ export function ContextMenu(props: Props) {
   const [position, setPosition] = useState({ left: Math.max(8, Math.min(props.menu.x, window.innerWidth - 248)), top: Math.max(8, Math.min(props.menu.y, window.innerHeight - 200)) });
   useLayoutEffect(() => {
     const node = panel.current; if (!node) return;
-    const height = node.getBoundingClientRect().height;
-    const width = node.getBoundingClientRect().width;
-    setPosition({
-      left: Math.max(8, Math.min(props.menu.x, window.innerWidth - width - 8)),
-      top: Math.max(8, props.menu.y + height > window.innerHeight - 8 ? window.innerHeight - height - 8 : props.menu.y),
-    });
+    const place = () => {
+      const { height, width } = node.getBoundingClientRect();
+      setPosition({
+        left: Math.max(8, Math.min(props.menu.x, window.innerWidth - width - 8)),
+        top: Math.max(8, Math.min(props.menu.y, window.innerHeight - height - 8)),
+      });
+    };
+    place(); const observer = new ResizeObserver(place); observer.observe(node);
+    return () => observer.disconnect();
   }, [props.menu.x, props.menu.y]);
   useEffect(() => {
     const oldFocus = document.activeElement as HTMLElement | null;
@@ -36,7 +40,7 @@ export function ContextMenu(props: Props) {
     // 保存导致的作品移出、列表缩短、scrollTop 钳制或排序重排触发的 scroll 一律保持菜单，
     // 修复「无钳制的列表缩短后第一次主动滚动被误判为布局滚动」的审查问题。
     let userScrolled = false;
-    const markUser = () => { userScrolled = true; };
+    const markUser = (event: Event) => { if (!panel.current?.contains(event.target as Node)) userScrolled = true; };
     const markKeys = (event: KeyboardEvent) => {
       // 菜单内方向键只移动焦点，不能污染随后由保存引起的主区布局滚动。
       if (panel.current?.contains(event.target as Node)) return;
@@ -89,7 +93,7 @@ export function ContextMenu(props: Props) {
     {item.removedAt ? <><button role="menuitem" onClick={() => run(props.onRestore)}>恢复作品</button><button role="menuitem" className="is-danger" onClick={() => run(props.onDelete)}><Trash2 size={14} />永久删除</button></> : <>
       {isGame && <><span className="menu-section-label">体验分类</span><div className="context-states" role="group" aria-label="体验分类">{CLASSIFICATIONS.map(value => <button className={`experience-color--${value}`} role="menuitemradio" aria-checked={classification === value} key={value} onClick={() => pickClassification(value)}>{CLASSIFICATION_LABELS[value]}</button>)}</div>
         {canPriority && <div className="context-rank" role="group" aria-label="游玩优先级"><span className="menu-section-label"><Bookmark size={11} />游玩优先级</span><div className="context-grades">{GAME_GRADES.map(grade => <button role="menuitemradio" aria-checked={item.playPriority === grade} key={grade} onClick={() => pickGrade('priority', grade)}>{grade}</button>)}<button role="menuitemradio" aria-checked={item.playPriority === undefined} onClick={() => pickGrade('priority', undefined)}>未设置</button></div></div>}
-        {canGrade && <div className="context-rank" role="group" aria-label="通关评级"><span className="menu-section-label"><Star size={11} />通关评级</span><div className="context-grades">{GAME_GRADES.map(grade => <button role="menuitemradio" aria-checked={item.personalGrade === grade} key={grade} onClick={() => pickGrade('rating', grade)}>{grade}</button>)}<button role="menuitemradio" aria-checked={item.personalGrade === undefined} onClick={() => pickGrade('rating', undefined)}>未设置</button></div></div>}
+        {canGrade && <div className="context-rank" role="group" aria-label="通关评分"><span className="menu-section-label"><Star size={11} />通关评分</span><ScoreControl key={item.id} value={item.personalScore} onSave={value => { if (!props.onScore(value)) return false; onClose(); return true; }} />{item.personalScore === undefined && item.personalGrade && <small>历史评级 {item.personalGrade}，未换算分数</small>}</div>}
         <button role="menuitem" onClick={() => run(() => props.onQuick('time'))}><Clock3 size={14} />修改时长</button></>}
       <button role="menuitem" onClick={() => run(() => props.onQuick('tags'))}><Tag size={14} />编辑标签</button><button role="menuitem" onClick={() => run(props.onEdit)}><Pencil size={14} />编辑作品资料</button><button role="menuitem" onClick={() => run(props.onFavorite)}><Heart size={14} />{item.favorite ? '取消喜欢' : '标为喜欢'}</button>{item.hiddenAt && <button role="menuitem" onClick={() => run(props.onHide)}><EyeOff size={14} />取消隐藏</button>}<button role="menuitem" className="is-danger" onClick={() => run(props.onTrash)}><Trash2 size={14} />移到回收站</button>
     </>}

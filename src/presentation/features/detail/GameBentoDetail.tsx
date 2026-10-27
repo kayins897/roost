@@ -34,7 +34,7 @@ export function GameBentoDetail({ item, availableItems = [], onClose, onPatch, o
   const [message, setMessage] = useState('');
   const locked = Boolean(item.removedAt);
   guardRef.current = () => (!controller.editing || controller.finish()) && writing.save();
-  useDialogKeyboard(panel, onClose, { filterVisible: true, initialFocus: element => element.querySelector('.game-bento-close') });
+  useDialogKeyboard(panel, onClose, { filterVisible: true, selector: 'button:not(:disabled):not([tabindex="-1"]), input:not(:disabled), textarea, select, a[href], summary, [tabindex="0"]', initialFocus: element => element.querySelector('.game-bento-close') });
   const closeMenu = useCallback(() => setMenu(null), []);
   function openMenu(id: DetailWidgetId | null, x: number, y: number, origin?: HTMLElement) {
     if (!writing.save()) return;
@@ -89,8 +89,8 @@ export function GameBentoDetail({ item, availableItems = [], onClose, onPatch, o
       </main>
       {(controller.error || message) && <p className="bento-status" role="status">{controller.error || message}</p>}
       {locked && <div className="bento-recycle-actions"><span>回收站 · 只读</span><button type="button" onClick={onRestore}>恢复作品</button><button type="button" onClick={onDeletePermanently}>永久删除</button></div>}
+      <BentoLayoutTools controller={controller} />
     </section>
-    <BentoLayoutTools controller={controller} />
     {menu && <BentoContextMenu key={menu.id ?? 'layout'} anchor={menu} controller={controller} close={closeMenu} locked={locked}>{editor(menu.id)}</BentoContextMenu>}
     {experience && <ExperienceEditor initial={experience === 'new' ? undefined : experience} onClose={() => setExperience(null)} onSave={entry => onPatch({ experienceEntries: [...(item.experienceEntries ?? []).filter(value => value.id !== entry.id), entry] })} />}
     {completion && <Modal title={completion === 'new' ? '记录一次完成' : '整理完成事件'} onClose={() => setCompletion(null)}>{completion === 'new' ? <CompletionRecordForm item={item} onPatch={onPatch} onCancel={() => setCompletion(null)} onRecorded={receipt => { setUndoable(receipt); setCompletion(null); setMessage('已记录一次完成。'); }} /> : <CompletionEvents item={item} onPatch={onPatch} />}</Modal>}

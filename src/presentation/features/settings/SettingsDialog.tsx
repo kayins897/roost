@@ -4,8 +4,10 @@ import { desktopBridge, desktopInfo } from '../../../infrastructure/repository.t
 import { Modal } from '../../components/MediaPrimitives.tsx';
 import { BackgroundSettings, GlassSettings, ActionGlassSettings, type AmbientControls, type GlassControls } from './VisualSettings.tsx';
 import './settings.css';
+import { CoverMaterialSettings } from './CoverMaterialSettings.tsx';
 
 const pages = [
+  { id: 'covers', label: '卡面材质', icon: Palette, search: '反光 闪箔 镭射 多彩 纹理 滤镜 流速 三角 切面' },
   { id: 'background', label: '背景与配色', icon: Palette, search: '动态 流体 星河 粒子 密度 视差 幅度 明暗 环境光 色相 香槟金 深海蓝 极光绿 紫罗兰 绛红 色深 流速 涡旋 扭曲 笔刷 半径' },
   { id: 'glass', label: '导航玻璃', icon: Droplets, search: '玻璃材质 液态 磨砂 模糊 折射 色散 透镜 深度 弹性 Dock 搜索框' },
   { id: 'buttons', label: '操作按钮', icon: SlidersHorizontal, search: '按钮 毛玻璃 模糊 透明 不透明度' },
@@ -29,14 +31,15 @@ export function SettingsDialog({ ambient, glass, hasDemos, onClose, onSteam, onE
           {page.id === 'background' && <BackgroundSettings ambient={ambient} searching={!!term} />}
           {page.id === 'glass' && <GlassSettings glass={glass} searching={!!term} />}
           {page.id === 'buttons' && <ActionGlassSettings glass={glass} />}
+          {page.id === 'covers' && <CoverMaterialSettings />}
           {page.id === 'data' && <>
             <DataRow title="Steam 游戏库" description="读取库存与时长，预览后同步，保留个人记录。" icon={<Link2 size={19} />}><button className="button button--secondary" onClick={onSteam}>连接 Steam</button></DataRow>
             <DataRow title="已隐藏作品" description="查看和恢复以前隐藏的作品，保留全部个人记录。" icon={<Archive size={19} />}><button className="button button--secondary" onClick={onHidden}>查看</button></DataRow>
-            <DataRow title="导出收藏备份" description="包括作品、标签、印象、测评和已上传封面。" icon={<Download size={19} />}><button className="button button--secondary" onClick={onExport}>导出</button></DataRow>
-            <DataRow title="导入收藏备份" description="从栖域 v1 JSON 恢复，替换当前收藏。" icon={<Upload size={19} />}><button className="button button--secondary" onClick={onImport}>导入</button></DataRow>
+            <DataRow title="导出完整备份" description="一个 .roost 文件，含收藏、评分、感受及全部截图原图。" icon={<Download size={19} />}><button className="button button--secondary" onClick={onExport}>导出</button></DataRow>
+            <DataRow title="恢复收藏备份" description="支持完整 .roost 及旧 JSON；确认后替换收藏，保留恢复前备份。" icon={<Upload size={19} />}><button className="button button--secondary" onClick={onImport}>导入</button></DataRow>
             {desktopInfo && desktopBridge && <DataRow title="本机数据目录" description="查看收藏数据与本机备份文件。" icon={<FolderOpen size={19} />}><button className="button button--secondary" onClick={() => { try { desktopBridge?.openDataDirectory(); } catch (error) { onNotice(`打开目录失败：${error instanceof Error ? error.message : '请稍后重试'}`); } }}>打开目录</button></DataRow>}
             {hasDemos && <DataRow title="清除演示作品" description="只移除预置示例，保留你添加的作品。" icon={<Trash2 size={19} />}><button className="button button--secondary" onClick={onClearDemo}>清除</button></DataRow>}
-            <p className="settings-data-notice"><Info size={17} />{desktopInfo ? '收藏仅保存在这台电脑。请定期导出 JSON，用于迁移或恢复。' : '收藏保存在当前浏览器。清除站点数据可能丢失收藏，请定期导出。'}</p>
+            <p className="settings-data-notice"><Info size={17} />{desktopInfo ? '收藏与截图仅保存在这台电脑。请定期导出完整备份。' : '收藏保存在当前浏览器。清除站点数据可能丢失收藏，请定期导出。'}</p>
           </>}
         </section>)}
         {!visible.length && <div className="settings-no-results"><Search size={26} /><h3>没有找到相关设置</h3><p>试试“色相”“玻璃”或“备份”。</p><button className="button button--secondary" onClick={() => setSearch('')}>清除搜索</button></div>}

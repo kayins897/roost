@@ -28,3 +28,11 @@
 
 .game-status-tabs > small { color: var(--muted); font-size: 11px; font-weight: 400; align-self: center; margin-left: 4px; }
 .experience-category-filters { flex-basis: 100%; margin-top: 8px; }
+.score-control { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 0; }
+.score-control>.score-picker { flex-basis:100%; }
+.score-control>button { width:auto; }
+.bulk-score-bar { flex-wrap:wrap; gap:10px; }
+.bulk-score-field { display:flex; align-items:center; gap:8px; }
+.bulk-score-field>span { max-width:45px; font-size:11px; color:var(--muted); }
+.bulk-score-field>.score-picker { width:156px; }
+.selection-actionbar:has(.bulk-score-bar) { max-height:calc(100dvh - 30px); overflow-y:auto; overscroll-behavior:contain; }

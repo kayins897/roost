@@ -42,6 +42,18 @@ export interface ExperienceEntry {
   minutes?: number;
 }
 
+/** Originals are copied to the app's asset store; no source path is persisted. */
+export interface GameScreenshot {
+  id: string;
+  assetId: string;
+  filename: string;
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp';
+  width: number;
+  height: number;
+  addedAt: string;
+  caption?: string;
+}
+
 export interface MediaItem {
   id: string;
   title: string;
@@ -73,6 +85,11 @@ export interface MediaItem {
   playtimeMinutes?: number;
   /** User-authored grade, retained across status/category changes; undefined is unrated. */
   personalGrade?: PersonalGrade;
+  /** Explicit 0–10 score, in tenths. Legacy letter grades are never converted. */
+  personalScore?: number;
+  lastPlayedAt?: string;
+  screenshots?: GameScreenshot[];
+  screenshotCoverId?: string;
   /** Planned consumption priority; independent of a completed game's personal grade. */
   playPriority?: PersonalGrade;
   /** Explicit order within a priority or completed-grade group. */

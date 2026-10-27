@@ -2,10 +2,11 @@ import { gradeEditable, priorityEditable } from '../../../domain/gameProgress.ts
 import { GAME_GRADES } from '../../../domain/gameRating.ts';
 import { useState } from 'react';
 import type { MediaItem, PersonalGrade } from '../../../domain/types.ts';
+import { BulkScoreBar } from './BulkScoreBar.tsx';
 
 // 多选工具栏的等级快捷设置：全部待体验→优先级、全部已通关→评级；
 // 混合状态提示改用「改状态」。选择候选只预览将更新数量，应用才写入。
-export function BulkGradeBar({ selectedGames, visibleIds, onApply }: { selectedGames: MediaItem[]; visibleIds: ReadonlySet<string>; onApply: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean }) {
+export function BulkGradeBar({ selectedGames, visibleIds, onApply, onScore }: { selectedGames: MediaItem[]; visibleIds: ReadonlySet<string>; onApply: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean; onScore: (value: number | undefined) => boolean }) {
   const [grade, setGrade] = useState<PersonalGrade | 'clear' | ''>('');
   const [chosenMode, setChosenMode] = useState<'priority' | 'rating'>('priority');
   if (!selectedGames.length) return null;
@@ -23,8 +24,9 @@ export function BulkGradeBar({ selectedGames, visibleIds, onApply }: { selectedG
   const key = mode === 'priority' ? 'playPriority' : 'personalGrade';
   const next = grade === 'clear' ? undefined : grade || undefined;
   const willChange = grade === '' ? -1 : selectedGames.filter(item => item[key] !== next).length;
-  return <span className="bulk-grade-bar">
-    {allPlanned && allGraded && <label className="bulk-grade-field">设置维度<select aria-label="批量等级维度" value={mode} onChange={event => { setChosenMode(event.target.value as 'priority' | 'rating'); setGrade(''); }}><option value="priority">游玩优先级</option><option value="rating">通关评级</option></select></label>}
+  return <div className="bulk-grade-bar">
+    {allPlanned && allGraded && <label className="bulk-grade-field">设置维度<select aria-label="批量等级维度" value={mode} onChange={event => { setChosenMode(event.target.value as 'priority' | 'rating'); setGrade(''); }}><option value="priority">游玩优先级</option><option value="rating">通关评分</option></select></label>}
+    {mode === 'rating' ? <BulkScoreBar games={selectedGames} summary={selectionSummary} onApply={onScore} /> : <>
     <label className="bulk-grade-field">统一{label}
       <select aria-label={`统一${label}`} value={grade} onChange={event => setGrade(event.target.value as PersonalGrade | 'clear' | '')}>
         <option value="">选择…</option>
@@ -34,5 +36,6 @@ export function BulkGradeBar({ selectedGames, visibleIds, onApply }: { selectedG
     </label>
     <small className="bulk-grade-count">{selectionSummary}{grade !== '' ? `；${willChange ? `将更新 ${willChange} 款（共 ${selectedGames.length} 款）` : '所选作品已是该等级'}` : ''}</small>
     <button className="button button--secondary" disabled={grade === '' || !willChange} onClick={() => { if (onApply(mode, next)) setGrade(''); }}>{willChange ? '应用等级' : '应用'}</button>
-  </span>;
+    </>}
+  </div>;
 }

@@ -1,0 +1,6 @@
+.cover-material-canvas { position:absolute; inset:0; width:100%; height:100%; z-index:4; pointer-events:none; border-radius:inherit; }
+.card-cover[data-webgl-material] > :is(.cover-foil,.card-cover-shine) { display:none !important; }
+.cover-material-settings { display:grid; gap:16px; }
+.cover-material-settings label { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+.cover-material-settings input[type=range] { width:min(200px,40vw); accent-color:var(--accent); }
+.cover-material-settings output { min-width:44px; text-align:right; }

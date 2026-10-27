@@ -9,7 +9,7 @@ export interface BentoMenuAnchor { id: DetailWidgetId | null; x: number; y: numb
 export function BentoContextMenu({ anchor, controller, close, locked, children }: { anchor: BentoMenuAnchor; controller: BentoLayoutController; close: () => void; locked: boolean; children: ReactNode }) {
   const panel = useRef<HTMLElement>(null), [appearance, setAppearance] = useState(anchor.id === null);
   const title = anchor.id ? WIDGET_LABELS[anchor.id] : '布局与卡片';
-  useDialogKeyboard(panel, () => { if (appearance && anchor.id) setAppearance(false); else close(); }, { filterVisible: true, initialFocus: element => element.querySelector('input,textarea,button') });
+  useDialogKeyboard(panel, () => { if (appearance && anchor.id) setAppearance(false); else close(); }, { filterVisible: true, initialFocus: element => element.querySelector('[role="spinbutton"],input,textarea,button') });
   useLayoutEffect(() => {
     const element = panel.current; if (!element) return;
     function position() {

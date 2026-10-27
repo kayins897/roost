@@ -2,6 +2,7 @@ import { completionFor, engagementFor, inPlanView, isValidCompletionEvent, PLAY_
 import type { GamePlayState, GameTagGroupKey, GameTagGroups, LibrarySnapshot, MediaItem, MediaType, PersonalGrade, ProgressStatus
 , CompletionStatus, PlayEngagement } from './types.ts';
 import { isValidImportExclusion } from './importExclusions.ts';
+import { isGameScreenshot, isLastPlayedAt, isPersonalScore } from './gameAssets.ts';
 import { experienceCategoryFor, experienceStatusFor, isGameExperienceCategory, isGameExperienceStatus } from './gameExperience.ts';
 import type { GameExperienceCategory, GameExperienceStatus } from './types.ts';
 
@@ -277,6 +278,10 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
     item.tags.every((tag: unknown) => typeof tag === 'string') &&
     (item.playtimeMinutes === undefined || (typeof item.playtimeMinutes === 'number' && Number.isSafeInteger(item.playtimeMinutes) && item.playtimeMinutes >= 0)) &&
     (item.personalGrade === undefined || isValidPersonalGrade(item.personalGrade)) &&
+    (item.personalScore === undefined || isPersonalScore(item.personalScore)) &&
+    (item.lastPlayedAt === undefined || isLastPlayedAt(item.lastPlayedAt)) &&
+    (item.screenshots === undefined || (Array.isArray(item.screenshots) && item.screenshots.length <= 1000 && item.screenshots.every(isGameScreenshot) && new Set(item.screenshots.map(image => image.id)).size === item.screenshots.length)) &&
+    (item.screenshotCoverId === undefined || (typeof item.screenshotCoverId === 'string' && item.screenshotCoverId.length <= 100)) &&
     (item.playPriority === undefined || isValidPersonalGrade(item.playPriority)) &&
     (item.priorityOrder === undefined || (Number.isSafeInteger(item.priorityOrder) && item.priorityOrder >= 0)) &&
     (item.ratingOrder === undefined || (Number.isSafeInteger(item.ratingOrder) && item.ratingOrder >= 0)) &&

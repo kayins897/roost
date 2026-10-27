@@ -26,7 +26,7 @@ export function ListMediaRow({ item, selecting, chosen, onOpen, onMenu, onPatch,
     <GlassLayers />
     <div className="list-ranks" aria-label="优先级与评级">
       {priorityEditable(item) && <span title="游玩优先级"><Bookmark size={13} /><b>{item.playPriority ?? '—'}</b><small>优先级</small></span>}
-      {gradeEditable(item) && <span title="通关评级"><Star size={13} /><b>{item.personalGrade ?? '—'}</b><small>评级</small></span>}
+      {gradeEditable(item) && <span title="通关评分"><Star size={13} /><b>{item.personalScore !== undefined ? item.personalScore.toFixed(1) : item.personalGrade ?? '—'}</b><small>{item.personalScore === undefined && item.personalGrade ? '历史评级' : '评分'}</small></span>}
     </div>
     <button className="list-cover-button" aria-label={selecting ? `${chosen ? '取消选择' : '选择'}${item.title}` : `查看${item.title}详情`} aria-pressed={selecting ? chosen : undefined} onClick={() => onOpen(item.id)} onKeyDown={event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); menu(event.currentTarget); } }}>
       <Poster item={item} />{selecting && <span className="list-selection">{chosen ? <Check size={18} /> : '○'}</span>}

@@ -16,6 +16,7 @@ import { useUnsavedChanges } from '../../RecordEditors.tsx';
 import { useFieldState } from '../../app/useFieldState.ts';
 import { Modal, Poster } from '../../components/MediaPrimitives.tsx';
 import { categories,gameTagExamples } from '../../components/libraryOptions.ts';
+import { ScorePicker } from '../../components/ScorePicker.tsx';
 async function compressCover(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('请选择图片文件');
   if (file.size > 12 * 1024 * 1024) throw new Error('图片请小于 12 MB');
@@ -45,7 +46,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     classification: (initial?.category === 'game' ? classificationFor(initial) : 'unplayed') as GameExperienceClassification,
     classificationTouched: false,
     playPriority: initial?.playPriority ?? '',
-    personalGrade: initial?.personalGrade ?? '',
+    personalScore: initial?.personalScore === undefined ? '' : String(initial.personalScore),
     playtimeHours: initial?.playtimeMinutes === undefined ? '' : String(initial.playtimeMinutes / 60),
     tags: initial?.tags.join('、') ?? '',
     gameTagInputs: ((() => {
@@ -71,7 +72,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
   const [classification, setClassification] = fields('classification');
   const [classificationTouched, setClassificationTouched] = fields('classificationTouched');
   const [playPriority, setPlayPriority] = fields('playPriority');
-  const [personalGrade, setPersonalGrade] = fields('personalGrade');
+  const [personalScore, setPersonalScore] = fields('personalScore');
   const [playtimeHours, setPlaytimeHours] = fields('playtimeHours');
   const [tags, setTags] = fields('tags');
   const [gameTagInputs, setGameTagInputs] = fields('gameTagInputs');
@@ -119,7 +120,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
       tags: type === 'game' ? flattenGameTags(groupedTags) : normalizeTags(tags.split(/[,，、\n]+/)),
       gameTags: type === 'game' ? groupedTags : initial?.gameTags,
       ...(priorityEditable(rankItem) && playPriority !== (initial?.playPriority ?? '') ? { playPriority: (playPriority || undefined) as MediaItem['playPriority'], priorityOrder: undefined } : {}),
-      ...(gradeEditable(rankItem) && personalGrade !== (initial?.personalGrade ?? '') ? { personalGrade: (personalGrade || undefined) as MediaItem['personalGrade'], ratingOrder: undefined } : {}),
+      ...(gradeEditable(rankItem) && personalScore !== (initial?.personalScore === undefined ? '' : String(initial.personalScore)) ? { personalScore: personalScore === '' ? undefined : Number(personalScore), ratingOrder: undefined } : {}),
       impression: initial?.impression ?? '',
       ...personalWritingPatch(writingOriginal, { impression, review }),
       favorite: initial?.favorite ?? false, artwork: initial?.artwork ?? 'default',
@@ -148,7 +149,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
               <label className="form-field">体验分类<select aria-label="体验分类" value={classification} onChange={e => { setClassification(e.target.value as GameExperienceClassification); setClassificationTouched(true); }}>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{CLASSIFICATION_LABELS[value]}</option>)}</select></label>
             </div>
             {priorityEditable({ ...(initial ?? {}), category: 'game', ...experienceClassificationPatch(classification) } as MediaItem) && <label className="form-field">游玩优先级<select aria-label="游玩优先级" value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
-            {gradeEditable({ ...(initial ?? {}), category: 'game', ...experienceClassificationPatch(classification) } as MediaItem) && <label className="form-field">通关评级<select aria-label="通关评级" value={personalGrade} onChange={event => setPersonalGrade(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
+            {gradeEditable({ ...(initial ?? {}), category: 'game', ...experienceClassificationPatch(classification) } as MediaItem) && <div className="form-field"><span>通关评分</span><ScorePicker value={personalScore} label="通关评分" onChange={value => { setPersonalScore(value); setDirty(true); }} />{personalScore !== '' && <button type="button" className="text-button" onClick={() => { setPersonalScore(''); setDirty(true); }}>清除评分</button>}</div>}
             <p className="game-state-help">分类表达你的体验意愿，完成次数和日志独立记录。已体验可以暂不设置二级分类；时长为空也可以标记已体验。</p>
             <div className="game-tag-editor"><div className="game-tag-editor-title">游戏标签 <span>四个维度，按需填写即可</span></div>
               {GAME_TAG_KEYS.map(key => <div className={`game-tag-edit-group tag-type--${key}`} key={key}>

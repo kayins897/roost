@@ -43,20 +43,25 @@ export function BentoLightbox({ item, initialId, save, close }: { item: MediaIte
   const index = Math.max(0, images.findIndex(image => image.id === id)), image: GameScreenshot | undefined = images[index];
   const [caption, setCaption] = useState(image?.caption ?? '');
   useEffect(() => { setCaption(image?.caption ?? ''); setError(''); }, [image?.id, image?.caption]);
-  useDialogKeyboard(panel, close, { filterVisible: true, initialFocus: element => element.querySelector('button') });
-  function move(delta: number) { if (images.length) setId(images[(index + delta + images.length) % images.length].id); }
-  function saveCaption() { if (!image || caption === (image.caption ?? '')) return; if (!save({ screenshots: images.map(value => value.id === image.id ? { ...value, caption: caption.trim() || undefined } : value) })) setError('说明未能保存，请重试。'); }
+  useDialogKeyboard(panel, tryClose, { filterVisible: true, initialFocus: element => element.querySelector('button') });
+  function tryClose() { if (saveCaption()) close(); }
+  function move(delta: number) { if (images.length && saveCaption()) setId(images[(index + delta + images.length) % images.length].id); }
+  function saveCaption() {
+    if (!image || caption === (image.caption ?? '')) return true;
+    const ok = save({ screenshots: images.map(value => value.id === image.id ? { ...value, caption: caption.trim() || undefined } : value) });
+    setError(ok ? '' : '说明未能保存，请重试。'); return ok;
+  }
   function remove() {
-    if (!image) return;
+    if (!image || !saveCaption()) return;
     const next = images.filter(value => value.id !== image.id);
     if (!save({ screenshots: next, ...(item.screenshotCoverId === image.id ? { screenshotCoverId: undefined } : {}) })) { setError('图片未能移出相册，请重试。'); return; }
     if (!next.length) close(); else setId(next[Math.min(index, next.length - 1)].id);
   }
-  return <div className="bento-lightbox-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
+  return <div className="bento-lightbox-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) tryClose(); }}>
     <section ref={panel} className="bento-lightbox" role="dialog" aria-modal="true" aria-label="截图原图" onKeyDown={event => { if (event.target instanceof HTMLInputElement) return; if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); } if (event.key === 'ArrowRight') { event.preventDefault(); move(1); } }}>
-      <header><span>{image?.filename} · {index + 1} / {images.length}</span><button type="button" className="icon-button" onClick={close} aria-label="关闭截图"><X size={20} /></button></header>
+      <header><span>{image?.filename} · {index + 1} / {images.length}</span><button type="button" className="icon-button" onClick={tryClose} aria-label="关闭截图"><X size={20} /></button></header>
       <div className="bento-lightbox-stage"><button type="button" aria-label="上一张截图" onClick={() => move(-1)} disabled={images.length < 2}><ChevronLeft /></button>{image && <img src={screenshotUrl(image)} alt={image.caption || image.filename} />}<button type="button" aria-label="下一张截图" onClick={() => move(1)} disabled={images.length < 2}><ChevronRight /></button></div>
-      {!item.removedAt && <footer><input aria-label="截图说明" placeholder="留下这张截图的故事…" maxLength={500} value={caption} onChange={event => setCaption(event.target.value)} onBlur={saveCaption} onKeyDown={event => { if (event.key === 'Enter') { saveCaption(); event.currentTarget.blur(); } }} /><button type="button" disabled={image?.id === item.screenshotCoverId} onClick={() => { if (image && !save({ screenshotCoverId: image.id })) setError('封面未能保存。'); }}>设为封面</button><button type="button" onClick={remove}>移出相册</button></footer>}{error && <p className="bento-context-error" role="alert">{error}</p>}
+      {!item.removedAt && <footer><input aria-label="截图说明" placeholder="留下这张截图的故事…" maxLength={500} value={caption} onChange={event => setCaption(event.target.value)} onBlur={saveCaption} onKeyDown={event => { if (event.key === 'Enter' && saveCaption()) event.currentTarget.blur(); }} /><button type="button" disabled={image?.id === item.screenshotCoverId} onClick={() => { if (image && saveCaption() && !save({ screenshotCoverId: image.id })) setError('封面未能保存。'); }}>设为封面</button><button type="button" onClick={remove}>移出相册</button></footer>}{error && <p className="bento-context-error" role="alert">{error}</p>}
     </section>
   </div>;
 }

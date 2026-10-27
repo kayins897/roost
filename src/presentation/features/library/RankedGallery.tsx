@@ -28,7 +28,7 @@ export function RankedGallery({ items, mode, view, manualOrder, rankDirection = 
     event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData(dragType, item.id); setDragging(item.id);
   }
   return <div className={`ranked-gallery ranked-gallery--${view}`} data-rank-mode={mode} data-reorder-enabled={reorderEnabled}>
-    <p className="ranked-gallery__hint">{reorderEnabled ? '可在同档内拖动封面排序，也可用封面左上角的上移／下移按钮。' : `分档展示当前结果；选择“${mode === 'priority' ? '优先级' : '评级'}”并退出多选后可调整同档顺序。`}</p>
+    <p className="ranked-gallery__hint">{reorderEnabled ? '可在同档内拖动封面排序，也可用封面左上角的上移／下移按钮。' : `分档展示当前结果；选择“${mode === 'priority' ? '优先级' : '评分'}”并退出多选后可调整同档顺序。`}</p>
     <span className="ranked-gallery__notice" role="status" aria-live="polite">{notice}</span>
     {groups.map(group => <details key={`${mode}-${group.id}`} className={`ranked-gallery__group ${group.id === 'paused' ? 'ranked-gallery__group--paused' : ''}`} open={!collapsed.has(`${mode}-${group.id}`)} onToggle={event => {
       const closed = !event.currentTarget.open, key = `${mode}-${group.id}`;
@@ -36,7 +36,7 @@ export function RankedGallery({ items, mode, view, manualOrder, rankDirection = 
     }}>
       <summary className={group.id === 'paused' ? 'plan-divider' : undefined}>
         <span className={`ranked-gallery__badge ${group.id === 'unranked' || group.id === 'paused' ? 'ranked-gallery__badge--plain' : ''}`}>{group.id === 'paused' ? 'Ⅱ' : group.id === 'unranked' ? '—' : group.label}</span>
-        <strong>{group.id === 'paused' || group.id === 'unranked' ? group.label : `${mode === 'priority' ? '优先级' : '个人评级'} ${group.label}`}</strong><small>{group.items.length} 款</small><ChevronDown size={16} />
+        <strong>{group.id === 'paused' || group.id === 'unranked' ? group.label : `${mode === 'priority' ? '优先级' : '个人评分'} ${group.label}`}</strong><small>{group.items.length} 款</small><ChevronDown size={16} />
       </summary>
       <div className={`media-gallery media-gallery--${view} ranked-gallery__items`}>
         {group.items.map(item => {

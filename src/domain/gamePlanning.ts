@@ -1,6 +1,7 @@
 import { isValidPersonalGrade } from './library.ts';
 import { gradeEditable, priorityEditable } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
+import { isPersonalScore } from './gameAssets.ts';
 import type { MediaItem } from './types.ts';
 import type { SortDirection } from './librarySort.ts';
 
@@ -11,6 +12,7 @@ const normalGame = (item: MediaItem) => item.category === 'game' && !item.hidden
 const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? priorityEditable(item) : gradeEditable(item));
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 function rankId(item: MediaItem, mode: RankMode): string {
+  if (mode === 'rating' && isPersonalScore(item.personalScore)) return `score-${item.personalScore.toFixed(1)}`;
   const grade = mode === 'priority' ? item.playPriority : item.personalGrade;
   return isValidPersonalGrade(grade) ? grade : 'unranked';
 }
@@ -28,6 +30,11 @@ function sortRank(items: MediaItem[], mode: RankMode): MediaItem[] {
 export function groupRankedGames(items: MediaItem[], mode: RankMode, manualOrder = true, direction: SortDirection = 'desc'): RankedGameGroup[] {
   const grades = direction === 'asc' ? [...GAME_GRADES].reverse() : GAME_GRADES;
   const groups: RankedGameGroup[] = grades.map(id => ({ id, label: id, items: [] }));
+  if (mode === 'rating') {
+    const scores = [...new Set(items.filter(item => inRankView(item, mode) && isPersonalScore(item.personalScore)).map(item => item.personalScore!))].sort((a, b) => direction === 'asc' ? a - b : b - a);
+    groups.unshift(...scores.map(score => ({ id: `score-${score.toFixed(1)}`, label: `${score.toFixed(1)} 分`, items: [] })));
+    for (const group of groups) if (!group.id.startsWith('score-')) group.label = `历史 ${group.label}`;
+  }
   groups.push({ id: 'unranked', label: mode === 'priority' ? '未设置优先级' : '未评级', items: [] });
   const byId = new Map(groups.map(group => [group.id, group]));
   for (const item of items) if (inRankView(item, mode)) byId.get(rankId(item, mode))!.items.push(item);

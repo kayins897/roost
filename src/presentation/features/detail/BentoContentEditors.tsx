@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { gradeEditable } from '../../../domain/gameProgress.ts';
 import { impressionError, personalWritingFor, personalWritingPatch } from '../../../domain/personalWriting.ts';
 import type { MediaItem } from '../../../domain/types.ts';
+import { ScorePicker } from '../../components/ScorePicker.tsx';
 
 export type BentoSave = (patch: Partial<MediaItem>) => boolean;
 export function BentoSaveForm({ children, onSubmit, onClose, error = '' }: { children: ReactNode; onSubmit: () => boolean; onClose: () => void; error?: string }) {
@@ -17,7 +18,7 @@ export function BentoScoreEditor({ item, save, close }: { item: MediaItem; save:
     const score = value.trim() === '' ? undefined : Number(value);
     if (score !== undefined && (!Number.isFinite(score) || score < 0 || score > 10 || Math.abs(score * 10 - Math.round(score * 10)) > 1e-8)) { setError('请输入 0～10 分，最多一位小数。'); return false; }
     return patch(score);
-  }}><label>通关评分<input autoFocus type="number" min="0" max="10" step="0.1" placeholder="未评分" aria-label="通关评分" value={value} onChange={event => setValue(event.target.value)} /></label><input type="range" min="0" max="10" step="0.1" aria-label="调整通关评分" value={value || '5'} onChange={event => setValue(event.target.value)} /><p className="bento-context-description">0—10 分 · 精确到 0.1 分</p>{item.personalGrade && item.personalScore === undefined && <p className="bento-context-description">原通关评级 {item.personalGrade} 保留，不自动换算。</p>}<button type="button" onClick={() => { if (patch(undefined)) close(); }}>清除评分</button></BentoSaveForm>;
+  }}><ScorePicker value={value} onChange={setValue} label="通关评分" />{item.personalGrade && item.personalScore === undefined && <p className="bento-context-description">原通关评级 {item.personalGrade} 保留，不自动换算。</p>}<button type="button" onClick={() => { if (patch(undefined)) close(); }}>清除评分</button></BentoSaveForm>;
 }
 function localTimestamp(value?: string) {
   if (!value) return '';
@@ -33,7 +34,8 @@ export function BentoStatEditor({ item, count, save, close }: { item: MediaItem;
     const amount = value.trim() === '' ? undefined : Number(value);
     if (amount !== undefined && (!Number.isFinite(amount) || amount < 0 || amount > (count ? Number.MAX_SAFE_INTEGER : 100000) || (count && !Number.isSafeInteger(amount)))) { setError('请填写有效的非负数值。'); return false; }
     if (date && !Number.isFinite(new Date(date).getTime())) { setError('最后运行时间无效。'); return false; }
-    const patch = count ? { completionCount: amount } : { playtimeMinutes: amount === undefined ? undefined : Math.round(amount * 60), lastPlayedAt: date ? new Date(date).toISOString() : undefined };
+    const lastPlayedAt = date === localTimestamp(item.lastPlayedAt) ? item.lastPlayedAt : date ? new Date(date).toISOString() : undefined;
+    const patch = count ? { completionCount: amount } : { playtimeMinutes: amount === undefined ? undefined : Math.round(amount * 60), lastPlayedAt };
     const ok = save(patch); if (!ok) setError('记录未能保存，请重试。'); return ok;
   }}><label>{count ? '累计完成次数' : '累计游玩小时'}<input autoFocus type="number" min="0" step={count ? '1' : 'any'} aria-label={count ? '累计完成次数' : '累计游玩小时'} placeholder="未记录" value={value} onChange={event => setValue(event.target.value)} /></label>{!count && <label>最后运行时间<input type="datetime-local" aria-label="最后运行时间" value={date} onChange={event => setDate(event.target.value)} /></label>}<p className="bento-context-description">留空表示未记录，与 0 不同。{count ? '普通日志不会增加完成次数。' : '最后运行独立记录，不从日志推算。'}</p></BentoSaveForm>;
 }

@@ -25,7 +25,7 @@
 .bento-widget--impression{background:linear-gradient(115deg,#ff7900,#ff9a00);border-color:#ffb04750;color:#22170a}
 .bento-widget--footprint{background:linear-gradient(145deg,#8f21f7,#6500d6);border-color:#cb7fff35}
 .bento-widget--gallery{padding:0;overflow:hidden;background:#1b2028;border-color:#6d81934d}
-.bento-widget--tags{background:#f22484;border-color:#ff89c435}
+.bento-widget--tags{background:#cf126b;border-color:#ff89c455}
 .bento-widget--count{background:#252629;border-color:#ffffff1a}
 .bento-widget--review{background:#1b1c20;border-color:#777e8b35;padding:0}
 .bento-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
@@ -33,7 +33,7 @@
 .bento-heading>svg{flex-shrink:0;opacity:.8;transition:transform .24s ease-out,color .24s ease-out}
 .bento-widget--grade .bento-heading{margin-bottom:0}
 .bento-widget--hours .bento-heading,.bento-widget--platform .bento-heading,.bento-widget--count .bento-heading{margin-bottom:0;opacity:.8}
-.bento-muted{color:var(--bento-muted,inherit);opacity:.7;font-size:12px;line-height:1.7}
+.bento-muted{color:var(--bento-muted,inherit);opacity:var(--bento-secondary-opacity,.85);font-size:12px;line-height:1.7}
 .bento-stat-number{font-size:clamp(24px,2.5vw,36px);font-weight:650;line-height:1.3;letter-spacing:-.045em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .bento-stat-number small{font-size:13px;font-weight:400;letter-spacing:0;margin-left:6px;opacity:.7}
 .bento-last-played{display:flex;flex-direction:column;gap:5px;font-size:11px;line-height:1.5;color:var(--bento-muted,inherit);opacity:.7}
@@ -52,11 +52,11 @@
 .bento-platform-logo{width:34px;height:34px;fill:currentColor;flex-shrink:0}
 .bento-tags{display:grid;gap:13px}
 .bento-tag-row{display:flex;flex-direction:column;gap:6px;min-width:0}
-.bento-tag-row>span{font-size:10px;opacity:.75}
+.bento-tag-row>span{font-size:10px;opacity:var(--bento-secondary-opacity,.95)}
 .bento-tag-row>div{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
 .bento-tag-row button{font:inherit;font-size:11px;color:inherit;border:1px solid #ffffff26;background:var(--bento-control,#ffffff1a);border-radius:7px;padding:4px 7px;overflow-wrap:anywhere;max-width:100%}
 .bento-tag-row button:hover{background:#ffffff32}
-.bento-tag-row small{font-size:12px;opacity:.65}
+.bento-tag-row small{font-size:12px;opacity:var(--bento-secondary-opacity,.9)}
 .bento-widget--impression>.bento-widget-body{display:flex;flex-direction:column}
 .bento-impression-text{font-size:23px;line-height:1.6;letter-spacing:-.02em;flex:1;display:flex;align-items:center;margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .bento-impression-text .bento-muted{font-size:18px}

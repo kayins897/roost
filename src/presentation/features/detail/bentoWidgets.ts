@@ -34,10 +34,13 @@ export function widgetStyle(card: DetailWidgetPreference): CSSProperties {
   if (/^#[0-9a-f]{6}$/i.test(card.color)) {
     const channels = [1, 3, 5].map(offset => parseInt(card.color.slice(offset, offset + 2), 16) / 255)
       .map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4);
-    const light = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722 > .37;
+    const luminance = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+    // Compare contrast of #17202b (L≈.014) and #f7f8fc (L≈.939),
+    // including mid-tone colors such as #999999, not just near-white fills.
+    const light = (luminance + .05) / (.014 + .05) >= (.939 + .05) / (luminance + .05);
     Object.assign(style, {
       background: card.color, color: light ? '#17202b' : '#f7f8fc',
-      '--bento-muted': light ? '#354155' : '#e3e7ef', '--bento-control': light ? '#00000012' : '#ffffff18',
+      '--bento-muted': light ? '#17202b' : '#f7f8fc', '--bento-secondary-opacity': 1, '--bento-control': light ? '#00000012' : '#ffffff18',
       '--bento-border': light ? '#00000028' : '#ffffff35',
     });
   }
