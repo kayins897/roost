@@ -1,7 +1,7 @@
 import { HoloShaders } from './holoShaders.ts';
 import type { CoverMaterialPreferences } from '../../../infrastructure/coverMaterialPreferences.ts';
-type Kind = 'foil' | 'holographic' | 'prismatic';
-const names = { foil: 'foil', holographic: 'holo', prismatic: 'poly' };
+type Kind = 'holographic' | 'prismatic';
+const names = { holographic: 'holo', prismatic: 'poly' };
 /** One reusable context, not one context per collection item. Original image stays underneath. */
 export function createHoloRenderer(onReady: () => void = () => {}) {
   const canvas = document.createElement('canvas'); canvas.className = 'cover-material-canvas'; canvas.setAttribute('aria-hidden', 'true');
@@ -9,7 +9,7 @@ export function createHoloRenderer(onReady: () => void = () => {}) {
   if (!gl) return null;
   let texture: WebGLTexture | null = null, buffer: WebGLBuffer | null = null;
   let programs = new Map<string, WebGLProgram>(), failed = false, active = false, image: HTMLImageElement | null = null;
-  let kind: Kind = 'foil';
+  let kind: Kind = 'holographic';
   function hide() { canvas.style.visibility = 'hidden'; canvas.parentElement?.removeAttribute('data-webgl-material'); }
   function unlisten() { image?.removeEventListener('load', ready); image?.removeEventListener('error', hide); }
   function shader(type: number, source: string) {

@@ -21,4 +21,4 @@ export const gameTagExamples: Record<GameTagGroupKey, string[]> = {
 };
 export const categories: MediaType[] = ['game', 'book', 'screen', 'music'];
 
-export const COVER_FINISH_LABELS = { standard: '原始封面', silver: '烫银', gold: '烫金', foil: '闪箔', holographic: '镭射', prismatic: '多彩' };
+export const COVER_FINISH_LABELS = { standard: '原始封面', holographic: '镭射', prismatic: '多彩' };

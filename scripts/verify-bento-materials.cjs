@@ -11,7 +11,7 @@ fs.mkdirSync(evidence, { recursive: true });
 let data = fs.mkdtempSync(path.join(os.tmpdir(), 'qiyu-bento-integration-'));
 let app, page; const checks = [], errors = [];
 const item = (id, score, more = {}) => ({ id, title: `星际档案 ${id}`, originalTitle: `Astral Archive ${id}`, category: 'game', subcategory: 'Steam', platforms: ['Steam', 'PS5'], creator: '合成测试工作室', year: '2025', status: 'finished', experienceStatus: 'experienced', experienceCategory: 'completed', personalGrade: 'A', ...(score === undefined ? {} : { personalScore: score }), tags: ['太空', '探索'], gameTags: { gameplay: ['探索'], theme: ['太空'], scenario: [], other: [] }, impression: '在星海中，留住每一次出发的勇气。', review: '完整保留的长文测评。\n这里是第二段。', favorite: false, artwork: 'default', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', completionCount: 0, ...more });
-const initial = { schemaVersion: 1, items: [item('多彩', 9.8, { playtimeMinutes: 120, lastPlayedAt: '2026-10-26T12:30:21.123Z' }), item('镭射', 9.4), item('闪箔', 8.9), item('未评分', undefined), item('零分', 0, { playtimeMinutes: 0 }), item('新作', undefined, { status: 'want', experienceStatus: 'unplayed', experienceCategory: undefined, personalGrade: undefined, playPriority: 'SSS' })] };
+const initial = { schemaVersion: 1, items: [item('多彩', 9.8, { playtimeMinutes: 120, lastPlayedAt: '2026-10-26T12:30:21.123Z' }), item('镭射', 9.4), item('标准', 8.9), item('未评分', undefined), item('零分', 0, { playtimeMinutes: 0 }), item('新作', undefined, { status: 'want', experienceStatus: 'unplayed', experienceCategory: undefined, personalGrade: undefined, playPriority: 'SSS' })] };
 const libraryFile = () => path.join(data, 'library.json');
 const snapshot = () => JSON.parse(fs.readFileSync(libraryFile(), 'utf8'));
 const check = (name, details) => { checks.push({ name, passed: true, ...(details ? { details } : {}) }); console.log(`PASS ${name}`); };
@@ -65,9 +65,9 @@ async function setScore(scope, value, label = '通关评分') {
     x.fillStyle = '#eef6ff'; x.font = 'bold 46px sans-serif'; x.fillText('ASTRAL ARCHIVE', 66, 710); x.font = '22px sans-serif'; x.fillText(`QIYU  /  ${index + 1}    SYNTHETIC DEMO`, 68, 758); return c.toDataURL('image/png');
   }));
   initial.items.forEach((game, i) => { game.coverUrl = covers[i % 3]; }); fs.writeFileSync(libraryFile(), JSON.stringify(initial, null, 2)); await page.reload(); await all();
-  for (const [name, finish] of [['多彩', 'prismatic'], ['镭射', 'holographic'], ['闪箔', 'foil'], ['零分', 'standard']]) assert.equal(await card(name).locator('.card-cover').getAttribute('data-finish'), finish);
-  check('新分数与三种材质对应，0分保留原图');
-  for (const [name, filename] of [['闪箔', 'foil'], ['镭射', 'holographic'], ['多彩', 'polychrome']]) {
+  for (const [name, finish] of [['多彩', 'prismatic'], ['镭射', 'holographic'], ['标准', 'standard'], ['零分', 'standard']]) assert.equal(await card(name).locator('.card-cover').getAttribute('data-finish'), finish);
+  check('9.0到9.4镭射、9.5以上多彩，8.9与0分保留原图');
+  for (const [name, filename] of [['镭射', 'holographic'], ['多彩', 'polychrome']]) {
     await card(name).locator('.card-cover').hover({ position: { x: 135, y: 100 } }); await page.waitForTimeout(150); await card(name).locator('.card-cover').hover({ position: { x: 136, y: 101 } });
     await card(name).locator('[data-webgl-material="active"]').waitFor(); assert.equal(await page.locator('.cover-material-canvas').count(), 1); await picture(filename);
   }
@@ -75,7 +75,7 @@ async function setScore(scope, value, label = '通关评分') {
   await page.waitForFunction(() => !document.querySelector('[data-webgl-material="active"]'));
   assert.equal(await card('多彩').locator('img').evaluate(image => image.complete && image.naturalWidth > 0), true);
   await page.waitForTimeout(100); await page.evaluate(() => window.__materialRecovery.restoreContext()); await card('多彩').locator('[data-webgl-material="active"]').waitFor(); check('WebGL上下文丢失回退原图，恢复后重建材质');
-  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.waitForTimeout(100); await card('闪箔').locator('.card-cover').hover(); await card('闪箔').locator('[data-webgl-material="active"]').waitFor(); await page.emulateMedia({ reducedMotion: 'no-preference' }); check('减少动态效果仍可显示静态材质');
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.waitForTimeout(100); await card('镭射').locator('.card-cover').hover(); await card('镭射').locator('[data-webgl-material="active"]').waitFor(); await page.emulateMedia({ reducedMotion: 'no-preference' }); check('减少动态效果仍可显示静态材质');
   await page.mouse.move(1300, 120); await page.locator('.cover-material-canvas').waitFor({ state: 'detached' }); check('共享一个卡面渲染器，离开后移除');
   await picture('library'); await open(); assert.equal(await page.locator('.detail-dialog-heading').count(), 0); assert.equal(await page.locator('[data-widget=count]').count(), 0);
   assert.equal(await page.locator('.bento-cover-image').evaluate(image => getComputedStyle(image).objectFit), 'contain'); await picture('detail-top'); check('正式无标题栏Bento、封面contain、完成次数默认隐藏');

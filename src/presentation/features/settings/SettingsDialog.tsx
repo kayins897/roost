@@ -7,7 +7,7 @@ import './settings.css';
 import { CoverMaterialSettings } from './CoverMaterialSettings.tsx';
 
 const pages = [
-  { id: 'covers', label: '卡面材质', icon: Palette, search: '反光 闪箔 镭射 多彩 纹理 滤镜 流速 三角 切面' },
+  { id: 'covers', label: '卡面材质', icon: Palette, search: '反光 镭射 多彩 纹理 滤镜 流速 三角 切面' },
   { id: 'background', label: '背景与配色', icon: Palette, search: '动态 流体 星河 粒子 密度 视差 幅度 明暗 环境光 色相 香槟金 深海蓝 极光绿 紫罗兰 绛红 色深 流速 涡旋 扭曲 笔刷 半径' },
   { id: 'glass', label: '导航玻璃', icon: Droplets, search: '玻璃材质 液态 磨砂 模糊 折射 色散 透镜 深度 弹性 Dock 搜索框' },
   { id: 'buttons', label: '操作按钮', icon: SlidersHorizontal, search: '按钮 毛玻璃 模糊 透明 不透明度' },

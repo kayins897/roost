@@ -1,4 +1,4 @@
-/* Status is always readable; foil is a separate personal-rating treatment. */
+/* Status is always readable; material is a separate personal-rating treatment. */
 :root[data-theme] :is(.card-game-state,.detail-experience-summary > span)[class*="game-state--"] { color: var(--play-state-color); }
 :root[data-theme] :is(.mark-tab--want,.mark-tab--playing,.mark-tab--cleared,.mark-tab--ongoing,.mark-tab--paused,.mark-tab--abandoned,.game-state-options .status-option) svg { color: var(--play-state-color, currentColor); }
 :root[data-theme] :is(.status-tabs button.is-selected,.status-option.is-selected) svg { color: currentColor; }
@@ -12,23 +12,13 @@
 /* Continuous, local colour sheen: no tiled texture or decorative points. */
 .cover-foil { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; mix-blend-mode: hard-light; transition: opacity .22s; background-size: 180% 180%; background-position: var(--cover-light-x,62%) var(--cover-light-y,38%); }
 .media-card--grid .card-cover[data-depth='active'] > .cover-foil { opacity: .52; }
-.media-card--grid .card-cover[data-depth='active'] > .cover-foil--foil { opacity: .74; }
 .media-card--grid .card-cover[data-depth='active'] > .cover-foil--holographic { opacity: .72; }
 .media-card--grid .card-cover[data-depth='active'] > .cover-foil--prismatic { opacity: .80; }
-/* B/A: local stamped metal; the cover ink remains visible through the coating. */
-.cover-foil--silver { background-image: linear-gradient(var(--cover-angle,45deg),transparent 8%,#6e7583 27%,#d7dce6 42%,#ffffff 48%,#59616e 52%,#c5ccd5 60%,transparent 85%); }
-.media-card--grid .card-cover[data-depth='active'] > .cover-foil--gold { opacity: .64; mix-blend-mode: soft-light; }
-.cover-foil--gold { background-image: linear-gradient(var(--cover-angle,45deg),transparent 23%,#4a321d25 34%,#b98b4260 43%,#f4dc9599 49%,#fff2cdcf 51%,#6b4a244d 55%,#d3a45a52 62%,transparent 77%); background-size: 160% 160%; }
-/* S fallback: a silver light ribbon without concentric circles or blue ink. */
-.media-card--grid .card-cover[data-depth='active'] > .cover-foil--foil { opacity: .56; mix-blend-mode: soft-light; }
-.cover-foil--foil { background-image: linear-gradient(var(--cover-angle,45deg),transparent 23%,#727f8c35 36%,#dbe6ed8c 48%,#ffffffb0 53%,#8d99a53d 61%,transparent 78%); background-size: 165% 165%; }
 /* SS stays directional diffraction; SSS fallback is a translucent spectral ribbon. */
 .cover-foil--holographic { background-image: linear-gradient(var(--cover-angle,45deg),#2747b9 0%,#42d6d2 17%,#f9c2ed 32%,#fff4c7 44%,#6c72e7 53%,#ef74b9 68%,#66e0c4 83%,#455dcc 100%); background-size: 230% 230%; }
 .media-card--grid .card-cover[data-depth='active'] > .cover-foil--prismatic { opacity: .62; mix-blend-mode: soft-light; }
 .cover-foil--prismatic { background-image: linear-gradient(var(--cover-angle,45deg),transparent 16%,#d397c344 31%,#adb3ea77 42%,#80d7cf88 51%,#d6d69688 61%,#e8afab55 70%,transparent 84%); background-size: 170% 170%; }
 .cover-foil::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(var(--cover-angle,45deg),transparent 33%,#ffffff08 42%,#ffffffa3 52%,#ffffff0d 59%,transparent 73%); }
-.cover-foil--foil::after { background: linear-gradient(var(--cover-angle,45deg),transparent 38%,#edf4fc24 48%,#ffffff75 53%,transparent 66%); }
-.cover-foil--gold::after { background: linear-gradient(var(--cover-angle,45deg),transparent 39%,#ffecc533 48%,#fff6dfa3 51%,#a6782c25 56%,transparent 67%); }
 .cover-foil--prismatic::after { background: linear-gradient(var(--cover-angle,45deg),transparent 35%,#ffffff18 48%,#ffffff55 53%,transparent 70%); }
 /* 45deg is the normal: the visible band runs from top-left to bottom-right. */
 :root[data-theme] .media-card--grid .card-cover .card-cover-shine { background: linear-gradient(var(--cover-angle,45deg),transparent 38%,#ffffff12 49%,#ffffff45 60%,#ffffff12 71%,transparent 82%); opacity: 0; }

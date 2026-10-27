@@ -1,4 +1,4 @@
-/* Visible equations: videos linked in SOURCE-README.md. Final foil colouring,
+/* Visible equations: videos linked in SOURCE-README.md. Final material colouring,
    spatial/time scales and strength are calibrated here, not verified source parameters. */
 export const HoloShaders = (() => {
   const vertex = `attribute vec2 aPos;
@@ -58,33 +58,6 @@ vec3 filmBase(vec3 tex, float phase) {
     + cos(length(p3) / 27.193) * sin(p3.x / 21.92)) * 0.5;
   float res = 0.5 + 0.5 * cos(uRay.x * 2.612 + (field - 0.5) * 3.14);
 `;
-  const foil = `void main() {
-  vec3 tex = texture2D(uCover, vUv).rgb;
-  float light = dot(tex, vec3(0.2126, 0.7152, 0.0722));
-  // A silver coating catches a moving, slightly bowed light source. No radial
-  // rings, starburst spokes, noise or lattice are printed over the artwork.
-  float drift = uTime * 0.18;
-  float diagonal = dot(vUv - 0.5, vec2(0.78, -0.62))
-    + uRay.x * 0.20 + uRay.y * 0.16 + sin(drift) * 0.12;
-  float bow = sin(vUv.y * 4.0 + drift * 0.6) * 0.038;
-  float ribbon = exp(-pow((diagonal + bow - 0.04) / 0.19, 2.0));
-  float edge = exp(-pow((diagonal + bow - 0.055) / 0.047, 2.0));
-  float shoulder = exp(-pow((diagonal + bow + 0.15) / 0.075, 2.0));
-  float second = exp(-pow((diagonal - 0.36 + sin(vUv.x * 4.5) * 0.04) / 0.14, 2.0));
-  float body = smoothstep(0.018, 0.12, light) * (1.0 - smoothstep(0.80, 0.99, light));
-  vec3 base = mix(tex, filmBase(tex, 0.0), 0.18);
-  // Multiplicative exposure retains the printed fine detail even in the silver
-  // highlight; the very small neutral lift is local, rather than a white veil.
-  float exposure = ribbon * 0.15 + edge * 0.20 + second * 0.055 - shoulder * 0.12;
-  vec3 silver = base * (1.0 + exposure * uStrength * body);
-  vec3 temperature = mix(vec3(0.93, 0.98, 1.0), vec3(1.0, 0.97, 0.94), 0.5 + 0.5 * sin(diagonal * 4.0 + uRay.x));
-  silver += temperature * (ribbon * 0.028 + edge * 0.070) * uStrength * body;
-  silver = mix(silver, vec3(dot(silver, vec3(0.2126, 0.7152, 0.0722))) + vec3(0.035), edge * 0.10 * body * uStrength);
-  // A barely visible continuous brushed response only exists where light falls.
-  float brush = sin((vUv.x * 0.75 - vUv.y) * 170.0 + sin(vUv.y * 7.0) * 0.4);
-  silver += vec3(brush * 0.006 * ribbon * body * uStrength);
-  gl_FragColor = vec4(clamp(silver, 0.0, 1.0), 1.0);
-}`;
   const holo = `void main() {
 ${field()}
   vec3 tex = texture2D(uCover, vUv).rgb;
@@ -143,7 +116,6 @@ ${field()}
   gl_FragColor = vec4(clamp(coated, 0.0, 1.0), 1.0);
 }`;
   return { vertex, effects: [
-    { kind: 'foil', title: '闪箔', src: head + foil },
     { kind: 'holo', title: '镭射', src: head + holo },
     { kind: 'poly', title: '多彩', src: head + poly }
   ] };

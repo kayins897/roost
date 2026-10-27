@@ -11,8 +11,8 @@ export function useHoloCovers() {
     function stop() { cancelAnimationFrame(raf); raf = 0; previous = 0; active?.removeAttribute('data-webgl-material'); renderer?.detach(); active = null; activeFinish = ''; }
     function tick(now: number) {
       raf = 0;
-      if (!active?.isConnected || document.hidden || active.closest('[data-selecting]') || !['foil', 'holographic', 'prismatic'].includes(active.dataset.finish ?? '')) { stop(); return; }
-      if (activeFinish !== active.dataset.finish) { activeFinish = active.dataset.finish!; renderer?.attach(active, activeFinish as 'foil' | 'holographic' | 'prismatic'); }
+      if (!active?.isConnected || document.hidden || active.closest('[data-selecting]') || !['holographic', 'prismatic'].includes(active.dataset.finish ?? '')) { stop(); return; }
+      if (activeFinish !== active.dataset.finish) { activeFinish = active.dataset.finish!; renderer?.attach(active, activeFinish as 'holographic' | 'prismatic'); }
       const dt = previous ? Math.min(.05, (now - previous) / 1000) : 1 / 60; previous = now;
       const easing = 1 - Math.exp(-dt * 12); x += (tx - x) * easing; y += (ty - y) * easing;
       time += reduced.matches ? 0 : dt * prefs.speed; renderer?.draw(time, x, y, prefs);
@@ -23,10 +23,10 @@ export function useHoloCovers() {
       if (event.pointerType === 'touch' || !pointer.matches || document.hidden) { stop(); return; }
       const cover = event.target instanceof Element ? event.target.closest<HTMLElement>('.media-card--grid:not([data-selecting]) .card-cover') : null;
       const finish = cover?.dataset.finish;
-      if (!cover || !cover.querySelector('img') || !['foil', 'holographic', 'prismatic'].includes(finish ?? '')) { stop(); return; }
+      if (!cover || !cover.querySelector('img') || !['holographic', 'prismatic'].includes(finish ?? '')) { stop(); return; }
       if (active !== cover) {
         stop(); renderer ??= createHoloRenderer(request); if (!renderer) return;
-        active = cover; activeFinish = finish!; x = 0; y = 0; renderer.attach(cover, finish as 'foil' | 'holographic' | 'prismatic');
+        active = cover; activeFinish = finish!; x = 0; y = 0; renderer.attach(cover, finish as 'holographic' | 'prismatic');
       }
       const bounds = cover.getBoundingClientRect(); tx = Math.max(-1, Math.min(1, (event.clientX - bounds.left) / bounds.width * 2 - 1)); ty = Math.max(-1, Math.min(1, (event.clientY - bounds.top) / bounds.height * 2 - 1));
       if (reduced.matches) { x = tx; y = ty; } request();

@@ -5,7 +5,8 @@ import type { MediaItem } from './types.ts';
 
 export { isValidPersonalGrade } from './library.ts';
 
-export type CoverFinish = 'standard' | 'silver' | 'gold' | 'foil' | 'holographic' | 'prismatic';
+/** Only two finishes survive: 镭射 (9.0-9.4) and 多彩 (9.5-10). */
+export type CoverFinish = 'standard' | 'holographic' | 'prismatic';
 
 export const GAME_GRADES = ['SSS', 'SS', 'S', 'A', 'B', 'C'] as const;
 
@@ -13,9 +14,9 @@ export const GAME_GRADES = ['SSS', 'SS', 'S', 'A', 'B', 'C'] as const;
 export const GAME_GRADE_TIERS = {
   SSS: { finish: 'prismatic', label: '多彩' },
   SS: { finish: 'holographic', label: '镭射' },
-  S: { finish: 'foil', label: '闪箔' },
-  A: { finish: 'gold', label: '烫金' },
-  B: { finish: 'silver', label: '烫银' },
+  S: { finish: 'standard', label: '标准' },
+  A: { finish: 'standard', label: '标准' },
+  B: { finish: 'standard', label: '标准' },
   C: { finish: 'standard', label: '标准' },
 } as const satisfies Record<typeof GAME_GRADES[number], { finish: CoverFinish; label: string }>;
 
@@ -31,6 +32,5 @@ export function scoreFinishFor(score: number): CoverFinish {
   if (!isPersonalScore(score)) return 'standard';
   if (score >= 9.5) return 'prismatic';
   if (score >= 9) return 'holographic';
-  if (score >= 8) return 'foil';
   return 'standard';
 }

@@ -50,9 +50,9 @@ test('旧库读取、材质派生及JSON往返不补评级，保留根与作品�
   assert.equal(JSON.stringify(original), raw);
 });
 
-test('六档分别映射多彩、镭射、闪箔、烫金、烫银与标准，派生不改记录', () => {
-  const expected = { SSS: 'prismatic', SS: 'holographic', S: 'foil', A: 'gold', B: 'silver', C: 'standard' };
-  const labels = { SSS: '多彩', SS: '镭射', S: '闪箔', A: '烫金', B: '烫银', C: '标准' };
+test('只有多彩与镭射保留材质，其余评级回到原始封面，派生不改记录', () => {
+  const expected = { SSS: 'prismatic', SS: 'holographic', S: 'standard', A: 'standard', B: 'standard', C: 'standard' };
+  const labels = { SSS: '多彩', SS: '镭射', S: '标准', A: '标准', B: '标准', C: '标准' };
   for (const personalGrade of GAME_GRADES) {
     const work = Object.freeze(item({ personalGrade }));
     const raw = JSON.stringify(work);
@@ -70,8 +70,8 @@ test('材质只依分类资格，不依旧通关状态；其他板块及无资�
     assert.equal(coverFinishFor(work), 'holographic');
     assert.equal(work.personalGrade, 'SS');
   }
-  assert.equal(coverFinishFor(item({ gamePlayState: 'replaying', personalGrade: 'S' })), 'foil');
-  assert.equal(coverFinishFor(item({ gamePlayState: undefined, status: 'finished', personalGrade: 'S' })), 'foil');
+  assert.equal(coverFinishFor(item({ gamePlayState: 'replaying', personalGrade: 'S' })), 'standard');
+  assert.equal(coverFinishFor(item({ gamePlayState: undefined, status: 'finished', personalGrade: 'S' })), 'standard');
   for (const extra of [
     { experienceStatus: 'unplayed' as const },
     { experienceCategory: undefined }, { experienceCategory: 'continue' as const }, { experienceCategory: 'put-aside' as const },
@@ -79,7 +79,7 @@ test('材质只依分类资格，不依旧通关状态；其他板块及无资�
     const work = item({ ...extra, personalGrade: 'SSS', completion: 'cleared' });
     assert.equal(coverFinishFor(work), 'standard'); assert.equal(work.personalGrade, 'SSS');
   }
-  for (const experienceCategory of ['replayable', 'long-term', 'completed'] as const) assert.equal(coverFinishFor(item({ experienceCategory, completion: 'unknown', personalGrade: 'B' })), 'silver');
+  for (const experienceCategory of ['replayable', 'long-term', 'completed'] as const) assert.equal(coverFinishFor(item({ experienceCategory, completion: 'unknown', personalGrade: 'B' })), 'standard');
   for (const category of ['book', 'screen', 'music'] as const) {
     const work = item({ category, personalGrade: 'SSS' });
     assert.equal(isValidSnapshot(snapshot(work)), true);
