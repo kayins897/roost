@@ -10,15 +10,19 @@ const item = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, t
 const ids = (items: MediaItem[]) => items.map(work => work.id);
 const groupIds = (items: MediaItem[], mode: RankMode, group: string) => ids(groupRankedGames(items, mode).find(entry => entry.id === group)!.items);
 
-test('计划和评级分别读取六档等级，未设置另成组，不推断等级或改写旧数据', () => {
+test('计划按六档等级分组，评级按十个分数区间分组，未设置另成组，不推断等级或改写旧数据', () => {
   const data = [item('legacy'), ...GAME_GRADES.map(grade => item(grade, { playPriority: grade, personalGrade: grade }))];
   const raw = JSON.stringify(data);
-  for (const mode of ['priority', 'rating'] as const) {
-    const groups = groupRankedGames(data, mode);
-    assert.deepEqual(groups.slice(0, 7).map(group => group.id), [...GAME_GRADES, 'unranked']);
-    for (const grade of GAME_GRADES) assert.deepEqual(groupIds(data, mode, grade), [grade]);
-    assert.deepEqual(groupIds(data, mode, 'unranked'), ['legacy']);
-  }
+  const plan = groupRankedGames(data, 'priority');
+  assert.deepEqual(plan.map(group => group.id), [...GAME_GRADES, 'unranked']);
+  for (const grade of GAME_GRADES) assert.deepEqual(groupIds(data, 'priority', grade), [grade]);
+  assert.deepEqual(groupIds(data, 'priority', 'unranked'), ['legacy']);
+  const rating = groupRankedGames(data, 'rating');
+  assert.deepEqual(rating.map(group => group.id), ['score-9', 'score-8', 'score-7', 'score-6', 'score-5', 'score-4', 'score-3', 'score-2', 'score-1', 'score-0', ...GAME_GRADES, 'unranked']);
+  for (const grade of GAME_GRADES) assert.deepEqual(groupIds(data, 'rating', grade), [grade], '没有数值评分的旧字母评级只进入历史分组');
+  assert.equal(rating.find(group => group.id === 'S')?.label, '历史 S');
+  assert.equal(rating.find(group => group.id === 'score-9')?.label, '9–10 分');
+  assert.deepEqual(groupIds(data, 'rating', 'unranked'), ['legacy']);
   assert.equal(JSON.stringify(data), raw); assert.equal(Object.hasOwn(data[0], 'playPriority'), false);
 });
 
