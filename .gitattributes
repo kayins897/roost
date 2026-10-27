@@ -18,3 +18,6 @@
 *.zip binary
 *.7z binary
 *.node binary
+*.glb binary
+# Vendored upstream build artifact: keep the exact published bytes.
+design/ruic-card-preview/vendor/app.bundle.js -text

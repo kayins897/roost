@@ -1,0 +1,32 @@
+{
+  "title": "白昼书房",
+  "subtitle": "清晨的第四封信",
+  "technique": "分层视差 · 镭射膜",
+  "tagline": "光从窗帘缝隙里慢慢挪过来。",
+  "edition": "003 / 060",
+  "collection": "栖域 · 卡面试作",
+  "description": "光从窗帘缝隙里慢慢挪过来。",
+  "appearance": {
+    "background": "#101216"
+  },
+  "assets": {
+    "subject": "./assets/subject.png",
+    "background": "./assets/background.png",
+    "text": "./assets/text.png",
+    "lineart": "./assets/lineart.png",
+    "model": "./assets/card.glb"
+  },
+  "parameters": {
+    "subjectScale": 1.18,
+    "subjectDepth": 0.3,
+    "backgroundDepth": -0.22,
+    "foil": 0.62
+  },
+  "safeArea": {
+    "scale": 1.1,
+    "offset": [
+      0,
+      0
+    ]
+  }
+}

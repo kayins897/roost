@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RuiC 卡面 · 分层视差对照</title>
+<link rel="stylesheet" href="./preview.css">
+<link rel="stylesheet" href="./prod-material.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="lede">
+    <p class="eyebrow">栖域 / QIYU · 卡面试作 · v0.4.30</p>
+    <h1>同一张平面封面，四种呈现</h1>
+    <p class="intro">上排是原始封面与现有生产材质；下方是上游 <a href="https://github.com/HRuiCcc/RuiC-card-skill">RuiC-card-skill</a> 的 Three.js 查看器，在本页真实运行。四者使用同一份封面素材。</p>
+  </div>
+  <nav class="covers" aria-label="封面选择">
+    <button type="button" class="cover-tab" data-cover="night" aria-pressed="true">霜落之城<span>暗调封面</span></button>
+    <button type="button" class="cover-tab" data-cover="dusk" aria-pressed="false">潮汐档案<span>中间调封面</span></button>
+    <button type="button" class="cover-tab" data-cover="dawn" aria-pressed="false">白昼书房<span>亮调封面</span></button>
+  </nav>
+</header>
+
+<main>
+  <section class="deck is-active" data-cover="night" aria-label="暗调封面四种呈现">
+    <div class="strip">
+      <figure class="pane">
+        <div class="plate"><img src="./cards/night/cover.png" alt="霜落之城 平面封面"></div>
+        <figcaption><b>原图</b><span>平面封面，无材质</span></figcaption>
+      </figure>
+      <figure class="pane">
+        <div class="plate"><img src="./cards/night/cover.png" alt=""><span class="cover-foil cover-foil--prismatic" aria-hidden="true"></span></div>
+        <figcaption><b>现有 · 多彩</b><span>生产 CSS 光谱带，soft-light</span></figcaption>
+      </figure>
+      <figure class="pane">
+        <div class="plate"><img src="./cards/night/cover.png" alt=""><span class="cover-foil cover-foil--holographic" aria-hidden="true"></span></div>
+        <figcaption><b>现有 · 镭射</b><span>生产 CSS 方向光栅，hard-light</span></figcaption>
+      </figure>
+    </div>
+    <figure class="pane pane--ruic">
+      <div class="plate plate--ruic"><iframe title="RuiC 分层视差查看器" src="./cards/night/index.html"></iframe></div>
+      <figcaption><b>RuiC · 分层视差（可交互）</b><span>上游查看器 + 本页派生分层；拖动旋转、滚轮缩放、可切正反面与四种饰面</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="deck" data-cover="dusk" aria-label="中间调封面四种呈现" hidden>
+    <div class="strip">
+      <figure class="pane">
+        <div class="plate"><img src="./cards/dusk/cover.png" alt="潮汐档案 平面封面"></div>
+        <figcaption><b>原图</b><span>平面封面，无材质</span></figcaption>
+      </figure>
+      <figure class="pane">
+        <div class="plate"><img src="./cards/dusk/cover.png" alt=""><span class="cover-foil cover-foil--prismatic" aria-hidden="true"></span></div>
+        <figcaption><b>现有 · 多彩</b><span>生产 CSS 光谱带，soft-light</span></figcaption>
+      </figure>
+      <figure class="pane">
+        <div class="plate"><img src="./cards/dusk/cover.png" alt=""><span class="cover-foil cover-foil--holographic" aria-hidden="true"></span></div>
+        <figcaption><b>现有 · 镭射</b><span>生产 CSS 方向光栅，hard-light</span></figcaption>
+      </figure>
+    </div>
+    <figure class="pane pane--ruic">
+      <div class="plate plate--ruic"></div>
+      <figcaption><b>RuiC · 分层视差（可交互）</b><span>上游查看器 + 本页派生分层；拖动旋转、滚轮缩放、可切正反面与四种饰面</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="deck" data-cover="dawn" aria-label="亮调封面四种呈现" hidden>
+    <div class="strip">
+      <figure class="pane">
+        <div class="plate"><img src="./cards/dawn/cover.png" alt="白昼书房 平面封面"></div>
+        <figcaption><b>原图</b><span>平面封面，无材质</span></figcaption>
+      </figure>
+      <figure class="pane">
+        <div class="plate"><img src="./cards/dawn/cover.png" alt=""><span class="cover-foil cover-foil--prismatic" aria-hidden="true"></span></div>
+        <figcaption><b>现有 · 多彩</b><span>生产 CSS 光谱带，soft-light</span></figcaption>
+      </figure>
+      <figure class="pane">
+        <div class="plate"><img src="./cards/dawn/cover.png" alt=""><span class="cover-foil cover-foil--holographic" aria-hidden="true"></span></div>
+        <figcaption><b>现有 · 镭射</b><span>生产 CSS 方向光栅，hard-light</span></figcaption>
+      </figure>
+    </div>
+    <figure class="pane pane--ruic">
+      <div class="plate plate--ruic"></div>
+      <figcaption><b>RuiC · 分层视差（可交互）</b><span>上游查看器 + 本页派生分层；拖动旋转、滚轮缩放、可切正反面与四种饰面</span></figcaption>
+    </figure>
+  </section>
+
+  <p class="note"><b>分层来源：</b>背景 = 平面封面；主体 = 以字为形、带真实 alpha 的纹章；线稿 = 对主体 alpha 做边缘检测；文字 = 独立排版层。全部由 <code>tools/make_layers.py</code> 程序化派生，<b>不是</b>手绘角色分层，因此不能据此判断上游在真实分层素材上的上限。</p>
+  <p class="note">现有两格只展示生产 CSS 的静态材质（应用内仅在悬停/倾斜时出现），不含 WebGL 着色器与指针光位；截图不能替代真机手感，正式取舍仍需在应用里看。</p>
+</main>
+
+<footer class="foot">
+  <span>上游：HRuiCcc/RuiC-card-skill（MIT；查看器资源随预览分发，见 cards/*/LICENSE，仅本地化了页头字标）</span>
+  <span>本预览不进入生产渲染器，也不读写收藏数据</span>
+</footer>
+
+<script src="./preview.js"></script>
+</body>
+</html>
