@@ -12,14 +12,18 @@ import { BentoWritingFields,PersonalWritingFields } from './PersonalWritingField
 import { DetailCover } from './DetailCover.tsx';
 import { usePersonalWriting } from './usePersonalWriting.ts';
 import './detail.css';
+import { GameBentoDetail } from './GameBentoDetail.tsx';
 
-interface Props {
+export interface DetailPanelProps {
   item: MediaItem; availableItems?: MediaItem[]; onClose: () => void; onEdit: () => void;
   onPatch: (patch: Partial<MediaItem>) => boolean; onDelete: () => void; onHide: () => void;
   onRestore: () => void; onDeletePermanently: () => void;
   onFilterTag: (tag: string, group?: GameTagGroupKey) => void; guardRef: RefObject<(() => boolean) | null>;
 }
-export function DetailPanel({ item, availableItems, onClose, onEdit, onPatch, onDelete, onHide, onRestore, onDeletePermanently, onFilterTag, guardRef }: Props) {
+export function DetailPanel(props: DetailPanelProps) {
+  return props.item.category === 'game' ? <GameBentoDetail {...props} /> : <LegacyDetailPanel {...props} />;
+}
+function LegacyDetailPanel({ item, availableItems, onClose, onEdit, onPatch, onDelete, onHide, onRestore, onDeletePermanently, onFilterTag, guardRef }: DetailPanelProps) {
   const panel = useRef<HTMLElement>(null);
   const factsId = useId();
   const [factsOpen, setFactsOpen] = useState(false);
