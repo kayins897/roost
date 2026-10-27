@@ -49,6 +49,7 @@ export function CalendarYearPanel({ date, activities, plans, onSelect, onMonth }
         const monthKey = `${year}-${String(month).padStart(2, '0')}`;
         const { offset, days } = monthDays(year, month);
         const recordsCount = days.reduce((sum, day) => sum + (recordsByDay.get(day)?.length ?? 0), 0);
+        const coarseCount = activities.filter(entry => entry.date === monthKey).length;
         const plansCount = days.reduce((sum, day) => sum + (plansByDay.get(day)?.length ?? 0), 0);
 
         return <article className="rw-card cal-period-mini-month cal-year-month" key={monthKey}>
@@ -56,7 +57,7 @@ export function CalendarYearPanel({ date, activities, plans, onSelect, onMonth }
             <button type="button" onClick={() => onMonth(monthKey)} aria-label={`打开 ${year} 年 ${month} 月`}>
               <strong>{month}</strong><span>月</span><span aria-hidden="true">↗</span>
             </button>
-            <span className="cal-period-mini-count">{recordsCount ? `${recordsCount} 条记录` : '未记录'}{plansCount > 0 && ` · ${plansCount} 项计划`}</span>
+            <span className="cal-period-mini-count">{recordsCount ? `${recordsCount} 条日级记录` : '无日级记录'}{coarseCount > 0 && ` · ${coarseCount} 条月份记录`}{plansCount > 0 && ` · ${plansCount} 项计划`}</span>
           </header>
           <div className="cal-period-mini-weekdays" aria-hidden="true">
             {WEEKDAYS.map(day => <span key={day}>{day}</span>)}
@@ -69,7 +70,17 @@ export function CalendarYearPanel({ date, activities, plans, onSelect, onMonth }
               const label = `${year} 年 ${month} 月 ${Number(day.slice(8))} 日，${entries.length} 条记录，${scheduled.length} 项计划`;
               return <button type="button" key={day} data-period-day={day} data-year-day={day}
                 className={day === date ? 'is-selected' : ''}
+                tabIndex={day === date ? 0 : -1}
                 aria-label={label} title={label} aria-pressed={day === date}
+                onKeyDown={event => {
+                  const delta = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' ? -7 : event.key === 'ArrowDown' ? 7 : 0;
+                  if (!delta) return;
+                  event.preventDefault();
+                  const next = new Date(`${day}T00:00:00Z`); next.setUTCDate(next.getUTCDate() + delta);
+                  const nextDay = next.toISOString().slice(0, 10), calendar = event.currentTarget.closest('.cal-period-year');
+                  onSelect(nextDay);
+                  requestAnimationFrame(() => calendar?.querySelector<HTMLButtonElement>(`[data-year-day="${nextDay}"]`)?.focus());
+                }}
                 onClick={() => onSelect(day)}>
                 <span>{Number(day.slice(8))}</span>
                 <span className="cal-period-day-marks" aria-hidden="true">

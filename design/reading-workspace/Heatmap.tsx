@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ArrowUpRight, Plus } from 'lucide-react';
 import { dailyMinutes, heatLevel, type PreviewState } from './model';
 
@@ -9,6 +9,12 @@ const RANGES = ['0', '1–14', '15–29', '30–59', '60+'];
 export function Heatmap({ state, today, openDay, logReading }: HeatmapProps) {
   const year = Number(today.slice(0, 4));
   const [focused, setFocused] = useState(today);
+  const keysHelp = useId();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const scroller = scrollRef.current, cell = scroller?.querySelector<HTMLElement>(`[data-date="${today}"]`);
+    if (scroller && cell && scroller.scrollWidth > scroller.clientWidth) scroller.scrollLeft += cell.getBoundingClientRect().right - scroller.getBoundingClientRect().right + 50;
+  }, [today]);
   const { days, offset, columns, months } = useMemo(() => {
     const start = new Date(Date.UTC(year, 0, 1));
     const count = (Date.UTC(year + 1, 0, 1) - start.getTime()) / 86400000;
@@ -28,7 +34,8 @@ export function Heatmap({ state, today, openDay, logReading }: HeatmapProps) {
   const selected = dayInfo(focused);
   return <section className="rw-card bk-heatmap" aria-labelledby="bk-heatmap-title">
     <header className="bk-section-heading"><div><p className="bk-eyebrow">READING DAYS · {year}</p><h2 id="bk-heatmap-title">阅读的痕迹</h2></div><button className="rw-button" onClick={() => logReading(undefined, today)}><Plus size={16}/>登记阅读</button></header>
-    <div className="bk-heat-scroll" role="group" aria-label={`${year} 年每日阅读时长`}>
+    <p id={keysHelp} className="bk-sr-only">方向键选择日期，上下切换一天，左右切换一周，回车打开日历。</p>
+    <div className="bk-heat-scroll" ref={scrollRef} role="group" aria-label={`${year} 年每日阅读时长`} aria-describedby={keysHelp}>
       <div className="bk-heat-canvas" style={{ '--bk-heat-columns': columns } as CSSProperties}>
         <div className="bk-heat-months" aria-hidden="true">{months.map(month => <span key={month.month} style={{ gridColumn: month.column }}>{month.month}月</span>)}</div>
         <div className="bk-heat-weekdays" aria-hidden="true">{WEEKDAYS.map(day => <span key={day}>{day}</span>)}</div>
@@ -37,7 +44,14 @@ export function Heatmap({ state, today, openDay, logReading }: HeatmapProps) {
           {days.map(date => {
             const info = dayInfo(date), future = date > today;
             const label = `${date} · ${future ? '未来日期' : info.label}${info.titles.length ? ` · ${info.titles.join('、')}` : ''}`;
-            return <button key={date} type="button" className="bk-heat-day" data-date={date} data-level={heatLevel(info.minutes)} data-known={info.minutes !== undefined} data-unknown={info.unknown} data-today={date === today} aria-label={label} title={label} disabled={future} onMouseEnter={() => !future && setFocused(date)} onFocus={() => setFocused(date)} onClick={() => openDay(date)}/>;
+            return <button key={date} type="button" className="bk-heat-day" data-date={date} data-level={heatLevel(info.minutes)} data-known={info.minutes !== undefined} data-unknown={info.unknown} data-today={date === today} aria-label={label} title={label} disabled={future} tabIndex={date === focused ? 0 : -1} onMouseEnter={() => !future && setFocused(date)} onFocus={() => setFocused(date)} onKeyDown={event => {
+              const delta = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' ? -7 : event.key === 'ArrowRight' ? 7 : 0;
+              if (!delta) return;
+              event.preventDefault();
+              const at = days.indexOf(date), next = days[Math.max(0, Math.min(days.indexOf(today), at + delta))];
+              setFocused(next);
+              event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-date="${next}"]`)?.focus();
+            }} onClick={() => openDay(date)}/>;
           })}
         </div>
       </div>

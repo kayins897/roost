@@ -1,6 +1,38 @@
 .cal-summary { display: flex; align-items: center; gap: 20px; justify-content: space-between; font-size: 12px; margin: 0 0 18px; color: #8da096; }
 .cal-summary strong { color: #c1d4c7; font-weight: 500; }
+.cal-scale-row { display: flex; align-items: center; gap: 22px; margin-bottom: 20px; flex-wrap: wrap; }
+.cal-scale-row .cal-summary { flex: 1; margin: 0; }
+.cal-scale-switch { display: inline-flex; padding: 4px; border: 1px solid #ffffff14; border-radius: 22px; background: #ffffff03; }
+.cal-scale-switch button { border: 0; background: none; color: #91a39b; padding: 6px 17px; border-radius: 18px; font-size: 13px; }
+.cal-scale-switch button.is-active { color: #dcece2; background: #a8cdb322; }
+.cal-month-heading .cal-period-label { font-size: 16px; letter-spacing: 0; }
+.cal-period-summary { margin-top: 28px; }
+.cal-period-summary > header { display: flex; justify-content: space-between; gap: 15px; align-items: end; margin-bottom: 15px; }
+.cal-period-summary h2 { font-size: 20px; margin-top: 5px; }
+.cal-period-summary > header > span { font-size: 11px; }
+.cal-period-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.cal-period-stat { padding: 20px; }
+.cal-period-stat > span { display: flex; align-items: center; gap: 8px; color: #a9c5b3; font-size: 12px; }
+.cal-period-stat--game > span { color: #bca9d9; }.cal-period-stat--screen > span { color: #d6b18d; }.cal-period-stat--music > span { color: #a9bacf; }
+.cal-period-stat > span small { margin-left: auto; color: #87968e; font-size: 10px; }
+.cal-period-stat strong { display: block; font-size: 25px; font-weight: 500; margin: 12px 0 5px; }
+.cal-period-stat strong small { font-size: 12px; color: #a1b1a7; font-weight: 400; }
+.cal-period-stat p { font-size: 11px; color: #8e9c93; }
+.cal-period-plans { margin-top: 15px; background: #b8a67707; border-style: dashed; }
+.cal-period-plans header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }.cal-period-plans h3 span { font-size: 12px; color: #a0967c; margin-left: 7px; }
+.cal-period-plans > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px 28px; }
+.cal-period-plans button { display: flex; gap: 15px; align-items: center; text-align: left; background: none; border: 0; border-top: 1px solid #cfbe8a15; padding: 12px 0; min-width: 0; }
+.cal-period-plans time { color: #c1ab78; font-size: 12px; }.cal-period-plans button span { flex: 1; min-width: 0; font-size: 13px; }.cal-period-plans button small { display: block; font-size: 11px; color: #86988c; margin-top: 4px; overflow-wrap: anywhere; }.cal-period-plans svg { color: #9d987f; }
+@media(max-width:1100px) { .cal-period-stats { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .cal-scale-row { gap: 14px; }.cal-scale-row .cal-summary { flex-basis: 100%; }.cal-period-summary > header { align-items: start; flex-direction: column; gap: 5px; }.cal-period-stat { padding: 15px; }.cal-period-stat > span { flex-wrap: wrap; }.cal-period-stat > span small { flex-basis: 100%; margin-left: 0; }.cal-period-stat strong { font-size: 21px; }.cal-period-plans > div { grid-template-columns: 1fr; }.cal-period-plans header small { font-size: 10px; } }
 .cal-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.cal-layout.cal-layout--week { grid-template-columns: minmax(0, 1fr); }
+.cal-layout--week .cal-day-panel { min-height: 0; }
+.cal-layout--week .cal-day-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; min-height: 0; }
+.cal-layout--week .cal-day-list > .rw-empty { grid-column: 1/-1; }
+.cal-layout--week .cal-day-title { padding-bottom: 15px; }
+@media(max-width:960px) { .cal-layout--week .cal-day-list { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .cal-layout--week .cal-day-list { grid-template-columns: 1fr; gap: 0; } }
 .cal-month { padding: 25px 24px 15px; }
 .cal-month-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 17px; }
 .cal-month-heading h2 { font-size: 25px; font-variant-numeric: tabular-nums; }
@@ -25,7 +57,7 @@
 .cal-event--book i,.cal-dot--book { background: #95c7a9!important; }
 .cal-event--game i,.cal-dot--game { background: #b29ad6!important; }
 .cal-event--screen i,.cal-dot--screen { background: #d6a378!important; }
-.cal-event--plan { color: #9ca49a; }.cal-event--plan i,.cal-dot--plan { background: none!important; border: 1px solid #c9bd98; }
+.cal-event--plan { color: #d2c39e; border: 1px dashed #c9bd9838; padding: 2px 4px; border-radius: 4px; }.cal-event--plan::before { content: '计划'; font-size: 8px; color: #d1bc8f; }.cal-event--plan i,.cal-dot--plan { background: none!important; border: 1px solid #c9bd98; }
 .cal-cell-events>small { color: #758a7b; font-size: 9px; }
 .cal-legend { display: flex; gap: 18px; justify-content: flex-end; margin-top: 14px; color: #86998c; font-size: 10px; }
 .cal-legend>span { display: flex; gap: 6px; align-items: center; }

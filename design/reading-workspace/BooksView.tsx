@@ -32,7 +32,7 @@ export function BooksView(props: WorkspaceProps) {
       </div>
     </article>;
   }
-  return <main className="bk-view">
+  return <div className="bk-view">
     <header className="bk-page-heading"><div className="bk-heading-title"><p className="bk-eyebrow">THE READING ROOM</p><h1>书籍<span className="bk-heading-mark" aria-hidden="true"> / </span></h1></div>
       <fieldset className="bk-view-switch"><legend className="bk-sr-only">书籍视图</legend>{(['plan', 'records'] as const).map(value => <label key={value} className={face === value ? 'is-active' : ''}><input type="radio" name={switchId} checked={face === value} onChange={() => setFace(value)}/><span>{value === 'plan' ? '阅读计划' : '阅读记录'}</span></label>)}</fieldset>
       <button className="rw-button bk-add-button" onClick={() => setForm(face === 'plan' ? 'plan' : 'round')}><Plus size={17}/>{face === 'plan' ? '加入计划' : '补录已读'}</button>
@@ -61,5 +61,5 @@ export function BooksView(props: WorkspaceProps) {
     </section>}
     {form === 'plan' && <PlanForm state={state} dispatch={dispatch} onClose={() => setForm(null)}/>}
     {form === 'round' && <RoundForm state={state} dispatch={dispatch} today={today} onClose={() => setForm(null)}/>}
-  </main>;
+  </div>;
 }
