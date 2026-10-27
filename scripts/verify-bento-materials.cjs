@@ -6,7 +6,7 @@ const { _electron: electron } = require('playwright');
 const root = path.resolve(__dirname, '..');
 const executablePath = process.argv[2] || path.join(root, 'node_modules/electron/dist/electron.exe');
 const packaged = Boolean(process.argv[2]);
-const evidence = path.join(root, 'evidence', 'v0428', packaged ? 'packaged' : 'source');
+const evidence = path.join(root, 'evidence', 'v' + require('../package.json').version.replaceAll('.', ''), packaged ? 'packaged' : 'source');
 fs.mkdirSync(evidence, { recursive: true });
 let data = fs.mkdtempSync(path.join(os.tmpdir(), 'qiyu-bento-integration-'));
 let app, page; const checks = [], errors = [];
@@ -37,12 +37,21 @@ async function picture(name) { await page.screenshot({ path: path.join(evidence,
 async function nativeOpen(filename) { await app.evaluate(({ dialog }, files) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: files }); }, Array.isArray(filename) ? filename : [filename]); }
 async function settings() { await page.getByRole('button', { name: '数据与设置', exact: true }).click(); }
 async function dataSettings() { await settings(); await page.getByRole('button', { name: '数据与备份', exact: true }).click(); }
+async function waitSavedScore(value, id = '多彩') {
+  const until = Date.now() + 5000;
+  while (snapshot().items.find(item => item.id === id).personalScore !== value) {
+    assert.ok(Date.now() < until, `Score ${value} did not reach the isolated repository: ${await page.locator('.toast').allTextContents()}`);
+    await page.waitForTimeout(20);
+  }
+}
 async function setScore(scope, value, label = '通关评分') {
   const integer = Math.floor(value), decimal = Math.round(value * 10) % 10;
   const wholeWheel = scope.getByRole('spinbutton', { name: `${label}整数`, exact: true }); await wholeWheel.press('Home');
   for (let i = 0; i < integer; i++) await wholeWheel.press('ArrowUp');
   const decimalWheel = scope.getByRole('spinbutton', { name: `${label}小数`, exact: true });
   if (integer !== 10) { await decimalWheel.press('Home'); for (let i = 0; i < decimal; i++) await decimalWheel.press('ArrowUp'); }
+  await page.waitForTimeout(250);
+  if(await scope.locator('.score-control--instant').count()) await waitSavedScore(value);
   return { wholeWheel, decimalWheel };
 }
 (async () => {
@@ -70,18 +79,18 @@ async function setScore(scope, value, label = '通关评分') {
   await page.mouse.move(1300, 120); await page.locator('.cover-material-canvas').waitFor({ state: 'detached' }); check('共享一个卡面渲染器，离开后移除');
   await picture('library'); await open(); assert.equal(await page.locator('.detail-dialog-heading').count(), 0); assert.equal(await page.locator('[data-widget=count]').count(), 0);
   assert.equal(await page.locator('.bento-cover-image').evaluate(image => getComputedStyle(image).objectFit), 'contain'); await picture('detail-top'); check('正式无标题栏Bento、封面contain、完成次数默认隐藏');
-  let menu = await context('grade'); let wheels = await setScore(menu, 10); assert.equal(await wheels.decimalWheel.getAttribute('aria-disabled'), 'true'); assert.equal(snapshot().items[0].personalScore, 9.8);
-  wheels = await setScore(menu, 9.2); await wheels.decimalWheel.hover(); await page.mouse.wheel(0, 80); await page.waitForFunction(() => document.querySelector('[aria-label="通关评分小数"]')?.getAttribute('aria-valuenow') !== '2');
-  await setScore(menu, 9.2); await page.waitForTimeout(100);
-  await menu.evaluate(panel => {
-    const whole = panel.querySelector('[aria-label="通关评分整数"]'), decimal = panel.querySelector('[aria-label="通关评分小数"]');
-    for (const wheel of [whole, decimal]) wheel.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
-    whole.scrollTop = 11 * 32; decimal.scrollTop = 6 * 32;
-    panel.querySelector('button[type="submit"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-  });
-  assert.equal(await wheels.wholeWheel.getAttribute('aria-valuenow'), '10'); assert.equal(await wheels.decimalWheel.getAttribute('aria-valuenow'), '0'); assert.equal(await wheels.decimalWheel.getAttribute('aria-disabled'), 'true'); assert.equal(snapshot().items[0].personalScore, 9.8);
-  await setScore(menu, 9.2); await picture('score-wheels'); await menu.screenshot({ path: path.join(evidence, 'score-picker.png') }); await menu.getByRole('button', { name: '保存', exact: true }).click(); check('整数与小数滚轮、键盘独立调整，10分锁定小数，保存前不写库');
-  assert.equal(snapshot().items[0].personalScore, 9.2); assert.equal(snapshot().items[0].personalGrade, 'A'); check('右键评分保存真实库，保留旧字母');
+  let menu = await context('grade'); const untouchedScore = fs.readFileSync(libraryFile(), 'utf8'); await page.waitForTimeout(150); assert.equal(fs.readFileSync(libraryFile(), 'utf8'), untouchedScore); assert.equal(await menu.getByRole('button', { name: '保存', exact: true }).count(), 0); check('打开评分不写库，没有多余保存按钮');
+  let wheels = await setScore(menu, 9.2); await wheels.decimalWheel.hover(); await page.mouse.wheel(0, 120); await page.waitForFunction(() => document.querySelector('[aria-label="通关评分小数"]')?.getAttribute('aria-valuenow') === '3'); await waitSavedScore(9.3); assert.equal(snapshot().items[0].personalScore, 9.3);
+  await page.mouse.wheel(0, -120); await page.waitForFunction(() => document.querySelector('[aria-label="通关评分小数"]')?.getAttribute('aria-valuenow') === '2'); await waitSavedScore(9.2); assert.equal(snapshot().items[0].personalScore, 9.2);
+  await page.mouse.wheel(0, 480); await page.waitForFunction(() => document.querySelector('[aria-label="通关评分小数"]')?.getAttribute('aria-valuenow') === '3'); await waitSavedScore(9.3); assert.equal(snapshot().items[0].personalScore, 9.3); check('真实鼠标120和480像素滚动都仅选一档并自动保存');
+  await wheels.decimalWheel.evaluate(element => { for (let i=0;i<5;i++) element.dispatchEvent(new WheelEvent('wheel', { deltaY: 3, bubbles: true, cancelable: true })); }); assert.equal(snapshot().items[0].personalScore, 9.3); check('触控板微小惯性不造成多档连跳');
+  await setScore(menu, 9.2); const beforeBurst=fs.readFileSync(libraryFile(),'utf8'); await wheels.decimalWheel.evaluate(element => { for(let i=0;i<3;i++) element.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true})); }); await waitSavedScore(9.5); assert.ok(fs.readFileSync(path.join(data,'library.previous.json'),'utf8')===beforeBurst,'Rapid three-notch input must make one repository write'); check('连续三档仅保存最终9.5分一次，避免反复写整库');
+  await setScore(menu, 10); assert.equal(await wheels.decimalWheel.getAttribute('aria-disabled'), 'true'); assert.equal(snapshot().items[0].personalScore, 10); await wheels.decimalWheel.evaluate(element => element.dispatchEvent(new WheelEvent('wheel', { deltaY:120, bubbles:true, cancelable:true }))); assert.equal(snapshot().items[0].personalScore, 10);
+  await setScore(menu, 0); const zeroRaw=fs.readFileSync(libraryFile(),'utf8'); await wheels.wholeWheel.hover(); await page.mouse.wheel(0,-120); assert.equal(fs.readFileSync(libraryFile(),'utf8'),zeroRaw); assert.equal(snapshot().items[0].personalScore,0); check('0分与10分边界锁定，同值不重复写入');
+  await menu.getByRole('button', { name: '清除评分', exact: true }).click(); assert.equal(snapshot().items[0].personalScore, undefined); assert.equal(snapshot().items[0].personalGrade, 'A'); await setScore(menu,9.2); check('清除只移除数值，旧字母保留，未评分与0区别');
+  const beforeScoreConflict=fs.readFileSync(libraryFile(),'utf8'); fs.writeFileSync(libraryFile(), beforeScoreConflict+'\n'); await wheels.decimalWheel.press('ArrowUp'); assert.equal(await wheels.decimalWheel.getAttribute('aria-valuenow'),'3'); assert.equal(snapshot().items[0].personalScore,9.2); await menu.getByRole('button', { name:'重试', exact:true }).waitFor(); await page.keyboard.press('Escape'); assert.equal(await menu.isVisible(),true); await page.mouse.click(1350,100); assert.equal(await menu.isVisible(),true); fs.writeFileSync(libraryFile(), beforeScoreConflict); await page.mouse.click(1350,100); assert.equal(await menu.isVisible(),true); assert.equal(snapshot().items[0].personalScore,9.2); await menu.getByRole('button', { name:'重试', exact:true }).click(); assert.equal(snapshot().items[0].personalScore,9.3); check('自动保存冲突保留草稿，关闭被拦下，原位重试成功');
+  await setScore(menu,9.2); await wheels.decimalWheel.press('ArrowUp'); await page.keyboard.press('Escape'); assert.equal(snapshot().items[0].personalScore,9.3); menu=await context('grade'); await setScore(menu,9.2); await picture('score-wheels'); await menu.screenshot({ path:path.join(evidence,'score-picker.png') }); await page.keyboard.press('Escape'); assert.equal(snapshot().items[0].personalScore,9.2); check('关闭菜单前最后一档已入库，不依赖延迟保存');
+  menu=await context('grade'); await setScore(menu,9.2); const beforeTouchConflict=fs.readFileSync(libraryFile(),'utf8'); fs.writeFileSync(libraryFile(),beforeTouchConflict+'\n'); await page.waitForTimeout(50); await menu.getByRole('spinbutton',{name:'通关评分小数',exact:true}).evaluate(element=>{element.scrollTop=5*32; window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));}); await menu.getByRole('button',{name:'重试',exact:true}).waitFor(); assert.equal(await menu.isVisible(),true); assert.equal(await menu.getByRole('spinbutton',{name:'通关评分小数',exact:true}).getAttribute('aria-valuenow'),'4'); assert.equal(snapshot().items[0].personalScore,9.2); fs.writeFileSync(libraryFile(),beforeTouchConflict); await menu.getByRole('button',{name:'撤销修改',exact:true}).click(); await page.keyboard.press('Escape'); check('未结算拖动在Escape前先结算，失败草稿可撤销而不丢失');
   menu = await context('footprint'); await menu.getByRole('button', { name: '新游戏+', exact: true }).click(); await menu.getByRole('button', { name: 'SS', exact: true }).click();
   assert.equal(snapshot().items[0].experienceCategory, 'replayable'); assert.equal(snapshot().items[0].playPriority, 'SS'); assert.equal(snapshot().items[0].personalScore, 9.2); assert.equal(snapshot().items[0].completionCount, 0);
   await menu.getByRole('button', { name: '收官完结', exact: true }).click(); await page.keyboard.press('Escape'); check('分类与字母优先级原位生效，评分/完成次数独立');
@@ -113,7 +122,7 @@ async function setScore(scope, value, label = '通关评分') {
   menu = await context('cover'); await menu.getByRole('button', { name: '外观与布局', exact: true }).click(); await menu.getByRole('button', { name: '管理卡片与显示内容', exact: true }).click();
   const toolbar = page.getByRole('toolbar', { name: '调整详情布局', exact: true }); await toolbar.getByRole('button', { name: '完成', exact: true }).focus(); await page.keyboard.press('Tab'); assert.equal(await page.getByRole('button', { name: '关闭详情', exact: true }).evaluate(node => node === document.activeElement), true); await page.keyboard.press('Shift+Tab'); assert.equal(await toolbar.getByRole('button', { name: '完成', exact: true }).evaluate(node => node === document.activeElement), true); check('布局管理与完成/取消处于同一个键盘焦点圈');
   await page.getByRole('complementary', { name: '管理卡片与显示内容', exact: true }).getByLabel('完成次数', { exact: true }).check(); await page.getByRole('toolbar', { name: '调整详情布局', exact: true }).getByRole('button', { name: '完成', exact: true }).click(); assert.equal(await page.locator('[data-widget=count]').count(), 1); check('隐藏卡片可恢复，完成次数0不变');
-  await closeDetail(); await card('多彩').click({ button: 'right' }); menu = page.getByRole('menu', { name: '星际档案 多彩快捷编辑', exact: true }); await setScore(menu, 9.1); await menu.getByRole('button', { name: '保存', exact: true }).click(); assert.equal(snapshot().items[0].personalScore, 9.1); check('库卡片右键使用同一滚轮并保存数值');
+  await closeDetail(); await card('多彩').click({ button: 'right' }); menu = page.getByRole('menu', { name: '星际档案 多彩快捷编辑', exact: true }); await setScore(menu, 9.1); assert.equal(snapshot().items[0].personalScore, 9.1); assert.equal(await menu.isVisible(),true); assert.equal(await menu.getByRole('button', { name:'保存', exact:true }).count(),0); await page.keyboard.press('Escape'); check('库卡片右键即时评分不关闭，无额外保存');
   const savedShots = snapshot().items[0].screenshots; await card('多彩').click({ button: 'right' }); await page.getByRole('menuitem', { name: '编辑作品资料', exact: true }).click(); const form = page.getByRole('dialog', { name: '编辑作品', exact: true }); await setScore(form, 9.7); await form.getByRole('button', { name: '保存修改', exact: true }).click(); assert.equal(snapshot().items[0].personalScore, 9.7); assert.deepEqual(snapshot().items[0].screenshots, savedShots); assert.equal(snapshot().items[0].personalGrade, 'A'); check('作品表单评分滚轮接线与截图/旧评级保留');
   if (await page.locator('.game-bento-dialog').count()) await closeDetail(); await page.getByRole('button', { name: '批量编辑游戏', exact: true }).click(); await page.getByRole('button', { name: '选择星际档案 多彩', exact: true }).click(); await page.getByRole('button', { name: '选择星际档案 镭射', exact: true }).click(); const bulk = page.locator('.selection-actionbar'); await setScore(bulk, 9.2, '统一通关评分'); await picture('bulk-score-wheels'); await bulk.getByRole('button', { name: '应用评分', exact: true }).click(); assert.equal(snapshot().items[0].personalScore, 9.2); assert.equal(snapshot().items[1].personalScore, 9.2); assert.equal(snapshot().items[0].playPriority, 'SS'); await bulk.getByRole('button', { name: '退出多选', exact: true }).click(); check('多选滚轮批量评分，保留字母优先级');
   await settings(); await page.getByRole('button', { name: '卡面材质', exact: true }).click(); for (const label of ['纹理强度', '底色滤镜', '流动速度']) assert.equal(await page.getByRole('slider', { name: label, exact: true }).inputValue(), '100'); assert.equal(await page.getByRole('checkbox', { name: '三角切面', exact: true }).isChecked(), true);

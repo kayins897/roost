@@ -11,4 +11,8 @@
 .score-picker-number:hover{opacity:.85}
 .score-picker-dot{font-size:27px;font-weight:650;line-height:1;align-self:center;margin-top:-4px}
 .score-picker-unit{font-size:11px;opacity:.6;margin-left:1px}
+.score-control--instant{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+.score-control--instant>.score-picker{flex-basis:100%}
+.score-control-error{display:flex;gap:9px;align-items:center;flex-wrap:wrap;color:var(--danger,#ffb4b4);font-size:12px}
+.score-control-error button{font-size:12px}
 @media(prefers-reduced-motion:reduce){.score-picker-column,.score-picker-number{transition:none!important}}

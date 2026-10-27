@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useImperativeHandle, useRef, type KeyboardEvent, type PointerEvent, type Ref } from 'react';
 import './score-picker.css';
 
 interface ScorePickerProps {
@@ -6,7 +6,9 @@ interface ScorePickerProps {
   onChange: (value: string) => void;
   label?: string;
   disabled?: boolean;
+  ref?: Ref<ScorePickerHandle>;
 }
+export interface ScorePickerHandle { settle: () => void }
 const ROW_HEIGHT = 32;
 function scoreFrom(value: string) {
   const number = value.trim() === '' ? undefined : Number(value);
@@ -14,8 +16,10 @@ function scoreFrom(value: string) {
 }
 
 /** Controlled draft only. Mounting, clearing, and synchronizing never commit a score. */
-export function ScorePicker({ value, onChange, label = '通关评分', disabled = false }: ScorePickerProps) {
+export function ScorePicker({ value, onChange, label = '通关评分', disabled = false, ref }: ScorePickerProps) {
   const draft = useRef(value); draft.current = value;
+  const wholeWheel = useRef<ScorePickerHandle>(null), decimalWheel = useRef<ScorePickerHandle>(null);
+  useImperativeHandle(ref, () => ({ settle() { wholeWheel.current?.settle(); decimalWheel.current?.settle(); } }));
   const score = scoreFrom(value);
   const integer = score === undefined ? null : Math.floor(score);
   const decimal = score === undefined ? null : Math.round((score - Math.floor(score)) * 10);
@@ -31,15 +35,15 @@ export function ScorePicker({ value, onChange, label = '通关评分', disabled 
     draft.current = `${whole}.${next}`; onChange(draft.current);
   }
   return <div className="score-picker" role="group" aria-label={label}>
-    <ScoreWheel value={integer} maximum={10} label={`${label}整数`} disabled={disabled} onChange={updateWhole} />
+    <ScoreWheel ref={wholeWheel} value={integer} maximum={10} label={`${label}整数`} disabled={disabled} onChange={updateWhole} />
     <span className="score-picker-dot" aria-hidden="true">.</span>
-    <ScoreWheel value={integer === 10 ? 0 : decimal} maximum={9} label={`${label}小数`} disabled={disabled || integer === 10} onChange={updateDecimal} />
+    <ScoreWheel ref={decimalWheel} value={integer === 10 ? 0 : decimal} maximum={9} label={`${label}小数`} disabled={disabled || integer === 10} onChange={updateDecimal} />
     <span className="score-picker-unit" aria-hidden="true">分</span>
   </div>;
 }
 
-interface WheelProps { value: number | null; maximum: number; label: string; disabled: boolean; onChange: (value: number) => void }
-function ScoreWheel({ value, maximum, label, disabled, onChange }: WheelProps) {
+interface WheelProps { value: number | null; maximum: number; label: string; disabled: boolean; onChange: (value: number) => void; ref?: Ref<ScorePickerHandle> }
+function ScoreWheel({ value, maximum, label, disabled, onChange, ref }: WheelProps) {
   const viewport = useRef<HTMLDivElement>(null);
   const current = useRef({ value, disabled, onChange });
   current.current = { value, disabled, onChange };
@@ -49,6 +53,7 @@ function ScoreWheel({ value, maximum, label, disabled, onChange }: WheelProps) {
   const frames = useRef<number[]>([]);
   const drag = useRef<{ id: number; y: number; top: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
+  useImperativeHandle(ref, () => ({ settle }));
   function select(next: number) {
     if (current.current.disabled) return;
     const bounded = Math.max(0, Math.min(maximum, next));
@@ -74,6 +79,29 @@ function ScoreWheel({ value, maximum, label, disabled, onChange }: WheelProps) {
     }));
   }
   useEffect(() => { lastSent.current = value; synchronize(value); }, [value]);
+  useEffect(() => {
+    const element = viewport.current; if (!element) return;
+    let pixels = 0, direction = 0, lastSmallStep = 0;
+    const wheel = (event: WheelEvent) => {
+      // A physical notch can report 120px (or more). Never translate that
+      // distance into several 32px rows; the wheel chooses exactly one digit.
+      event.preventDefault(); event.stopPropagation();
+      if (current.current.disabled || !event.deltaY) return;
+      const sign = Math.sign(event.deltaY);
+      if (sign !== direction) { pixels = 0; direction = sign; }
+      if (event.deltaMode === 0 && Math.abs(event.deltaY) < 24) {
+        pixels += event.deltaY;
+        if (Math.abs(pixels) < 24 || performance.now() - lastSmallStep < 90) return;
+        pixels = 0; lastSmallStep = performance.now();
+      } else pixels = 0;
+      const next = lastSent.current === null ? 0 : lastSent.current + sign;
+      select(next); synchronize(Math.max(0, Math.min(maximum, next)));
+    };
+    // React's delegated wheel listener can be passive. Attach explicitly so the
+    // browser cannot scroll four native rows after the one-digit update.
+    element.addEventListener('wheel', wheel, { passive: false });
+    return () => element.removeEventListener('wheel', wheel);
+  }, []);
   useEffect(() => {
     // Wheel scrolling needn't focus the column. Commit its visible draft before
     // an outside Save click, as well as on Tab/blur, and stop residual inertia.
@@ -122,7 +150,6 @@ function ScoreWheel({ value, maximum, label, disabled, onChange }: WheelProps) {
       onKeyDown={keyDown} onBlur={settle} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd}
       onPointerCancel={event => { drag.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
       onPointerLeave={event => { if (!event.currentTarget.hasPointerCapture(event.pointerId)) drag.current = null; }}
-      onWheel={() => { programmatic.current = false; }}
       onScroll={() => { if (programmatic.current || disabled) return; if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(settle, 120); }}>
       <span className={`score-picker-number ${value === null ? 'is-selected' : ''}`} aria-hidden="true">—</span>
       {Array.from({ length: maximum + 1 }, (_, number) => <span key={number}

@@ -2,23 +2,16 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { gradeEditable } from '../../../domain/gameProgress.ts';
 import { impressionError, personalWritingFor, personalWritingPatch } from '../../../domain/personalWriting.ts';
 import type { MediaItem } from '../../../domain/types.ts';
-import { ScorePicker } from '../../components/ScorePicker.tsx';
+import { InlineScoreControl } from '../../components/InlineScoreControl.tsx';
 
 export type BentoSave = (patch: Partial<MediaItem>) => boolean;
 export function BentoSaveForm({ children, onSubmit, onClose, error = '' }: { children: ReactNode; onSubmit: () => boolean; onClose: () => void; error?: string }) {
   function submit(event: FormEvent) { event.preventDefault(); if (onSubmit()) onClose(); }
   return <form className="bento-context-form" onSubmit={submit}>{children}{error && <p role="alert" className="bento-context-error">{error}</p>}<div className="bento-context-save"><button type="button" onClick={onClose}>取消</button><button className="bento-menu-primary" type="submit">保存</button></div></form>;
 }
-export function BentoScoreEditor({ item, save, close }: { item: MediaItem; save: BentoSave; close: () => void }) {
-  const [value, setValue] = useState(item.personalScore === undefined ? '' : String(item.personalScore));
-  const [error, setError] = useState('');
+export function BentoScoreEditor({ item, save }: { item: MediaItem; save: BentoSave; close: () => void }) {
   if (!gradeEditable(item)) return <p className="bento-context-description">新游戏+与收官完结可设置通关评分。已有分数会保留。</p>;
-  const patch = (score: number | undefined) => { const ok = save({ personalScore: score, ratingOrder: undefined }); if (!ok) setError('评分未能保存，请重试。'); return ok; };
-  return <BentoSaveForm onClose={close} error={error} onSubmit={() => {
-    const score = value.trim() === '' ? undefined : Number(value);
-    if (score !== undefined && (!Number.isFinite(score) || score < 0 || score > 10 || Math.abs(score * 10 - Math.round(score * 10)) > 1e-8)) { setError('请输入 0～10 分，最多一位小数。'); return false; }
-    return patch(score);
-  }}><ScorePicker value={value} onChange={setValue} label="通关评分" />{item.personalGrade && item.personalScore === undefined && <p className="bento-context-description">原通关评级 {item.personalGrade} 保留，不自动换算。</p>}<button type="button" onClick={() => { if (patch(undefined)) close(); }}>清除评分</button></BentoSaveForm>;
+  return <div className="bento-context-form"><InlineScoreControl value={item.personalScore} onSave={score => save({ personalScore: score, ratingOrder: undefined })} />{item.personalGrade && item.personalScore === undefined && <p className="bento-context-description">原通关评级 {item.personalGrade} 保留，不自动换算。</p>}</div>;
 }
 function localTimestamp(value?: string) {
   if (!value) return '';
