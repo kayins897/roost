@@ -1,7 +1,10 @@
 // Synthetic preview only. These types are not a production persistence proposal.
 export type Category = 'game' | 'book' | 'screen' | 'music';
-export interface Work { id: string; title: string; subtitle: string; category: Category; tone: string; accent: string; format?: string; year: string; description: string }
-export interface Plan { id: string; workId: string; date?: string; state: 'queued' | 'reading'; reason: string; order: number }
+export type GameTagGroupKey = 'gameplay' | 'theme' | 'scenario' | 'other';
+export interface Work { id: string; title: string; subtitle: string; category: Category; tone: string; accent: string; format?: string; year: string; description: string; gameTags?: Partial<Record<GameTagGroupKey, string[]>> }
+// Prototype-only planning ranges. These do not change the production library format.
+export interface PlanPlacement { id: string; kind: 'season' | 'month' | 'stage' | 'week'; start: string; end: string; label: string }
+export interface Plan { id: string; workId: string; date?: string; placements?: PlanPlacement[]; state: 'queued' | 'reading'; reason: string; order: number }
 export interface ReadingRound { id: string; workId: string; finishedOn?: string; impression: string; review: string }
 export interface Activity { id: string; workId: string; date?: string; kind: 'reading' | 'completed' | 'watched' | 'note'; minutes?: number; note: string }
 export interface PreviewState { works: Work[]; plans: Plan[]; rounds: ReadingRound[]; activities: Activity[] }
@@ -19,7 +22,7 @@ export function reducer(state: PreviewState, action: Action): PreviewState {
   if (action.type === 'reset') return action.state;
   if (action.type === 'plan') {
     const existing = state.plans.find(p => p.workId === action.plan.workId);
-    return { ...state, plans: existing ? state.plans.map(p => p.id === existing.id ? { ...p, reason: action.plan.reason, date: action.plan.date } : p) : [...state.plans, action.plan] };
+    return { ...state, plans: existing ? state.plans.map(p => p.id === existing.id ? { ...p, reason: action.plan.reason, date: action.plan.date, placements: action.plan.placements ?? p.placements } : p) : [...state.plans, action.plan] };
   }
   if (action.type === 'start') return { ...state, plans: state.plans.map(p => p.id === action.id ? { ...p, state: 'reading' } : p) };
   if (action.type === 'unplan') return { ...state, plans: state.plans.filter(p => p.id !== action.id) };
