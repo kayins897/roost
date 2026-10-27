@@ -37,10 +37,10 @@ export function createHoloRenderer(onReady: () => void = () => {}) {
   function upload() {
     if (!image?.complete || !image.naturalWidth || !canvas.parentElement) { hide(); return false; }
     const box = canvas.parentElement;
-    const ratio = Math.min(2, window.devicePixelRatio || 1), width = Math.max(1, Math.round(box.clientWidth * ratio)), height = Math.max(1, Math.round(box.clientHeight * ratio));
+    const ratio = Math.min(2, Math.max(1.5, window.devicePixelRatio || 1)), width = Math.max(1, Math.round(box.clientWidth * ratio)), height = Math.max(1, Math.round(box.clientHeight * ratio));
     canvas.width = width; canvas.height = height;
     const input = document.createElement('canvas'); input.width = width; input.height = height;
-    const ctx = input.getContext('2d')!;
+    const ctx = input.getContext('2d')!; ctx.imageSmoothingQuality = 'high';
     // Match the existing library image's object-fit: cover without changing its tilt.
     const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
     ctx.drawImage(image, (width - image.naturalWidth * scale) / 2, (height - image.naturalHeight * scale) / 2, image.naturalWidth * scale, image.naturalHeight * scale);

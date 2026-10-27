@@ -60,35 +60,30 @@ vec3 filmBase(vec3 tex, float phase) {
 `;
   const foil = `void main() {
   vec3 tex = texture2D(uCover, vUv).rgb;
-  vec2 uv = (vUv - 0.5) * vec2(0.6667, 1.0);
-  float hr = uTime * 0.30 + uRay.x * 0.55;
-  float hg = uTime * 0.23 + uRay.y * 0.65;
-  float radius = length(90.0 * uv);
-  float fac = clamp(2.0 * sin(radius + hr * 2.0
-    + 3.0 * (1.0 + 0.8 * cos(length(113.1121 * uv) - hr * 3.121)))
-    - 1.0 - max(5.0 - radius, 0.0), 0.0, 1.0);
-  vec2 rotater = vec2(cos(hr * 0.1221), sin(hr * 0.3512));
-  float angle = dot(rotater, uv) / max(0.0001, length(rotater) * length(uv));
-  float fac2 = clamp(5.0 * cos(hg * 0.3 + angle * 3.14 * (2.2 + 0.9 * sin(hr * 1.65 + 0.2 * hg)))
-    - 4.0 - max(2.0 - length(20.0 * uv), 0.0), 0.0, 1.0);
-  float fac3 = 0.3 * clamp(2.0 * sin(hr * 5.0 + vUv.x * 3.0 + 3.0 * (1.0 + 0.5 * cos(hr * 7.0))), -1.0, 1.0);
-  float fac4 = 0.3 * clamp(2.0 * sin(hr * 6.66 + vUv.y * 3.8 + 3.0 * (1.0 + 0.5 * cos(hr * 3.414))), -1.0, 1.0);
-  float maxfac = max(max(fac, max(fac2, max(fac3, max(fac4, 0.0)))) + 2.2 * (fac + fac2 + fac3 + fac4), 0.0);
-  // Film, broad metallic undulation, then the fine rings and silver light beams.
-  vec3 base = filmBase(tex, 0.0);
-  float metal = (1.0 - exp(-maxfac * 0.26)) * (0.13 + 0.87 * max(fac, fac2));
-  // Sparse segments of finer concentric engraving; no noise dots or lattice overlay.
-  float fine = pow(max(0.0, sin(radius * 2.25 - hr * 1.7 + angle * 0.45)), 12.0)
-    * pow(0.5 + 0.5 * cos(angle * 5.0 + hg), 4.0) * smoothstep(3.0, 10.0, radius);
-  metal = clamp(metal * 0.82 + fine * 0.22, 0.0, 0.92);
   float light = dot(tex, vec3(0.2126, 0.7152, 0.0722));
-  float broad = (fac3 + fac4) * 0.16;
-  vec3 metalBase = clamp(base * (0.97 + broad), 0.0, 1.0);
-  float tone = 0.5 + 0.5 * sin(angle * 3.14 + hr * 0.8);
-  vec3 silver = mix(vec3(0.78, 0.91, 1.0), vec3(1.0, 0.88, 0.96), tone);
-  vec3 reflected = mix(metalBase, silver, metal * 0.88);
-  float protect = 0.85 + 0.15 * (1.0 - light);
-  gl_FragColor = vec4(mix(base, reflected, uStrength * protect), 1.0);
+  // A silver coating catches a moving, slightly bowed light source. No radial
+  // rings, starburst spokes, noise or lattice are printed over the artwork.
+  float drift = uTime * 0.18;
+  float diagonal = dot(vUv - 0.5, vec2(0.78, -0.62))
+    + uRay.x * 0.20 + uRay.y * 0.16 + sin(drift) * 0.12;
+  float bow = sin(vUv.y * 4.0 + drift * 0.6) * 0.038;
+  float ribbon = exp(-pow((diagonal + bow - 0.04) / 0.19, 2.0));
+  float edge = exp(-pow((diagonal + bow - 0.055) / 0.047, 2.0));
+  float shoulder = exp(-pow((diagonal + bow + 0.15) / 0.075, 2.0));
+  float second = exp(-pow((diagonal - 0.36 + sin(vUv.x * 4.5) * 0.04) / 0.14, 2.0));
+  float body = smoothstep(0.018, 0.12, light) * (1.0 - smoothstep(0.80, 0.99, light));
+  vec3 base = mix(tex, filmBase(tex, 0.0), 0.18);
+  // Multiplicative exposure retains the printed fine detail even in the silver
+  // highlight; the very small neutral lift is local, rather than a white veil.
+  float exposure = ribbon * 0.15 + edge * 0.20 + second * 0.055 - shoulder * 0.12;
+  vec3 silver = base * (1.0 + exposure * uStrength * body);
+  vec3 temperature = mix(vec3(0.93, 0.98, 1.0), vec3(1.0, 0.97, 0.94), 0.5 + 0.5 * sin(diagonal * 4.0 + uRay.x));
+  silver += temperature * (ribbon * 0.028 + edge * 0.070) * uStrength * body;
+  silver = mix(silver, vec3(dot(silver, vec3(0.2126, 0.7152, 0.0722))) + vec3(0.035), edge * 0.10 * body * uStrength);
+  // A barely visible continuous brushed response only exists where light falls.
+  float brush = sin((vUv.x * 0.75 - vUv.y) * 170.0 + sin(vUv.y * 7.0) * 0.4);
+  silver += vec3(brush * 0.006 * ribbon * body * uStrength);
+  gl_FragColor = vec4(clamp(silver, 0.0, 1.0), 1.0);
 }`;
   const holo = `void main() {
 ${field()}
@@ -126,17 +121,26 @@ ${field()}
   gl_FragColor = vec4(mix(base, coated, uStrength * (0.60 + 0.25 * glint)), 1.0);
 }`;
   const poly = `void main() {
-${field(true)}
   vec3 tex = texture2D(uCover, vUv).rgb;
-  vec3 base = filmBase(tex, 2.8);
-  float low = min(min(base.r, base.g), base.b);
-  float high = max(max(base.r, base.g), base.b);
-  float saturation_fac = 1.0 - max(0.0, 0.05 * (1.1 - (high - low)));
-  // Video Shader 2 uses HSL, not HSV. Preserve source lightness and dark details.
-  vec3 hsl = rgb2hsl(vec3(base.r * saturation_fac, base.g * saturation_fac, base.b));
-  hsl.x += res + uRay.y * 0.04;
-  hsl.y = min(0.6, hsl.y + 0.5);
-  gl_FragColor = vec4(mix(base, hsl2rgb(hsl), uStrength * 0.90), 1.0);
+  float light = dot(tex, vec3(0.2126, 0.7152, 0.0722));
+  vec3 base = mix(tex, filmBase(tex, 2.8), 0.20);
+  float diagonal = dot(vUv - 0.5, vec2(0.78, -0.62))
+    + uRay.x * 0.22 + uRay.y * 0.16 + sin(uTime * 0.16) * 0.11;
+  float bow = sin(vUv.y * 3.4 + uTime * 0.08) * 0.045;
+  float band = exp(-pow((diagonal + bow) / 0.26, 2.0));
+  float second = exp(-pow((diagonal + bow - 0.42) / 0.17, 2.0));
+  // Thin-film colours travel across a reflection, never replace every source hue.
+  // Keep chromatic offset zero-luminance so edges and lettering retain contrast.
+  float phase = diagonal * 1.35 + vUv.y * 0.12 + uRay.x * 0.16 - uRay.y * 0.10 + uTime * 0.028;
+  vec3 spectrum = 0.5 + 0.5 * cos(6.2831853 * (phase + vec3(0.0, 0.3333, 0.6667)));
+  vec3 chroma = spectrum - vec3(dot(spectrum, vec3(0.2126, 0.7152, 0.0722)));
+  float body = smoothstep(0.025, 0.15, light) * (1.0 - smoothstep(0.73, 0.98, light));
+  float coat = (0.12 + 0.88 * band + second * 0.22) * body * uStrength;
+  vec3 coated = base * (vec3(1.0) + chroma * 0.48 * coat);
+  coated += chroma * 0.055 * coat;
+  float specular = exp(-pow((diagonal + bow + 0.025) / 0.065, 2.0));
+  coated += vec3(0.032 * specular * body * uStrength);
+  gl_FragColor = vec4(clamp(coated, 0.0, 1.0), 1.0);
 }`;
   return { vertex, effects: [
     { kind: 'foil', title: '闪箔', src: head + foil },
