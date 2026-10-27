@@ -3,7 +3,7 @@ export type Category = 'game' | 'book' | 'screen' | 'music';
 export type GameTagGroupKey = 'gameplay' | 'theme' | 'scenario' | 'other';
 export interface Work { id: string; title: string; subtitle: string; category: Category; tone: string; accent: string; format?: string; year: string; description: string; gameTags?: Partial<Record<GameTagGroupKey, string[]>> }
 // Prototype-only planning ranges. These do not change the production library format.
-export interface PlanPlacement { id: string; kind: 'season' | 'month' | 'stage' | 'week'; start: string; end: string; label: string }
+export interface PlanPlacement { id: string; kind: 'season' | 'month' | 'stage' | 'week'; start: string; end: string; label: string; windows?: { start: string; end: string }[] }
 export interface Plan { id: string; workId: string; date?: string; placements?: PlanPlacement[]; state: 'queued' | 'reading'; reason: string; order: number }
 export interface ReadingRound { id: string; workId: string; finishedOn?: string; impression: string; review: string }
 export interface Activity { id: string; workId: string; date?: string; kind: 'reading' | 'completed' | 'watched' | 'note'; minutes?: number; note: string }

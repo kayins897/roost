@@ -34,7 +34,6 @@ function EntryCard({ entry, openWork, editActivity }: Pick<TimelineProps, 'openW
 export function Timeline({ activities, works, scale, openWork, editActivity }: TimelineProps) {
   const groups = timelineGroups(activities, works, scale);
   return <section className="rt-timeline" aria-label="体验时间轴">
-    <header className="rt-heading"><div><p className="rw-eyebrow">留下来的片段</p><h2>时间里的作品</h2></div><span>{activities.length} 条经历</span></header>
     {!groups.length && <div className="rw-empty rt-empty"><CalendarDays size={28}/><p>这一段时间还没有记录</p><span>未完成的体验，也可以留下片段。</span></div>}
     {groups.map((group, index) => <details className="rt-group" key={group.id} open={groups.length <= 6 || index < 2}>
       <summary><span>{group.label}</span><small>{group.entries.length} 个片段</small><ChevronDown size={14}/></summary>

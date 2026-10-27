@@ -1,74 +1,51 @@
-import { ArrowLeft, ArrowRight, CalendarDays, Plus, BookOpen, Gamepad2, Clapperboard, Music2, Pencil, ArrowUpRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Plus } from 'lucide-react';
 import { useState } from 'react';
 import type { WorkspaceProps } from './contracts';
-import { ACTIVITY_LABELS, CATEGORY_LABELS, dailyMinutes, type Activity, type Category, type Plan } from './model';
+import { CATEGORY_LABELS, dailyMinutes, type Activity, type Category } from './model';
 import { calendarPeriod, inPeriod, shiftPeriod, type CalendarScale } from './periods';
-import { CalendarWeekPanel, CalendarYearPanel } from './CalendarPeriodPanels';
 import { PeriodSummary } from './PeriodSummary';
-import './calendar-periods.css';
+import { PlanningBoard } from './PlanningBoard';
+import { CalendarNavigator } from './CalendarNavigator';
+import { Timeline } from './Timeline';
+import { GameTagCloud } from './GameTagCloud';
 
-const icons = { book: BookOpen, game: Gamepad2, screen: Clapperboard, music: Music2 };
-export function monthCells(month: string): string[] {
-  const [year, m] = month.split('-').map(Number), first = new Date(Date.UTC(year, m - 1, 1));
-  const offset = (first.getUTCDay() + 6) % 7;
-  return Array.from({ length: 42 }, (_, index) => new Date(Date.UTC(year, m - 1, index + 1 - offset)).toISOString().slice(0, 10));
-}
 export interface CalendarProps extends WorkspaceProps {
-  date: string; setDate: (value: string) => void; filter: Category | 'all'; setFilter: (value: Category | 'all') => void;
-  editActivity: (entry?: Activity) => void; editPlan: (plan?: Plan) => void;
+  date: string; setDate: (value: string) => void;
+  filter: Category | 'all'; setFilter: (value: Category | 'all') => void;
+  editActivity: (entry?: Activity) => void;
 }
 export function CalendarView(props: CalendarProps) {
-  const { state, today, date, setDate, filter, setFilter, query, editActivity, editPlan, openWork } = props;
+  const { state, today, date, setDate, filter, setFilter, query, editActivity, openWork } = props;
   const [scale, setScale] = useState<CalendarScale>('month');
-  const month = date.slice(0, 7), period = calendarPeriod(date, scale);
-  const works = new Map(state.works.map(w => [w.id, w]));
+  const [face, setFace] = useState<'review' | 'plan'>('review');
+  const [navigator, setNavigator] = useState(false);
+  const period = calendarPeriod(date, scale), todayMinutes = dailyMinutes(state, today);
+  const works = new Map(state.works.map(work => [work.id, work]));
   const matches = (workId: string, note = '') => {
     const work = works.get(workId);
-    return !!work && (filter === 'all' || work.category === filter) && `${work.title} ${note}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+    return !!work && work.category !== 'music' && (filter === 'all' || work.category === filter) && `${work.title} ${note}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
   };
   const activities: Activity[] = [
-    ...state.activities.filter(a => matches(a.workId, a.note)),
-    ...state.rounds.filter(r => matches(r.workId, r.impression)).map(r => ({ id: `round:${r.id}`, workId: r.workId, date: r.finishedOn, kind: 'completed' as const, note: r.impression })),
+    ...state.activities.filter(activity => matches(activity.workId, activity.note)),
+    ...state.rounds.filter(round => matches(round.workId, round.impression)).map(round => ({ id: `round:${round.id}`, workId: round.workId, date: round.finishedOn, kind: 'completed' as const, note: round.impression })),
   ];
-  const plans = state.plans.filter(p => matches(p.workId, p.reason));
-  const dayEntries = activities.filter(a => a.date === date);
-  const dayPlans = plans.filter(p => p.date === date);
-  const imprecise = activities.filter(a => !a.date || (a.date.length < 10 && inPeriod(a.date, period, scale)));
-  const undatedPlans = plans.filter(p => !p.date);
-  const periodActivities = activities.filter(a => inPeriod(a.date, period, scale));
-  const periodPlans = plans.filter(p => inPeriod(p.date, period, scale)).sort((a, b) => a.date!.localeCompare(b.date!));
-  const [year, monthNumber] = month.split('-');
-  const todayReading = state.activities.filter(a => a.date === today && a.kind === 'reading' && works.get(a.workId)?.category === 'book');
-  const todayMinutes = dailyMinutes(state, today);
+  const periodActivities = activities.filter(activity => inPeriod(activity.date, period, scale));
+  const undated = activities.filter(activity => !activity.date);
+  const changeScale = (value: CalendarScale) => { setScale(value); setNavigator(false); };
   return <>
-    <div className="rw-page-heading"><div><p className="rw-eyebrow">你的文娱日常</p><h1>日历</h1><p className="rw-muted">经历留在时间里，喜欢也有下一次。</p></div><div className="rw-heading-actions"><button className="rw-button" onClick={() => editPlan()}><CalendarDays size={16}/>安排计划</button><button className="rw-button rw-button--primary" onClick={() => editActivity()}><Plus size={17}/>记录体验</button></div></div>
-    <div className="cal-scale-row"><div className="cal-scale-switch" role="group" aria-label="日历视图">{([{ id: 'year', label: '年度' }, { id: 'month', label: '月度' }, { id: 'week', label: '每周' }] as const).map(view => <button key={view.id} aria-pressed={scale === view.id} className={scale === view.id ? 'is-active' : ''} onClick={() => setScale(view.id)}>{view.label}</button>)}</div><div className="cal-summary"><span>今天是 10 月 27 日，星期二</span><span>{todayMinutes !== undefined ? <>已记录阅读 <strong>{todayMinutes} 分钟</strong>{todayReading.some(a => a.minutes === undefined) && '，另有时长未记录'}</> : todayReading.length ? '已有阅读记录 · 时长未记录' : '今天的故事，等你留下。'}</span></div></div>
-    <section className={`cal-layout cal-layout--${scale}`}>
-      <div className="rw-card cal-month">
-        <header className="cal-month-heading"><h2 className={scale === 'week' ? 'cal-period-label' : ''}>{scale === 'month' ? <>{year}<span>年</span> {Number(monthNumber)}<span>月</span></> : period.label}</h2><div className="cal-month-buttons"><button className="rw-button" onClick={() => setDate(today)}>今天</button><button className="rw-icon-button" aria-label={scale === 'week' ? '上一周' : scale === 'year' ? '上一年' : '上个月'} onClick={() => setDate(shiftPeriod(date, scale, -1))}><ArrowLeft size={17}/></button><button className="rw-icon-button" aria-label={scale === 'week' ? '下一周' : scale === 'year' ? '下一年' : '下个月'} onClick={() => setDate(shiftPeriod(date, scale, 1))}><ArrowRight size={17}/></button></div></header>
-        <div className="cal-filters" aria-label="日历媒体筛选">{(['all', 'game', 'book', 'screen', 'music'] as const).map(value => <button key={value} className={filter === value ? 'is-active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? '全部' : CATEGORY_LABELS[value]}</button>)}<span className="rw-muted">当前范围 {periodActivities.length} 条经历</span></div>
-        {scale === 'month' ? <><div className="cal-weekdays" aria-hidden="true">{'一二三四五六日'.split('').map(day => <span key={day}>{day}</span>)}</div>
-        <div className="cal-grid" role="group" aria-label={`${year}年${Number(monthNumber)}月日历`}>{monthCells(month).map(day => {
-          const entries = activities.filter(a => a.date === day), scheduled = plans.filter(p => p.date === day);
-          const count = entries.length + scheduled.length;
-          return <button key={day} className={`cal-cell ${day.startsWith(month) ? '' : 'cal-cell--outside'} ${date === day ? 'is-selected' : ''} ${day === today ? 'is-today' : ''}`} aria-label={`${day}，${entries.length}条记录，${scheduled.length}项计划`} aria-pressed={date === day} onClick={() => setDate(day)} onKeyDown={event => {
-            const delta = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' ? -7 : event.key === 'ArrowDown' ? 7 : 0;
-            if (!delta) return;
-            event.preventDefault();
-            const next = new Date(`${day}T00:00:00Z`); next.setUTCDate(next.getUTCDate() + delta); const nextDay = next.toISOString().slice(0, 10);
-            setDate(nextDay); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`[data-cal-day="${nextDay}"]`)?.focus());
-          }} data-cal-day={day}><span className="cal-day-number">{Number(day.slice(-2))}</span><span className="cal-cell-events">{entries.slice(0, 2).map(entry => { const work = works.get(entry.workId)!; return <span className={`cal-event cal-event--${work.category}`} key={entry.id}><i/>{work.title}</span>; })}{scheduled.slice(0, Math.max(0, 2 - entries.length)).map(plan => <span className="cal-event cal-event--plan" key={plan.id}><i/>{works.get(plan.workId)!.title}</span>)}{count > 2 && <small>+{count - 2} 条</small>}</span>{count > 0 && <span className="cal-mobile-dots" aria-hidden="true">{entries.slice(0, 3).map(a => <i className={`cal-dot--${works.get(a.workId)!.category}`} key={a.id}/>)}{scheduled.length > 0 && <i className="cal-dot--plan"/>}</span>}</button>;
-        })}</div></> : scale === 'year' ? <CalendarYearPanel date={date} activities={activities} plans={plans} works={state.works} onSelect={setDate} onMonth={value => { setDate(`${value}-01`); setScale('month'); }}/> : <CalendarWeekPanel date={date} activities={activities} plans={plans} works={state.works} onSelect={setDate} onMonth={value => { setDate(`${value}-01`); setScale('month'); }}/>}
-        <footer className="cal-legend"><span><i className="cal-dot--book"/>阅读</span><span><i className="cal-dot--game"/>游戏</span><span><i className="cal-dot--screen"/>影视</span><span><i className="cal-dot--plan"/>计划</span></footer>
-      </div>
-      <aside className="rw-card cal-day-panel" aria-label="选中日期详情"><div className="cal-day-title"><div><p className="rw-eyebrow">{date === today ? '今天' : date > today ? '未来安排' : '这一天'}</p><h2>{Number(date.slice(5, 7))} 月 {Number(date.slice(8))} 日</h2></div><span className="rw-muted">{new Date(`${date}T00:00:00Z`).toLocaleDateString('zh-CN', { weekday: 'long', timeZone: 'UTC' })}</span></div>
-        <div className="cal-day-list">{dayEntries.map(entry => { const work = works.get(entry.workId)!, Icon = icons[work.category], round = entry.id.startsWith('round:'); return <article className="cal-day-entry" key={entry.id}><span className={`cal-entry-icon cal-entry-icon--${work.category}`}><Icon size={19}/></span><div><span className="rw-eyebrow">{round ? '读完' : ACTIVITY_LABELS[entry.kind]}{entry.minutes !== undefined ? ` · ${entry.minutes} 分钟` : round ? '' : ' · 时长未记录'}</span><button className="cal-work-link" onClick={() => openWork(work.id)}>{work.title}<ArrowUpRight size={13}/></button>{entry.note && <p>{entry.note}</p>}</div><button className="rw-icon-button" aria-label={`修改${work.title}的记录`} onClick={() => round ? openWork(work.id) : editActivity(entry)}><Pencil size={14}/></button></article>; })}
-        {dayPlans.map(plan => <article className="cal-day-entry cal-day-entry--plan" key={plan.id}><span className="cal-entry-icon"><CalendarDays size={18}/></span><div><span className="rw-eyebrow">{plan.state === 'reading' ? '在读计划' : plan.date! < today ? '未执行计划' : '计划'}</span><button className="cal-work-link" onClick={() => openWork(plan.workId)}>{works.get(plan.workId)!.title}</button><p>{plan.reason || '留给下一次体验。'}</p></div><button className="rw-icon-button" aria-label="修改计划" onClick={() => editPlan(plan)}><Pencil size={14}/></button></article>)}
-        {!dayEntries.length && !dayPlans.length && <div className="rw-empty"><CalendarDays size={27}/><p>这一天还没有记录</p><span>可以补录经历，也可以留给未来。</span></div>}</div>
-        <button className="rw-button cal-day-add" onClick={() => date > today ? editPlan({ id: '', workId: 'b1', date, state: 'queued', reason: '', order: 0 }) : editActivity()}><Plus size={16}/>{date > today ? '安排这一天' : '记下这一天'}</button>
-      </aside>
-    </section>
-    <PeriodSummary period={period} activities={periodActivities} plans={periodPlans} works={state.works} filter={filter} editPlan={editPlan}/>
-    <section className="cal-extra"><div className="rw-card cal-loose"><header><h3>尚未定日</h3><span className="rw-muted">{undatedPlans.length} 项计划</span></header>{undatedPlans.length ? <div className="cal-loose-plans">{undatedPlans.map(plan => <button key={plan.id} onClick={() => editPlan(plan)}><span className={`cal-loose-dot cal-dot--${works.get(plan.workId)!.category}`}/><span>{works.get(plan.workId)!.title}</span><small>{plan.state === 'reading' ? '在读' : '待安排'}</small><ArrowUpRight size={14}/></button>)}</div> : <p className="rw-muted">暂时没有未定日期的计划</p>}</div><div className="rw-card cal-loose"><header><h3>不必记得每一个日期</h3><span className="rw-muted">{imprecise.length} 条</span></header>{imprecise.length ? imprecise.map(a => <button className="cal-imprecise" key={a.id} onClick={() => a.id.startsWith('round:') ? openWork(a.workId) : editActivity(a)}><span>{works.get(a.workId)!.title}</span><small>{a.id.startsWith('round:') ? '读完 · ' : '体验 · '}{a.date || '日期未知'}</small></button>) : <p className="rw-muted">年月或日期未知的经历会留在这里。</p>}</div></section>
+    <div className="rw-page-heading"><div><p className="rw-eyebrow">你的文娱日常</p><h1>日历</h1></div><div className="cl-face-switch" role="group" aria-label="日历内容"><button aria-pressed={face === 'review'} className={face === 'review' ? 'is-active' : ''} onClick={() => setFace('review')}>回顾</button><button aria-pressed={face === 'plan'} className={face === 'plan' ? 'is-active' : ''} onClick={() => setFace('plan')}>规划</button></div></div>
+    <div className="cl-toolbar">
+      <div className="cal-scale-switch" role="group" aria-label="日历视图">{([{ id: 'year', label: '年度' }, { id: 'month', label: '月度' }, { id: 'week', label: '每周' }] as const).map(view => <button key={view.id} aria-pressed={scale === view.id} className={scale === view.id ? 'is-active' : ''} onClick={() => changeScale(view.id)}>{view.label}</button>)}</div>
+      <div className="cl-period-control"><button className="rw-icon-button" aria-label={scale === 'week' ? '上一周' : scale === 'year' ? '上一年' : '上个月'} onClick={() => setDate(shiftPeriod(date, scale, -1))}><ArrowLeft size={17}/></button><h2>{period.label}</h2><button className="rw-icon-button" aria-label={scale === 'week' ? '下一周' : scale === 'year' ? '下一年' : '下个月'} onClick={() => setDate(shiftPeriod(date, scale, 1))}><ArrowRight size={17}/></button></div>
+      <div className="cl-toolbar-actions"><button className="rw-button" onClick={() => setDate(today)}>今天</button>{face === 'review' && <button className="rw-icon-button" aria-label="选择日期" aria-expanded={navigator} onClick={() => setNavigator(!navigator)}><CalendarDays size={18}/></button>}</div>
+    </div>
+    <div className="cl-filter-row"><div className="cal-filters" aria-label="日历媒体筛选">{(['all', 'game', 'book', 'screen'] as const).map(value => <button key={value} className={filter === value ? 'is-active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? '全部' : CATEGORY_LABELS[value]}</button>)}</div><span className="cl-today">今天阅读 {todayMinutes === undefined ? '时长未记录' : `${todayMinutes} 分钟`}</span></div>
+    {face === 'plan' ? <PlanningBoard {...props} scale={scale}/> : <>
+      {navigator && <CalendarNavigator date={date} scale={scale} activities={activities} works={state.works} setDate={setDate} setScale={changeScale} editActivity={editActivity} openWork={openWork}/>}
+      <PeriodSummary period={period} activities={periodActivities} works={state.works} filter={filter}/>
+      <div className="cl-review-layout"><section className="cl-story"><header className="cl-story-heading"><div><p className="rw-eyebrow">留下来的经历</p><h2>体验时间轴</h2></div><button className="rw-button" onClick={() => editActivity()}><Plus size={16}/>记录体验</button></header><Timeline activities={periodActivities} works={state.works} scale={scale} openWork={openWork} editActivity={editActivity}/></section>
+      {(filter === 'all' || filter === 'game') && <GameTagCloud activities={periodActivities} works={state.works} periodLabel={period.label} openWork={openWork}/>}</div>
+      {undated.length > 0 && <details className="cl-undated"><summary>日期未知的经历 <span>{undated.length}</span></summary><div>{undated.map(activity => <button key={activity.id} onClick={() => activity.id.startsWith('round:') ? openWork(activity.workId) : editActivity(activity)}><span>{works.get(activity.workId)!.title}</span><small>{activity.note || '保留原始记录'}</small></button>)}</div></details>}
+    </>}
   </>;
 }

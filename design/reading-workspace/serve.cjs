@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const root = __dirname;
-const port = Number(process.argv[2] || 4186);
+const port = Number(process.argv[2] || 4187);
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.ttf': 'font/ttf' };
 http.createServer((req, res) => {
   try {

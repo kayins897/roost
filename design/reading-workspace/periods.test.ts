@@ -32,7 +32,7 @@ test('weekly summaries count known minutes only, preserve unknown and zero, isol
   const state = createSeed(), week = calendarPeriod('2026-10-20', 'week');
   const activities = state.activities.filter(a => inPeriod(a.date, week, 'week'));
   assert.deepEqual(categoryStats(activities, state.works, 'book'), { works: 1, records: 1, minutes: 0, unknown: 0 });
-  assert.deepEqual(categoryStats(activities, state.works, 'game'), { works: 1, records: 1, minutes: undefined, unknown: 1 });
+  assert.deepEqual(categoryStats(activities, state.works, 'game'), { works: 3, records: 6, minutes: 220, unknown: 2 });
   assert.deepEqual(categoryStats(activities, state.works, 'screen'), { works: 1, records: 1, minutes: 102, unknown: 0 });
   assert.deepEqual(categoryStats(activities, state.works, 'music'), { works: 0, records: 0, minutes: undefined, unknown: 0 });
 });
