@@ -18,6 +18,8 @@ const check = (name, details) => { checks.push({ name, passed: true, ...(details
 async function launch() {
   const env = { ...process.env, QIYU_E2E: '1', QIYU_TEST_DATA_DIR: data }; delete env.ELECTRON_RUN_AS_NODE;
   app = await electron.launch({ executablePath, args: packaged ? [] : [root], env, timeout: 45000 });
+  app.process().stderr?.on('data', chunk => fs.appendFileSync(path.join(evidence, 'electron-stderr.txt'), chunk));
+  app.process().on('exit', (code, signal) => console.log(`Electron exit: code=${code}, signal=${signal}`));
   page = await app.firstWindow(); page.on('pageerror', error => errors.push(error.message));
   page.on('dialog', dialog => dialog.accept().catch(() => {}));
   await page.getByRole('heading', { name: '游戏', exact: true }).waitFor();
@@ -65,7 +67,7 @@ async function setScore(scope, value, label = '通关评分') {
   assert.equal(await card('多彩').locator('img').evaluate(image => image.complete && image.naturalWidth > 0), true);
   await page.waitForTimeout(100); await page.evaluate(() => window.__materialRecovery.restoreContext()); await card('多彩').locator('[data-webgl-material="active"]').waitFor(); check('WebGL上下文丢失回退原图，恢复后重建材质');
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.waitForTimeout(100); await card('闪箔').locator('.card-cover').hover(); await card('闪箔').locator('[data-webgl-material="active"]').waitFor(); await page.emulateMedia({ reducedMotion: 'no-preference' }); check('减少动态效果仍可显示静态材质');
-  await page.mouse.move(1300, 120); await page.waitForTimeout(100); assert.equal(await page.locator('.cover-material-canvas').count(), 0); check('共享一个卡面渲染器，离开后移除');
+  await page.mouse.move(1300, 120); await page.locator('.cover-material-canvas').waitFor({ state: 'detached' }); check('共享一个卡面渲染器，离开后移除');
   await picture('library'); await open(); assert.equal(await page.locator('.detail-dialog-heading').count(), 0); assert.equal(await page.locator('[data-widget=count]').count(), 0);
   assert.equal(await page.locator('.bento-cover-image').evaluate(image => getComputedStyle(image).objectFit), 'contain'); await picture('detail-top'); check('正式无标题栏Bento、封面contain、完成次数默认隐藏');
   let menu = await context('grade'); let wheels = await setScore(menu, 10); assert.equal(await wheels.decimalWheel.getAttribute('aria-disabled'), 'true'); assert.equal(snapshot().items[0].personalScore, 9.8);
@@ -101,7 +103,9 @@ async function setScore(scope, value, label = '通关评分') {
   await nativeOpen(moreScreenshots); menu = await context('gallery'); await menu.getByRole('button', { name: '导入截图', exact: true }).click(); await page.waitForFunction(() => document.querySelector('.bento-gallery-heading small')?.textContent === '10 张');
   await menu.getByRole('button', { name: '九宫格', exact: true }).click(); await page.keyboard.press('Escape'); assert.equal(await page.locator('.bento-gallery-image').count(), 9);
   await page.getByRole('button', { name: '下一组截图', exact: true }).click(); assert.equal(await page.locator('.bento-gallery-image').count(), 1);
-  const beforeRemove = snapshot().items[0].screenshots; await page.locator('.bento-gallery-image').click(); await page.getByRole('button', { name: '设为封面', exact: true }).click(); assert.equal(snapshot().items[0].screenshotCoverId, beforeRemove[9].id);
+  const beforeRemove = snapshot().items[0].screenshots; await page.locator('.bento-gallery-image').click();
+  assert.equal(await page.locator('.toast').evaluateAll(elements => elements.every(element => getComputedStyle(element).pointerEvents === 'none')), true);
+  await page.getByRole('button', { name: '设为封面', exact: true }).click(); assert.equal(snapshot().items[0].screenshotCoverId, beforeRemove[9].id);
   await page.getByRole('button', { name: '移出相册', exact: true }).click(); assert.deepEqual(snapshot().items[0].screenshots, beforeRemove.slice(0, 9)); assert.equal(snapshot().items[0].screenshotCoverId, undefined); await page.getByRole('button', { name: '关闭截图', exact: true }).click();
   menu = await context('gallery'); await menu.getByRole('button', { name: '四宫格', exact: true }).click(); await page.keyboard.press('Escape'); await picture('detail-gallery'); check('十张截图九宫格翻页，移除只影响目标引用并回退封面');
   const beforeLayout = fs.readFileSync(libraryFile(), 'utf8'); menu = await context('tags'); await menu.getByRole('button', { name: '外观与布局', exact: true }).click(); await menu.getByRole('textbox', { name: '卡片颜色色号', exact: true }).fill('#2165d8'); await menu.getByRole('button', { name: '应用', exact: true }).click();
