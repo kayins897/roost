@@ -1,0 +1,26 @@
+.rd-face-switch { flex-wrap: wrap; }
+.rd-face-switch button { display: inline-flex; gap: 7px; align-items: center; justify-content: center; padding-inline: 17px; }
+.rd-face-switch small { font-size: 10px; opacity: .64; font-variant-numeric: tabular-nums; }
+.rd-book-state[data-status='read'], .rd-arrangement [data-status='read'] { color: #a8d3b9; }
+.rd-book-state[data-status='idle'], .rd-arrangement [data-status='idle'] { color: #d6bd8c; }
+.rd-book-state[data-status='abandoned'], .rd-arrangement [data-status='abandoned'] { color: #cd9b9a; }
+.rd-book-state[data-status='reading'], .rd-arrangement [data-status='reading'] { color: #bbd89f; }
+.rd-shelf--grid blockquote { font-size: 13px; color: #d3decf; line-height: 1.9; margin-top: 9px; overflow-wrap: anywhere; }
+.rd-arrangement [data-status='want'] { color: #c6b7e6; }
+.rd-arrangement { padding-bottom: 22px; border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+.rd-arrangement>header { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; font-size: 12px; color: var(--muted); }
+.rd-arrangement strong { font-size: 20px; font-weight: 600; }
+.rd-arrangement>div { display: flex; flex-wrap: wrap; gap: 7px; }
+.rd-arrangement button { border: 1px solid #bfd8c728; border-radius: 20px; background: #ffffff03; padding: 7px 13px; font-size: 12px; }
+.rd-arrangement button:hover { background: #bfd8c714; }
+.rd-arrangement button[aria-pressed='true'] { background: #bfd8c71c; border-color: #bfd8c76b; }
+.rd-arrangement>p { margin-top: 13px; color: var(--muted); font-size: 11px; line-height: 1.8; }
+.rd-book-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 13px; margin: 21px 0; font-size: 11px; line-height: 1.8; }
+.rd-book-facts dt { color: var(--muted); }
+.rd-book-facts dd { margin: 0; overflow-wrap: anywhere; }
+.rd-empty>.rd-text-button { margin-top: 15px; }
+@media (max-width: 700px) {
+  .rd-library-filters { width: 100%; }
+  .rd-face-switch { width: 100%; border-radius: 20px; }
+  .rd-face-switch button { flex: 1 0 28%; padding: 8px 10px; }
+}

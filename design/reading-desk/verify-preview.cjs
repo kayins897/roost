@@ -42,32 +42,32 @@ const noOverflow = async () => {
   });
   await reset();
   await check('unified shelf opens with in-progress books pinned and no reading hero', async () => {
-    assert.equal(await books().count(), 5);
+    assert.equal(await books().count(), 8);
     assert.deepEqual((await ids()).slice(0, 2), ['b1', 'b3']);
     assert.equal(await page.locator('.rd-current, .rd-reading-grid, .rd-tag-cloud').count(), 0);
-    assert.equal(await button('想读').getAttribute('aria-pressed'), 'true');
-    assert.equal(await button('读过').getAttribute('aria-pressed'), 'false');
+    assert.equal(await button('全部').getAttribute('aria-pressed'), 'true');
+    assert.equal(await button('已读').getAttribute('aria-pressed'), 'false');
     assert.equal(await page.getByRole('button', { name: /开始阅读|标为在读|音乐/ }).count(), 0);
     await noOverflow(); await shot('reading-plan-grid');
   });
   await check('single-face views and in-progress filter preserve rereading history and plans', async () => {
-    await click(button('只看在读')); assert.deepEqual(await ids(), ['b1', 'b3']);
-    await click(button('只看在读')); assert.equal(await books().count(), 5);
-    await click(button('读过')); assert.equal(await books().count(), 5);
+    await click(button('在读')); assert.deepEqual(await ids(), ['b1', 'b3']);
+    await click(button('全部')); assert.equal(await books().count(), 8);
+    await click(button('已读')); assert.equal(await books().count(), 5);
     assert.equal(await page.locator('[data-face="plan"]').count(), 0);
-    await click(button('只看在读')); assert.deepEqual(new Set(await ids()), new Set(['b1', 'b3']));
-    await click(button('想读')); assert.equal(await books().count(), 5);
-    assert.equal(await button('只看在读').getAttribute('aria-pressed'), 'false');
+    await click(button('在读')); assert.deepEqual(new Set(await ids()), new Set(['b1', 'b3']));
+    await click(button('想读')); assert.equal(await books().count(), 3);
+    assert.equal(await button('在读').getAttribute('aria-pressed'), 'false');
     await click(button('想读')); assert.equal(await button('想读').getAttribute('aria-pressed'), 'true');
   });
   await check('plan and record grid/list choices are retained independently', async () => {
-    await click(button('阅读计划横向列表')); await shot('reading-plan-list');
-    await click(button('读过'));
+    await click(button('书架横向列表')); await shot('reading-plan-list');
+    await click(button('已读'));
     assert.equal(await page.locator('[data-layout]').getAttribute('data-layout'), 'grid');
     assert.equal(await page.locator('.rd-history blockquote').count(), 5); await shot('reading-records-grid');
-    await click(button('阅读记录横向列表')); await shot('reading-records-list');
+    await click(button('书架横向列表')); await shot('reading-records-list');
     await click(button('想读')); assert.equal(await page.locator('[data-layout]').getAttribute('data-layout'), 'list');
-    await click(button('读过')); assert.equal(await page.locator('[data-layout]').getAttribute('data-layout'), 'list');
+    await click(button('已读')); assert.equal(await page.locator('[data-layout]').getAttribute('data-layout'), 'list');
   });
   await check('large yearly heatmap precedes filters and is unaffected by library filters', async () => {
     const d = await page.evaluate(() => ({ heat: document.querySelector('.rd-reading-overview').getBoundingClientRect(), filters: document.querySelector('.rd-library-toolbar').getBoundingClientRect(), cell: document.querySelector('.bk-heat-day').getBoundingClientRect() }));
@@ -103,7 +103,7 @@ const noOverflow = async () => {
     await click(dialog().getByRole('button', { name: '应用分配', exact: true }));
     await click(dialog().getByRole('button', { name: '完成', exact: true }));
     assert.equal(await books().count(), 0); assert.equal(await button('夏日重读，0 本书').count(), 1);
-    await click(page.locator('.rd-tag-filter').getByRole('button', { name: /清除标签/ })); assert.equal(await books().count(), 5);
+    await click(page.locator('.rd-tag-filter').getByRole('button', { name: /清除标签/ })); assert.equal(await books().count(), 3);
   });
   await check('book context tags choose existing tags, cancel drafts and feed search/detail immediately', async () => {
     const target = page.locator('.rd-book[data-work-id="b4"]');
@@ -134,12 +134,12 @@ const noOverflow = async () => {
     page.once('dialog', prompt => prompt.accept());
     await click(dialog().getByRole('button', { name: '删除标签：太空之旅', exact: true }));
     await click(dialog().getByRole('button', { name: '完成', exact: true }));
-    assert.equal(await books().count(), 5); assert.equal(await page.locator('.rd-tag-chip').filter({ hasText: '太空之旅' }).count(), 0);
-    await click(button('读过')); assert.equal(await books().count(), 5);
+    assert.equal(await books().count(), 3); assert.equal(await page.locator('.rd-tag-chip').filter({ hasText: '太空之旅' }).count(), 0);
+    await click(button('已读')); assert.equal(await books().count(), 5);
   });
   await check('search covers impressions and plan reasons with recoverable empty results', async () => {
     const search = page.getByRole('textbox', { name: '搜索书名、作者、标签或感想' });
-    await search.fill('日常'); await settle(); assert.deepEqual(await ids(), ['b3']);
+    await search.fill('习以为常'); await settle(); assert.deepEqual(await ids(), ['b3']);
     await search.fill('并不存在的书名'); await settle(); assert.equal(await books().count(), 0);
     await click(button('清空搜索')); assert.equal(await books().count(), 5);
     await click(button('想读')); await search.fill('沿河走'); await settle(); assert.deepEqual(await ids(), ['b2']);
@@ -154,6 +154,7 @@ const noOverflow = async () => {
     assert.equal(await trigger.evaluate(node => document.activeElement === node), true);
   });
   await check('minute editing validates and preserves failure drafts without completing books', async () => {
+    await click(button('全部'));
     await click(button('为《看不见的城市》记一次阅读'));
     await dialog().getByLabel('本次分钟数').fill('-2'); await click(dialog().getByRole('button', { name: '保存记录', exact: true }));
     assert.ok((await dialog().getByRole('alert').innerText()).includes('0–1440'));
@@ -162,7 +163,7 @@ const noOverflow = async () => {
     await click(dialog().getByRole('button', { name: '保存记录', exact: true }));
     assert.equal(await dialog().getByLabel('本次分钟数').inputValue(), '30');
     await dialog().getByLabel('模拟保存失败').uncheck(); await click(dialog().getByRole('button', { name: '保存记录', exact: true }));
-    assert.equal(await books().count(), 5); await click(button('读过')); assert.equal(await books().count(), 5);
+    assert.equal(await books().count(), 8); await click(button('已读')); assert.equal(await books().count(), 5);
     const today = page.locator('[data-date="2026-10-27"]');
     assert.ok((await today.getAttribute('aria-label')).includes('80 分钟'));
     assert.ok((await page.locator('[data-date="2026-10-21"]').getAttribute('aria-label')).includes('0 分钟'));
@@ -185,27 +186,29 @@ const noOverflow = async () => {
     assert.equal(await page.locator('.rd-book[data-work-id="b2"]').count(), 1);
   });
   await check('sorting retains reading pinning; plan cancellation and refresh restore correctly', async () => {
+    await click(button('全部'));
     await page.getByLabel('排序方式', { exact: true }).click(); await click(button('名称'));
     assert.deepEqual(new Set((await ids()).slice(0, 2)), new Set(['b1', 'b3']));
     await click(button('切换排序方向')); assert.deepEqual(new Set((await ids()).slice(0, 2)), new Set(['b1', 'b3']));
     await click(button('加入计划')); await dialog().getByRole('combobox', { name: '书籍', exact: true }).selectOption('b7');
-    await click(dialog().getByRole('button', { name: '取消', exact: true })); assert.equal(await books().count(), 5);
+    await click(dialog().getByRole('button', { name: '取消', exact: true })); assert.equal(await books().count(), 8);
     await click(button('加入计划')); await dialog().getByRole('combobox', { name: '书籍', exact: true }).selectOption('b7');
-    await click(dialog().getByRole('button', { name: '保存计划', exact: true })); assert.equal(await books().count(), 6);
-    await reset(); assert.equal(await books().count(), 5); assert.equal(await button('夏日重读，0 本书').count(), 0);
+    await click(dialog().getByRole('button', { name: '保存计划', exact: true })); assert.equal(await books().count(), 8);
+    await click(button('想读')); assert.equal(await books().count(), 4);
+    await reset(); assert.equal(await books().count(), 8); assert.equal(await button('夏日重读，0 本书').count(), 0);
   });
   await check('shelves, heatmap and tag dialog fit five desktop/tablet/phone viewports', async () => {
     for (const [width, height] of [[1440, 1050], [1000, 900], [768, 900], [390, 844], [360, 740]]) {
       await page.setViewportSize({ width, height }); await reset(); await noOverflow();
       if (width !== 1440) await shot('reading-plan-' + width);
-      await click(button('读过')); await noOverflow();
+      await click(button('已读')); await noOverflow();
       if (width < 700) {
         assert.equal(await page.locator('.rd-heat-navigation').isVisible(), true);
         await click(button('回到年初'));
         assert.ok(await page.locator('.bk-heat-scroll').evaluate(node => node.scrollLeft < 2));
       }
       if (width !== 1440) await shot('reading-records-' + width);
-      await click(button('阅读记录横向列表')); await noOverflow();
+      await click(button('书架横向列表')); await noOverflow();
       await click(button('管理书籍标签'));
       const bounds = await dialog().boundingBox();
       assert.ok(bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y + bounds.height <= height + 1);
@@ -224,7 +227,7 @@ const noOverflow = async () => {
   });
   await check('offline entry has zero external requests, storage writes and page errors', async () => {
     await page.goto(pathToFileURL(path.join(out, 'index.html')).href); await page.evaluate(() => document.fonts.ready);
-    assert.equal(await books().count(), 5); await click(button('读过')); assert.equal(await books().count(), 5);
+    assert.equal(await books().count(), 8); await click(button('已读')); assert.equal(await books().count(), 5);
     assert.equal(await page.evaluate(() => window.__deskWrites), 0); assert.equal(storageWrites, 0);
     assert.deepEqual(errors, []); assert.deepEqual(remote, []);
   });

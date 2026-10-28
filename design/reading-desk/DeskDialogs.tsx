@@ -1,36 +1,20 @@
-import { ArrowLeft, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { ActivityForm } from '../reading-workspace/ActivityForm';
-import { PlanForm, RoundForm, readingDate } from '../reading-workspace/BookForms';
+import { PlanForm, RoundForm } from '../reading-workspace/BookForms';
 import { PREVIEW_TODAY } from '../reading-workspace/seed';
 import { Dialog } from '../reading-workspace/ui';
 import { BookCover } from './BookCover';
+import { BookPanel } from './BookPanel';
 import { COLLECTIONS, durationLabel } from './catalog';
 import { BookTagEditor, TagManager } from './TagEditor';
 import type { DeskDialog, DeskProps } from './types';
-
-function BookPanel({ state, open, tags, workId, onClose }: Pick<DeskProps, 'state' | 'open' | 'tags'> & { workId: string; onClose: () => void }) {
-  const work = state.works.find(work => work.id === workId)!;
-  const plan = state.plans.find(plan => plan.workId === workId);
-  const rounds = state.rounds.filter(round => round.workId === workId).sort((a, b) => (b.finishedOn ?? '').localeCompare(a.finishedOn ?? ''));
-  return <Dialog title={work.title} wide onClose={onClose}>
-    <div className="rd-detail">
-      <aside><BookCover id={work.id} title={work.title} author={work.subtitle}/><p className="rd-author">{work.subtitle} · {work.year}</p><p className="rd-detail-description">{work.description}</p><div className="rd-detail-tags">{(tags.byBook[work.id] ?? []).map(tag => <span key={tag}>{tag}</span>)}<button className="rd-text-button" onClick={() => open({ kind: 'tags', workId })}>编辑标签</button></div></aside>
-      <div>
-        {plan && <section className="rd-detail-plan"><span className="rd-reading-status"><i/>{plan.state === 'reading' ? '正在阅读' : '接下来读'}</span><p>{plan.reason || '还没有写下想读的理由。'}</p></section>}
-        <div className="rd-detail-actions"><button className="rd-button" onClick={() => open({ kind: 'plan', workId })}>{plan ? '调整计划' : '加入计划'}</button><button className="rd-button" onClick={() => open({ kind: 'log', workId })}><Pencil size={14}/>记一次阅读</button>{plan?.state === 'reading' && <button className="rd-button" onClick={() => open({ kind: 'round', workId, finishPlan: true })}>记录读完</button>}</div>
-        <header className="rd-section-head"><h3>我的阅读与感想</h3><button className="rd-text-button" onClick={() => open({ kind: 'round', workId })}><Plus size={14}/>补录</button></header>
-        {rounds.length ? rounds.map(round => <article className="rd-round" key={round.id}><header><span>{readingDate(round.finishedOn)}</span><button className="rd-icon" aria-label={`编辑${readingDate(round.finishedOn)}的阅读感想`} onClick={() => open({ kind: 'round', workId, round })}><Pencil size={15}/></button></header><blockquote>{round.impression || '这次阅读还没有留下一句话。'}</blockquote>{round.review && <details><summary>读后感</summary><p>{round.review}</p></details>}</article>) : <p className="rd-empty">还没有读后记录，感想可以以后慢慢补。</p>}
-      </div>
-    </div>
-  </Dialog>;
-}
 
 export function DeskDialogs({ state, dispatch, open, tags, changeTags, dialog, onClose }: DeskProps & { dialog: DeskDialog; onClose: () => void }) {
   const common = { state, dispatch, today: PREVIEW_TODAY, onClose };
   if (dialog.kind === 'plan') return <PlanForm {...common} workId={dialog.workId}/>;
   if (dialog.kind === 'round') return <RoundForm {...common} workId={dialog.workId} round={dialog.round} finishPlan={dialog.finishPlan}/>;
   if (dialog.kind === 'log') return <ActivityForm {...common} workId={dialog.workId} date={dialog.date ?? PREVIEW_TODAY} initial={dialog.initial}/>;
-  if (dialog.kind === 'book') return <BookPanel state={state} open={open} tags={tags} workId={dialog.workId} onClose={onClose}/>;
+  if (dialog.kind === 'book') return <BookPanel state={state} dispatch={dispatch} open={open} tags={tags} workId={dialog.workId} onClose={onClose}/>;
   if (dialog.kind === 'tags') {
     const props = { state, dispatch, open, tags, changeTags, onClose };
     return dialog.workId ? <BookTagEditor {...props} workId={dialog.workId}/> : <TagManager {...props}/>;
@@ -52,5 +36,5 @@ export function DeskDialogs({ state, dispatch, open, tags, changeTags, dialog, o
       <button className="rd-button rd-button--primary" onClick={() => open({ kind: 'log', date: dialog.date })}><Plus size={15}/>记一次阅读</button>
     </Dialog>;
   }
-  return <Dialog title="关于这个预览" onClose={onClose}><div className="rd-info"><p>这是书籍模块的独立交互预览，基于应用 v0.4.30。</p><p>书籍资料、封面、感想和分钟数都是演示样本。修改只在本次页面中保留，刷新恢复，不读取或写入正式收藏。</p><p>想读与读过一次展示一面，在读可单独筛选。标签支持多选交集筛选，用加号管理标签，右键书籍选择已有标签或新建。</p><p>年度热力表汇总全部实际阅读，不随书架筛选变化。书单使用固定示例；本页不提供电子书阅读器，也未连接豆瓣或微信读书。</p></div></Dialog>;
+  return <Dialog title="关于这个预览" onClose={onClose}><div className="rd-info"><p>这是书籍模块的独立交互预览，基于应用 v0.4.30。</p><p>书籍资料、封面、感想和分钟数都是演示样本。修改只在本次页面中保留，刷新恢复，不读取或写入正式收藏。</p><p>六种书架视图一次展示一面：全部、想读、在读、已读、闲置、弃读。想读只含准备读的书，在读在全部中置顶。已读按历史记录展示，因此重读、闲置、弃读的书也可能在已读中出现。切换当前安排不会删除历史。</p><p>我的评分与豆瓣评分分开，阅读来源与资料来源分开。同维度多选为任一匹配，跨维度取交集；标签多选仍须同时包含。出版资料、来源与评分都是合成示例，不代表真实豆瓣数据。年度热力表汇总全部实际阅读，不随书架筛选变化。书单使用固定示例；本页不提供电子书阅读器，也未连接豆瓣或微信读书。</p></div></Dialog>;
 }

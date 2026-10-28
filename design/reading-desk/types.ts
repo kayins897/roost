@@ -1,8 +1,13 @@
 import type { Dispatch } from 'react';
-import type { Action, Activity, PreviewState, ReadingRound } from '../reading-workspace/model';
+import type { Activity, ReadingRound } from '../reading-workspace/model';
+import type { DeskAction, DeskState } from './book-classification';
 import type { BookTags, TagAction } from './book-tags';
 
-export type Face = 'plan' | 'records';
+export type Face = 'all' | 'plan' | 'reading' | 'records' | 'idle' | 'abandoned';
+export const FACES: { id: Face; label: string }[] = [
+  { id: 'all', label: '全部' }, { id: 'plan', label: '想读' }, { id: 'reading', label: '在读' },
+  { id: 'records', label: '已读' }, { id: 'idle', label: '闲置' }, { id: 'abandoned', label: '弃读' },
+];
 export type Layout = 'grid' | 'list';
 export type DeskDialog =
   | { kind: 'book'; workId: string }
@@ -14,8 +19,8 @@ export type DeskDialog =
   | { kind: 'day'; date: string }
   | { kind: 'info' };
 export interface DeskProps {
-  state: PreviewState;
-  dispatch: Dispatch<Action>;
+  state: DeskState;
+  dispatch: Dispatch<DeskAction>;
   open: (dialog: DeskDialog) => void;
   tags: BookTags;
   changeTags: (action: TagAction) => void;

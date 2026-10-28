@@ -1,7 +1,9 @@
-import { createSeed } from '../reading-workspace/seed';
+import { createSeed } from '../reading-workspace/seed.ts';
 import type { PreviewState, ReadingRound, Work } from '../reading-workspace/model';
-import { BOOK_TAGS, type BookTags } from './book-tags';
+import { BOOK_TAGS, type BookTags } from './book-tags.ts';
 import type { LibraryView } from './library-view';
+import { arrangementOf, type DeskState } from './book-classification.ts';
+import { metadataOf, matchesFacets } from './book-metadata.ts';
 
 // Synthetic presentation data only. No new production fields or storage contract.
 export const COLLECTIONS = [
@@ -9,7 +11,7 @@ export const COLLECTIONS = [
   { id: 'world', title: '理解世界', description: '从身边的生活，到更辽阔的世界。', bookIds: ['b6', 'b7', 'b5', 'b3'] },
 ];
 
-export function createDeskSeed(): PreviewState {
+export function createDeskSeed(): DeskState {
   const seed = createSeed();
   const works = seed.works.filter(work => work.category === 'book');
   works.push(
@@ -19,6 +21,7 @@ export function createDeskSeed(): PreviewState {
   );
   return {
     works,
+    arrangements: { b7: 'idle', b5: 'abandoned' },
     plans: [
       ...seed.plans.filter(plan => works.some(work => work.id === plan.workId)),
       { id: 'desk-p6', workId: 'b6', state: 'queued', reason: '理解身边的现实，或许就能理解自己。', order: 2 },
@@ -41,27 +44,30 @@ export function latestRound(state: PreviewState, workId: string): ReadingRound |
 
 export function matchesBook(state: PreviewState, work: Work, query: string, byBook = BOOK_TAGS): boolean {
   const text = query.trim().toLocaleLowerCase();
-  return !text || [work.title, work.subtitle, work.format, ...(byBook[work.id] ?? []),
+  const metadata = metadataOf(work);
+  return !text || [work.title, work.subtitle, work.format, metadata.publisher, ...metadata.readingSource, ...metadata.metadataSource, ...(byBook[work.id] ?? []),
     ...state.plans.filter(plan => plan.workId === work.id).map(plan => plan.reason),
     ...state.rounds.filter(round => round.workId === work.id).flatMap(round => [round.impression, round.review]),
   ].join(' ').toLocaleLowerCase().includes(text);
 }
 
-export function shelfBooks(state: PreviewState, tags: BookTags, view: LibraryView, applyTags = true): Work[] {
+export function shelfBooks(state: DeskState, tags: BookTags, view: LibraryView, applyTags = true, applyFacets = true): Work[] {
   const planOf = (id: string) => state.plans.find(plan => plan.workId === id);
   return state.works.filter(work => {
-    const plan = planOf(work.id);
-    return (view.face === 'plan' ? Boolean(plan) : Boolean(latestRound(state, work.id)))
-      && (!view.readingOnly || plan?.state === 'reading')
+    const current = arrangementOf(state, work.id);
+    const included = view.face === 'all' || (view.face === 'records' ? Boolean(latestRound(state, work.id))
+      : current === (view.face === 'plan' ? 'want' : view.face));
+    return included
       && matchesBook(state, work, view.query, tags.byBook)
-      && (!applyTags || view.selectedTags.every(tag => tags.byBook[work.id]?.includes(tag)));
+      && (!applyTags || view.selectedTags.every(tag => tags.byBook[work.id]?.includes(tag)))
+      && (!applyFacets || matchesFacets(work, view.facets));
   }).sort((a, b) => {
     // In-progress books use normal cover cards and remain pinned in the plan face.
-    const pinned = view.face === 'plan' ? Number(planOf(b.id)?.state === 'reading') - Number(planOf(a.id)?.state === 'reading') : 0;
+    const pinned = view.face === 'all' ? Number(arrangementOf(state, b.id) === 'reading') - Number(arrangementOf(state, a.id) === 'reading') : 0;
     const value = view.sort === 'name' ? a.title.localeCompare(b.title, 'zh-CN')
       : view.sort === 'year' ? Number(a.year) - Number(b.year)
-      : view.face === 'plan' ? (planOf(a.id)?.order ?? 0) - (planOf(b.id)?.order ?? 0)
-      : (latestRound(state, b.id)?.finishedOn ?? '').localeCompare(latestRound(state, a.id)?.finishedOn ?? '');
+      : view.face === 'records' ? (latestRound(state, b.id)?.finishedOn ?? '').localeCompare(latestRound(state, a.id)?.finishedOn ?? '')
+      : (planOf(a.id)?.order ?? 99) - (planOf(b.id)?.order ?? 99);
     return pinned || (view.ascending ? value : -value) || a.id.localeCompare(b.id);
   });
 }
