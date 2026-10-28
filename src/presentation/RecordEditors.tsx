@@ -32,7 +32,7 @@ export function QuickEditor({ item, mode, availableItems = [], catalogTags = [],
   const choices = availableItems.filter(candidate => candidate.category === item.category && !candidate.hiddenAt && !candidate.removedAt);
   const groupedChoices = gameTagCounts(choices);
   const existingChoices = availableTags(choices);
-  const flatChoices = item.category === 'book' ? normalizeTags([...existingChoices.map(tag => tag.name), ...catalogTags]).map(name => existingChoices.find(tag => tag.name === name) ?? { name, count: 0 }) : existingChoices;
+  const flatChoices = (item.category === 'book' || item.category === 'screen') ? normalizeTags([...existingChoices.map(tag => tag.name), ...catalogTags]).map(name => existingChoices.find(tag => tag.name === name) ?? { name, count: 0 }) : existingChoices;
   useUnsavedChanges(dirty);
   function close() { if (!dirty || window.confirm('放弃这次尚未保存的修改？')) onClose(); }
   function submit(event: FormEvent) {

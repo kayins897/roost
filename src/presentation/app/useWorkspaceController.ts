@@ -1,4 +1,5 @@
 import type { ChangeEvent } from 'react';
+import { applyScreenAction, validateScreenAction, type ScreenAction } from '../../domain/screens.ts';
 import { applyBookAction, type BookAction } from '../../domain/books.ts';
 import { isBookArrangement, isBookExperienceEntry, isBookReadingPlan, isBookReadingRound } from '../../domain/booksValidation.ts';
 import { bulkScorePatch } from '../../domain/gameScore.ts';
@@ -176,6 +177,11 @@ export function useWorkspaceController() {
     const valid = action.type === 'arrangement' ? isBookArrangement(action.value) : action.type === 'entry' ? isBookExperienceEntry(action.entry) : action.type === 'round' ? isBookReadingRound(action.round) : action.type === 'plan' ? isBookReadingPlan(action) : true;
     if (!item || !valid) { setToast('书籍或记录已变化，请检查输入后重试。'); return false; }
     return updateItems(items => items.map(value => value.id === id ? applyBookAction(value, action, new Date().toISOString()) : value), '阅读记录已保存');
+  }
+  function screenAction(id: string, action: ScreenAction): boolean {
+    const item = snapshotRef.current.items.find(value => value.id === id && value.category === 'screen' && !value.removedAt);
+    if (!item || !validateScreenAction(action)) { setToast('影视或记录已变化，请检查输入后重试。'); return false; }
+    return updateItems(items => items.map(value => value.id === id ? applyScreenAction(value, action, new Date().toISOString()) : value), '观看记录已保存');
   }
   function toggleSelection(id: string) {
     setSelectionIds(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -368,5 +374,5 @@ export function useWorkspaceController() {
   }
 
   
-  return { updateSnapshot, bookAction, importDesktopBackup, applyBulkScore, reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, experienceCategoryFilter, setExperienceCategoryFilter, patchClassification, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkClassification, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
+  return { updateSnapshot, bookAction, screenAction, importDesktopBackup, applyBulkScore, reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, experienceCategoryFilter, setExperienceCategoryFilter, patchClassification, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkClassification, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
 }

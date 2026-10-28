@@ -21,7 +21,7 @@
 .screen-menu-arrangements > button[aria-checked='true'],.screen-arrangements > button[aria-pressed='true'] { border-color: var(--screen-state,var(--accent)); background: color-mix(in srgb,var(--screen-state,var(--accent)) 20%,var(--panel)); }
 .screen-menu-score { border-block: 1px solid var(--line); margin-block: 7px; padding-block: 12px; font-size: 11px; color: var(--muted); }
 .screen-menu-score .score-control { margin-top: 8px; }
-.screen-detail { max-width: 1120px; }
+.modal.screen-detail { width: min(1120px,100%); max-width: 1120px; }
 .screen-detail-grid { display: grid; grid-template-columns: minmax(160px,1.15fr) repeat(3,minmax(0,1fr)); gap: 15px; align-items: stretch; }
 .screen-detail-grid > section { padding: 20px; min-width: 0; }
 .screen-detail-grid h3 { margin: 0; font-size: 13px; }

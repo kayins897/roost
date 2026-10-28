@@ -1,3 +1,5 @@
+import { applyScreenEditor, screenEditorState, screenEditorError } from './screenEditor.ts';
+import { ScreenEditorState } from './ScreenEditorState.tsx';
 import { applyBookEditor, bookEditorState, bookEditorError } from './bookEditor.ts';
 import { BookEditorState } from './BookEditorState.tsx';
 import {
@@ -40,7 +42,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     title: initial?.title ?? '',
     originalTitle: initial?.originalTitle ?? '',
     type: (initial?.category ?? category) as MediaType,
-    subtype: initial?.subcategory ?? '',
+    subtype: initial?.subcategory ?? (category === 'screen' ? '电影' : ''),
     platformInput: initial ? platformsFor(initial).join('、') : '',
     creator: initial?.creator ?? '',
     year: initial?.year ?? '',
@@ -64,6 +66,9 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     bookState: bookEditorState(initial),
     bookFinishedOn: '',
     bookStateTouched: false,
+    screenState: screenEditorState(initial),
+    screenFinishedOn: '',
+    screenStateTouched: false,
     dirty: false
   }));
   const [title, setTitle] = fields('title');
@@ -92,6 +97,10 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
   const [bookState, setBookState] = fields('bookState');
   const [bookFinishedOn, setBookFinishedOn] = fields('bookFinishedOn');
   const [bookStateTouched, setBookStateTouched] = fields('bookStateTouched');
+  const [screenState, setScreenState] = fields('screenState');
+  const [screenFinishedOn, setScreenFinishedOn] = fields('screenFinishedOn');
+  const [screenStateTouched, setScreenStateTouched] = fields('screenStateTouched');
+  const screenValidation = type === 'screen' ? screenEditorError(screenState, screenFinishedOn) : '';
   const bookValidation = type === 'book' ? bookEditorError(bookState, bookFinishedOn) : '';
   useUnsavedChanges(dirty);
   function close() { if (!dirty || window.confirm('放弃这次尚未保存的作品修改？')) onClose(); }
@@ -108,7 +117,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!title.trim() || fileBusy || writingValidation || bookValidation) return;
+    if (!title.trim() || fileBusy || writingValidation || bookValidation || screenValidation) return;
     const groupedTags = { ...initial?.gameTags, ...Object.fromEntries(GAME_TAG_KEYS.map(key => [key, normalizeTags(gameTagInputs[key].split(/[,，、\n]+/))])) } as GameTagGroups;
     const hours = playtimeHours.trim() === '' ? undefined : Number(playtimeHours);
     if (type === 'game' && hours !== undefined && (!Number.isFinite(hours) || hours < 0 || hours > 100000)) return;
@@ -121,7 +130,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
       ...(type === 'game' && (classificationTouched || initial?.category !== 'game') ? experienceClassificationPatch(classification) : {}),
       id: initial?.id ?? crypto.randomUUID(), title: title.trim(), originalTitle: originalTitle.trim() || undefined, category: type, subcategory: subtype.trim(),
       platforms: type === 'game' ? normalizePlatforms(platformInput.split(/[,，、;；\n]+/)) : initial?.platforms,
-      creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial?.category === 'game' ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : type === 'book' && initial?.category !== 'book' ? 'want' : status,
+      creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial?.category === 'game' ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : (type === 'book' && initial?.category !== 'book' || type === 'screen' && initial?.category !== 'screen') ? 'want' : status,
       gamePlayState: type === 'game' ? (initial?.category === 'game' ? initial.gamePlayState : (gameFields as { gamePlayState?: MediaItem['gamePlayState'] }).gamePlayState) : initial?.gamePlayState,
       // 未触碰的维度保留 initial 原值（gameFields 编辑分支只含 touched 键；'unknown' 为合法显式值不受 ?? 影响）。
       ...(type === 'game' ? { playEngagement: (gameFields as { playEngagement?: MediaItem['playEngagement'] }).playEngagement ?? initial?.playEngagement, completion: (gameFields as { completion?: MediaItem['completion'] }).completion ?? initial?.completion } : {}),
@@ -129,14 +138,14 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
       tags: type === 'game' ? flattenGameTags(groupedTags) : normalizeTags(tags.split(/[,，、\n]+/)),
       gameTags: type === 'game' ? groupedTags : initial?.gameTags,
       ...(priorityEditable(rankItem) && playPriority !== (initial?.playPriority ?? '') ? { playPriority: (playPriority || undefined) as MediaItem['playPriority'], priorityOrder: undefined } : {}),
-      ...(gradeEditable(rankItem) && personalScore !== (initial?.personalScore === undefined ? '' : String(initial.personalScore)) ? { personalScore: personalScore === '' ? undefined : Number(personalScore), ratingOrder: undefined } : {}),
+      ...((type === 'screen' || gradeEditable(rankItem)) && personalScore !== (initial?.personalScore === undefined ? '' : String(initial.personalScore)) ? { personalScore: personalScore === '' ? undefined : Number(personalScore), ratingOrder: undefined } : {}),
       impression: initial?.impression ?? '',
       ...personalWritingPatch(writingOriginal, { impression, review }),
       favorite: initial?.favorite ?? false, artwork: initial?.artwork ?? 'default',
       sourceUrl: sourceUrl.trim() || undefined, coverUrl: coverUrl || undefined,
       createdAt: initial?.createdAt ?? now, updatedAt: now,
     };
-    onSave(type === 'book' && (bookStateTouched || initial?.category !== 'book') ? applyBookEditor(saved, bookState, bookFinishedOn) : saved);
+    onSave(type === 'book' && (bookStateTouched || initial?.category !== 'book') ? applyBookEditor(saved, bookState, bookFinishedOn) : type === 'screen' && (screenStateTouched || initial?.category !== 'screen') ? applyScreenEditor(saved, screenState, screenFinishedOn) : saved);
   }
 
   return <Modal title={initial && !creating ? '编辑作品' : '收录新作品'} description="先记下作品，其他信息以后再补充也不迟。" onClose={close} wide>
@@ -146,11 +155,11 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
           <label className="form-field">作品名称 <span className="required">*</span><input autoFocus required placeholder="例如：艾尔登法环" maxLength={160} value={title} onChange={e => setTitle(e.target.value)} /></label>
           <label className="form-field">作品原名 <span className="field-note">可留空</span><input placeholder="例如：ELDEN RING" value={originalTitle} onChange={e => setOriginalTitle(e.target.value)} /></label>
           <div className="two-fields">
-            <label className="form-field">归属板块<select value={type} onChange={e => { const next = e.target.value as MediaType; setType(next); setSubtype(''); if (!initial) { setStatus('want'); setClassification('unplayed'); setClassificationTouched(false); } }}>{categories.map(c => <option key={c} value={c}>{MEDIA_LABELS[c]}</option>)}</select></label>
-            {type === 'game' ? <label className="form-field">拥有平台 <span className="field-note">可多选或以顿号分隔</span><input placeholder="Steam、Switch、PS5、TapTap、本地收藏" value={platformInput} onChange={e => setPlatformInput(e.target.value)} /><span className="platform-suggestions">{['Steam', 'Switch', 'PS5', 'TapTap', '本地收藏'].map(platform => { const current = normalizePlatforms(platformInput.split(/[,，、;；\n]+/)); const active = current.some(value => value.toLocaleLowerCase() === platform.toLocaleLowerCase()); return <button type="button" key={platform} className={active ? 'is-active' : ''} aria-pressed={active} onClick={() => { setDirty(true); setPlatformInput(active ? current.filter(value => value.toLocaleLowerCase() !== platform.toLocaleLowerCase()).join('、') : [...current, platform].join('、')); }}>{platform}</button>; })}</span></label> : <label className="form-field">子分类 <span className="field-note">可留空</span><input placeholder={type === 'screen' ? '电影 / 番剧 / 连续剧' : type === 'book' ? '专业书籍 / 严肃文学 / 网络小说' : '单曲 / 专辑'} value={subtype} onChange={e => setSubtype(e.target.value)} /></label>}
+            <label className="form-field">归属板块<select value={type} onChange={e => { const next = e.target.value as MediaType; setType(next); setSubtype(next === 'screen' ? '电影' : ''); if (!initial) { setStatus('want'); setClassification('unplayed'); setClassificationTouched(false); } }}>{categories.map(c => <option key={c} value={c}>{MEDIA_LABELS[c]}</option>)}</select></label>
+            {type === 'game' ? <label className="form-field">拥有平台 <span className="field-note">可多选或以顿号分隔</span><input placeholder="Steam、Switch、PS5、TapTap、本地收藏" value={platformInput} onChange={e => setPlatformInput(e.target.value)} /><span className="platform-suggestions">{['Steam', 'Switch', 'PS5', 'TapTap', '本地收藏'].map(platform => { const current = normalizePlatforms(platformInput.split(/[,，、;；\n]+/)); const active = current.some(value => value.toLocaleLowerCase() === platform.toLocaleLowerCase()); return <button type="button" key={platform} className={active ? 'is-active' : ''} aria-pressed={active} onClick={() => { setDirty(true); setPlatformInput(active ? current.filter(value => value.toLocaleLowerCase() !== platform.toLocaleLowerCase()).join('、') : [...current, platform].join('、')); }}>{platform}</button>; })}</span></label> : <label className="form-field">子分类 <span className="field-note">可留空</span>{type === 'screen' ? <select aria-label="影视类型" value={subtype} onChange={e => setSubtype(e.target.value)}>{!['电影', '连续剧', '番剧'].includes(subtype) && <option value={subtype}>{subtype || '未分类'}</option>}{['电影', '连续剧', '番剧'].map(value => <option key={value}>{value}</option>)}</select> : <input placeholder={type === 'book' ? '专业书籍 / 严肃文学 / 网络小说' : '单曲 / 专辑'} value={subtype} onChange={e => setSubtype(e.target.value)} />}</label>}
           </div>
           <div className="two-fields">
-            <label className="form-field">作者 / 开发商<input placeholder="可留空" value={creator} onChange={e => setCreator(e.target.value)} /></label>
+            <label className="form-field">{type === 'screen' ? '导演' : '作者 / 开发商'}<input placeholder="可留空" value={creator} onChange={e => setCreator(e.target.value)} /></label>
             <label className="form-field">发行年份<input placeholder="例如：2025" maxLength={12} value={year} onChange={e => setYear(e.target.value)} /></label>
           </div>
           {type === 'game' ? <>
@@ -168,7 +177,9 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
               </div>)}
             </div>
           </> : <>
-            {type === 'book' ? <BookEditorState initial={initial} value={bookState} finishedOn={bookFinishedOn} onChange={value => { setBookState(value); setBookStateTouched(true); }} onDate={setBookFinishedOn}/> : <label className="form-field">当前状态<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
+            {type === 'book' ? <BookEditorState initial={initial} value={bookState} finishedOn={bookFinishedOn} onChange={value => { setBookState(value); setBookStateTouched(true); }} onDate={setBookFinishedOn}/> : type === 'screen' ? <ScreenEditorState initial={initial} value={screenState} date={screenFinishedOn} onChange={value => { setScreenState(value); setScreenStateTouched(true); }} onDate={setScreenFinishedOn}/> : <label className="form-field">当前状态<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
+            {type === 'screen' && <div className="form-field"><span>个人评分</span><ScorePicker label="个人评分" value={personalScore} onChange={value => { setPersonalScore(value); setDirty(true); }}/>{personalScore !== '' && <button type="button" className="text-button" onClick={() => setPersonalScore('')}>清除评分</button>}</div>}
+            {screenValidation && <p className="form-error" role="alert">{screenValidation}</p>}
             {bookValidation && <p className="form-error" role="alert">{bookValidation}</p>}
             <label className="form-field">标签 <span className="field-note">以逗号或顿号分隔</span><input placeholder="叙事、独立创作、想二刷" value={tags} onChange={e => setTags(e.target.value)} /></label>
           </>}
@@ -185,7 +196,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
           <p className="cover-hint">{desktopInfo ? '图片会压缩并与收藏一起保存在本机。建议定期导出备份。' : '图片会压缩并存入本机浏览器。收藏较多时，建议定期导出备份。'}</p>
         </div>
       </div>
-      <div className="modal-actions"><button type="button" className="button button--ghost" onClick={close}>取消</button><button type="submit" disabled={!title.trim() || fileBusy || Boolean(writingValidation || bookValidation)} className="button button--primary"><Check size={16} />{initial && !creating ? '保存修改' : '加入收藏'}</button></div>
+      <div className="modal-actions"><button type="button" className="button button--ghost" onClick={close}>取消</button><button type="submit" disabled={!title.trim() || fileBusy || Boolean(writingValidation || bookValidation || screenValidation)} className="button button--primary"><Check size={16} />{initial && !creating ? '保存修改' : '加入收藏'}</button></div>
     </form>
   </Modal>;
 }
