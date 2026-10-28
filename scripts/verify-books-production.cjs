@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { _electron: electron } = require('playwright');
 const root = path.resolve(__dirname, '..');
 const packaged = Boolean(process.argv[2]);
-const output = path.join(root, 'evidence', 'books-v0431', packaged ? 'packaged' : 'source');
+const output = path.join(root, 'evidence', 'books-v' + require('../package.json').version.replaceAll('.', ''), packaged ? 'packaged' : 'source');
 fs.mkdirSync(output, { recursive: true });
 let data = fs.mkdtempSync(path.join(os.tmpdir(), 'qiyu-books-production-'));
 let app, page; const checks = [], errors = [];
@@ -70,6 +70,7 @@ async function close(name) { await dialog(name).getByRole('button', { name: '关
   await shot('books-library');
   await page.locator('.books-toolbar-tools').getByRole('button', { name: /^筛选/ }).click();
   for (const name of ['作者', '出版社', '我的评分', '豆瓣评分', '书籍类型', '阅读来源', '资料来源']) assert.ok((await page.getByRole('region', { name: '书籍筛选' }).textContent()).includes(name));
+  await page.getByRole('navigation', { name: '筛选维度' }).getByRole('button', { name: '出版社', exact: true }).click();
   await page.getByRole('region', { name: '书籍筛选' }).getByRole('button', { name: /^合成出版社/ }).click();
   assert.equal(await page.locator('.books-book').count(), 1);
   await page.getByRole('button', { name: '清空筛选', exact: true }).click(); check('七个筛选维度可用，出版社筛选只显示匹配书籍');
