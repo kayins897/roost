@@ -2,11 +2,11 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { ArrowUpRight, Plus } from 'lucide-react';
 import { dailyMinutes, heatLevel, type PreviewState } from './model';
 
-type HeatmapProps = { state: PreviewState; today: string; openDay: (date: string) => void; logReading: (workId?: string, date?: string) => void };
+type HeatmapProps = { state: PreviewState; today: string; openDay: (date: string) => void; logReading: (workId?: string, date?: string) => void; showHeading?: boolean };
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 const RANGES = ['0', '1–14', '15–29', '30–59', '60+'];
 
-export function Heatmap({ state, today, openDay, logReading }: HeatmapProps) {
+export function Heatmap({ state, today, openDay, logReading, showHeading = true }: HeatmapProps) {
   const year = Number(today.slice(0, 4));
   const [focused, setFocused] = useState(today);
   const keysHelp = useId();
@@ -32,8 +32,8 @@ export function Heatmap({ state, today, openDay, logReading }: HeatmapProps) {
     return { minutes, unknown, records, label, titles };
   }
   const selected = dayInfo(focused);
-  return <section className="rw-card bk-heatmap" aria-labelledby="bk-heatmap-title">
-    <header className="bk-section-heading"><div><p className="bk-eyebrow">READING DAYS · {year}</p><h2 id="bk-heatmap-title">阅读的痕迹</h2></div><button className="rw-button" onClick={() => logReading(undefined, today)}><Plus size={16}/>登记阅读</button></header>
+  return <section className="rw-card bk-heatmap" aria-labelledby={showHeading ? 'bk-heatmap-title' : undefined} aria-label={showHeading ? undefined : '阅读的痕迹'}>
+    {showHeading && <header className="bk-section-heading"><div><p className="bk-eyebrow">READING DAYS · {year}</p><h2 id="bk-heatmap-title">阅读的痕迹</h2></div><button className="rw-button" onClick={() => logReading(undefined, today)}><Plus size={16}/>登记阅读</button></header>}
     <p id={keysHelp} className="bk-sr-only">方向键选择日期，上下切换一天，左右切换一周，回车打开日历。</p>
     <div className="bk-heat-scroll" ref={scrollRef} role="group" aria-label={`${year} 年每日阅读时长`} aria-describedby={keysHelp}>
       <div className="bk-heat-canvas" style={{ '--bk-heat-columns': columns } as CSSProperties}>

@@ -79,6 +79,28 @@ const noOverflow = async () => {
     assert.equal(await page.locator('.rd-tag-match').innerText(), '同时包含：文学、哲学');
     await click(page.locator('.rd-tag-filter').getByRole('button', { name: /清除标签/ })); assert.equal(await books().count(), 5);
   });
+  await check('heatmap stays above every shelf and folds without losing its data or current filters', async () => {
+    const toggle = page.locator('.rd-overview-toggle');
+    const day = page.locator('[data-date="2026-10-27"]');
+    const before = await day.getAttribute('aria-label');
+    const expandedHeight = await page.locator('.rd-reading-overview').evaluate(node => node.clientHeight);
+    await toggle.focus(); await page.keyboard.press('Enter'); await settle();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await day.isVisible(), false);
+    assert.equal(await page.locator('.rd-overview-totals').isVisible(), true);
+    assert.ok(await page.locator('.rd-reading-overview').evaluate(node => node.clientHeight) < expandedHeight - 150);
+    for (const face of ['全部', '想读', '在读', '闲置', '弃读', '已读']) {
+      await click(button(face));
+      assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+      assert.equal(await page.locator('.rd-reading-overview').isVisible(), true);
+      assert.equal(await day.getAttribute('aria-label'), before);
+    }
+    await click(button('文学，3 本书')); const filtered = await ids();
+    await click(toggle); assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    assert.equal(await day.isVisible(), true); assert.equal(await day.getAttribute('aria-label'), before);
+    assert.deepEqual(await ids(), filtered);
+    await click(page.locator('.rd-tag-filter').getByRole('button', { name: /清除标签/ }));
+  });
   await check('tags support empty creation, assignment, cancellation and unassignment without deleting books', async () => {
     await click(button('管理书籍标签'));
     await dialog().getByLabel('新标签名称').fill('夏日重读'); await click(dialog().getByRole('button', { name: '创建标签', exact: true }));
@@ -146,6 +168,22 @@ const noOverflow = async () => {
     await click(button('清空搜索'));
   });
   await check('theme collections and nested dialogs restore the original dock focus', async () => {
+    const before = await ids();
+    const sidebar = page.getByRole('complementary', { name: '主题书单侧栏' });
+    assert.equal(await sidebar.locator('.rd-collection-card').count(), 2);
+    const cities = sidebar.getByRole('button', { name: '查看书单《城市与远方》，3 本书', exact: true });
+    await click(cities);
+    assert.equal(await dialog().locator('.rd-collection-book').count(), 3);
+    await page.keyboard.press('Escape'); await settle();
+    assert.equal(await cities.evaluate(node => document.activeElement === node), true);
+    assert.deepEqual(await ids(), before);
+    const search = page.getByRole('textbox', { name: '搜索书名、作者、标签或感想' });
+    await search.fill('没有这个书名'); await settle(); assert.equal(await books().count(), 0);
+    await click(sidebar.getByRole('button', { name: '查看书单《理解世界》，4 本书', exact: true }));
+    assert.equal(await dialog().locator('.rd-collection-book').count(), 4);
+    await page.keyboard.press('Escape'); await settle(); assert.equal(await books().count(), 0);
+    assert.equal(await search.inputValue(), '没有这个书名');
+    await click(button('清空搜索'));
     const trigger = button('主题书单'); await click(trigger);
     assert.equal(await dialog().locator('.rd-collection-book').count(), 7); await shot('reading-collection');
     await click(dialog().locator('.rd-collection-book').first());
@@ -200,6 +238,11 @@ const noOverflow = async () => {
   await check('shelves, heatmap and tag dialog fit five desktop/tablet/phone viewports', async () => {
     for (const [width, height] of [[1440, 1050], [1000, 900], [768, 900], [390, 844], [360, 740]]) {
       await page.setViewportSize({ width, height }); await reset(); await noOverflow();
+      const columns = await page.evaluate(() => ({
+        main: document.querySelector('.rd-books-main').getBoundingClientRect(),
+        side: document.querySelector('.rd-collection-sidebar').getBoundingClientRect(),
+      }));
+      assert.ok(width >= 1280 ? columns.side.left >= columns.main.right + 20 : columns.side.top >= columns.main.bottom + 18);
       if (width !== 1440) await shot('reading-plan-' + width);
       await click(button('已读')); await noOverflow();
       if (width < 700) {
@@ -208,6 +251,10 @@ const noOverflow = async () => {
         assert.ok(await page.locator('.bk-heat-scroll').evaluate(node => node.scrollLeft < 2));
       }
       if (width !== 1440) await shot('reading-records-' + width);
+      await click(button('折叠阅读热力表')); await noOverflow();
+      assert.equal(await page.locator('.bk-heat-scroll').isVisible(), false);
+      assert.equal(await page.locator('.rd-overview-totals').isVisible(), true);
+      await click(button('展开阅读热力表')); await noOverflow();
       await click(button('书架横向列表')); await noOverflow();
       await click(button('管理书籍标签'));
       const bounds = await dialog().boundingBox();
@@ -222,6 +269,10 @@ const noOverflow = async () => {
       await page.locator('.rd-shell').evaluate(node => { node.scrollTop = node.scrollHeight; }); await settle();
       const ends = await page.evaluate(() => ({ book: document.querySelector('.rd-book:last-child').getBoundingClientRect().bottom, shell: document.querySelector('.rd-shell').getBoundingClientRect().bottom }));
       assert.ok(ends.book <= ends.shell - 18, JSON.stringify(ends));
+      if (width < 1280) {
+        const sidebarEnd = await page.locator('.rd-collection-sidebar').evaluate(node => node.getBoundingClientRect().bottom);
+        assert.ok(sidebarEnd <= ends.shell - 18 && sidebarEnd > 0, `sidebar ${sidebarEnd}, shell ${ends.shell}`);
+      }
       if (width === 390) await shot('reading-records-390-bottom');
     }
   });

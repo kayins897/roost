@@ -1,0 +1,30 @@
+.rd-books-region { display: grid; grid-template-columns: minmax(0, 1fr); gap: 30px; align-items: start; }
+.rd-books-main { min-width: 0; }
+.rd-collection-sidebar { min-width: 0; padding-top: 23px; }
+.rd-collection-sidebar>header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.rd-collection-sidebar h2 { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 550; color: #c3d5c7; }
+.rd-collection-sidebar>header .rd-icon { padding: 3px; }
+.rd-collection-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.rd-collection-card { display: block; width: 100%; padding: 19px; border: 1px solid #c4dac424; border-radius: 18px; background: #bed2bb06; color: var(--ink); text-align: left; }
+.rd-collection-card:hover { background: #bfd8c70e; border-color: #c4dac44a; }
+.rd-collection-card-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.rd-collection-card h3 { font-size: 16px; line-height: 1.6; font-weight: 550; }
+.rd-collection-card-heading>span { font-size: 11px; color: #a2b3a6; flex-shrink: 0; }
+.rd-collection-card>p { margin-top: 6px; color: #a4b6a8; font-size: 11px; line-height: 1.8; }
+.rd-collection-card-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 15px; margin-top: 22px; }
+.rd-collection-miniatures { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.rd-collection-miniatures .rd-cover { width: 48px; max-width: 27%; border-radius: 3px; box-shadow: 0 4px 12px #0002; }
+.rd-collection-arrow { flex-shrink: 0; color: #b5cbb9; margin-bottom: 2px; transition: transform .2s ease-out; }
+.rd-collection-card:hover .rd-collection-arrow { transform: translateX(3px); }
+@media (min-width: 1280px) {
+  .rd-books-region { grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; }
+  .rd-collection-sidebar { position: sticky; top: 18px; }
+  .rd-collection-cards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .rd-books-region { gap: 22px; }
+  .rd-collection-sidebar { padding-top: 0; }
+  .rd-collection-cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .rd-collection-card { padding: 17px; }
+  .rd-collection-card-bottom { margin-top: 16px; }
+}

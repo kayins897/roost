@@ -12,6 +12,7 @@ import { LibraryToolbar } from './LibraryToolbar';
 import { ReadingOverview } from './ReadingOverview';
 import { TagFilter } from './TagFilter';
 import { BookFacets, BookFacetTrigger } from './BookFacets';
+import { CollectionSidebar } from './CollectionSidebar';
 import { FACES, type DeskDialog, type Face } from './types';
 import './desk.css';
 import './classification.css';
@@ -52,11 +53,16 @@ function ReadingDesk() {
       }}><RotateCcw size={17}/></button></header>
       <main id="reading-content" tabIndex={-1}>
         <header className="rd-page-head"><div><h1>书籍</h1><span className="rd-library-summary">{state.works.length} 本藏书 · {state.works.filter(work => arrangementOf(state, work.id) === 'reading').length} 本在读</span></div><button className="rd-button rd-button--primary rd-add" onClick={() => open({ kind: face === 'records' ? 'round' : 'plan' })}><Plus size={17}/>{face === 'records' ? '补录已读' : '加入计划'}</button></header>
-        {face === 'records' && <ReadingOverview state={state} open={open}/>}
+        <ReadingOverview state={state} open={open}/>
         <LibraryToolbar view={view} change={changeView} count={works.length} counts={counts} filters={<BookFacetTrigger selected={view.facets} control={filterControl}/>}/>
         <BookFacets works={facetCandidates} selected={view.facets} toggle={(key, value) => changeView({ type: 'facet', key, value })} clear={() => changeView({ type: 'clear-facets' })} control={filterControl}/>
-        <TagFilter tags={tags} works={candidates} selected={view.selectedTags} toggle={name => changeView({ type: 'tag', name })} clear={() => changeView({ type: 'clear-tags' })} manage={() => open({ kind: 'tags' })}/>
-        <BookShelf state={state} open={open} works={works} face={face} layout={view.layouts[face]} clearFilters={() => changeView({ type: 'clear-filters' })}/>
+        <div className="rd-books-region">
+          <div className="rd-books-main">
+            <TagFilter tags={tags} works={candidates} selected={view.selectedTags} toggle={name => changeView({ type: 'tag', name })} clear={() => changeView({ type: 'clear-tags' })} manage={() => open({ kind: 'tags' })}/>
+            <BookShelf state={state} open={open} works={works} face={face} layout={view.layouts[face]} clearFilters={() => changeView({ type: 'clear-filters' })}/>
+          </div>
+          <CollectionSidebar state={state} open={open}/>
+        </div>
       </main>
     </div>
     {dialog && <DeskDialogs {...props} key={dialog.kind} dialog={dialog} onClose={close}/>}
