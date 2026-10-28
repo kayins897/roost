@@ -1,4 +1,4 @@
-import { bookArrangement, bookHasRead } from '../../../domain/books.ts';
+import { bookArrangement, bookHasRead, bookRounds } from '../../../domain/books.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 
 export const BOOK_VIEWS = [
@@ -48,3 +48,9 @@ export function localDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 export function bookId() { return crypto.randomUUID(); }
+
+export function latestBookRound(item: MediaItem) {
+  const rounds = bookRounds(item);
+  return [...rounds].sort((a, b) => (b.finishedOn ?? '').localeCompare(a.finishedOn ?? ''))[0];
+}
+export function lastFinishedOn(item: MediaItem) { return latestBookRound(item)?.finishedOn; }

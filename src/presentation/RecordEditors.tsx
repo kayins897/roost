@@ -24,13 +24,15 @@ function SmallDialog({ title, onClose, children }: { title: string; onClose: () 
   return <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><section ref={panel} className="modal" data-glass="modal" role="dialog" aria-modal="true" aria-label={title}><div className="modal-heading"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={19} /></button></div>{children}</section></div>;
 }
 
-export function QuickEditor({ item, mode, availableItems = [], onClose, onSave }: { item: MediaItem; mode: 'time' | 'tags'; availableItems?: MediaItem[]; onClose: () => void; onSave: (patch: Partial<MediaItem>) => boolean }) {
+export function QuickEditor({ item, mode, availableItems = [], catalogTags = [], onClose, onSave }: { item: MediaItem; mode: 'time' | 'tags'; availableItems?: MediaItem[]; catalogTags?: string[]; onClose: () => void; onSave: (patch: Partial<MediaItem>) => boolean }) {
   const [hours, setHours] = useState(item.playtimeMinutes === undefined ? '' : String(item.playtimeMinutes / 60));
   const [tags, setTags] = useState(item.tags.join('、'));
   const [groups, setGroups] = useState<Record<GameTagGroupKey, string>>(() => Object.fromEntries(GAME_TAG_KEYS.map(key => [key, gameTagsFor(item)[key].join('、')])) as Record<GameTagGroupKey, string>);
   const [dirty, setDirty] = useState(false);
   const choices = availableItems.filter(candidate => candidate.category === item.category && !candidate.hiddenAt && !candidate.removedAt);
   const groupedChoices = gameTagCounts(choices);
+  const existingChoices = availableTags(choices);
+  const flatChoices = item.category === 'book' ? normalizeTags([...existingChoices.map(tag => tag.name), ...catalogTags]).map(name => existingChoices.find(tag => tag.name === name) ?? { name, count: 0 }) : existingChoices;
   useUnsavedChanges(dirty);
   function close() { if (!dirty || window.confirm('放弃这次尚未保存的修改？')) onClose(); }
   function submit(event: FormEvent) {
@@ -47,7 +49,7 @@ export function QuickEditor({ item, mode, availableItems = [], onClose, onSave }
     if (onSave(patch)) onClose();
   }
   return <SmallDialog title={mode === 'time' ? '修改累计游玩时长' : '编辑标签'} onClose={close}><form className="editor-form" onSubmit={submit} onChangeCapture={() => setDirty(true)}>
-    {mode === 'time' ? <><label className="form-field">累计时长（小时）<input autoFocus type="number" min="0" max="100000" step="any" value={hours} placeholder="留空表示未记录" onChange={event => setHours(event.target.value)} /></label><p className="feature-help">支持小数；留空表示未记录，与 0 小时不同。体验记录中的单次时长不会自动计入这里。</p></> : item.category === 'game' ? GAME_TAG_KEYS.map(key => <TagPickerGroup key={key} label={GAME_TAG_LABELS[key]} value={groups[key]} available={groupedChoices[key]} onChange={value => { setDirty(true); setGroups(current => ({ ...current, [key]: value })); }} />) : <TagPickerGroup label="标签" value={tags} available={availableTags(choices)} onChange={value => { setDirty(true); setTags(value); }} />}
+    {mode === 'time' ? <><label className="form-field">累计时长（小时）<input autoFocus type="number" min="0" max="100000" step="any" value={hours} placeholder="留空表示未记录" onChange={event => setHours(event.target.value)} /></label><p className="feature-help">支持小数；留空表示未记录，与 0 小时不同。体验记录中的单次时长不会自动计入这里。</p></> : item.category === 'game' ? GAME_TAG_KEYS.map(key => <TagPickerGroup key={key} label={GAME_TAG_LABELS[key]} value={groups[key]} available={groupedChoices[key]} onChange={value => { setDirty(true); setGroups(current => ({ ...current, [key]: value })); }} />) : <TagPickerGroup label="标签" value={tags} available={flatChoices} onChange={value => { setDirty(true); setTags(value); }} />}
     <div className="modal-actions"><button className="button button--ghost" type="button" onClick={close}>取消</button><button className="button button--primary" type="submit"><Check size={16} />保存</button></div>
   </form></SmallDialog>;
 }

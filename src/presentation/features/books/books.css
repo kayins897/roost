@@ -14,7 +14,7 @@
 .books-toolbar-tools select { max-width: 130px; }
 .books-workspace .books-views { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 5px; border: 1px solid var(--control-border); border-radius: 22px; background: color-mix(in srgb,var(--glass-fill) 75%,transparent); }
 .books-views button { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 18px; color: var(--muted); font-size: 12px; }
-.books-views button.is-active { color: var(--control-selected-ink); background: var(--control-selected); }
+.books-views button.is-selected { color: var(--control-selected-ink); background: var(--control-selected); }
 .books-views small { font-size: 10px; opacity: .7; }
 .books-facets { display: grid; gap: 0; padding: 17px 20px; backdrop-filter: blur(20px); }
 .books-facets > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
@@ -130,7 +130,7 @@
 .books-detail-current { display: block; color: var(--accent-ink); margin: 17px 0 14px; font-size: 25px; }
 .books-detail-statuses { display: flex; flex-wrap: wrap; gap: 4px; }
 .books-detail .books-detail-statuses button { padding: 6px 10px; border-radius: 15px; font-size: 11px; color: var(--muted); border: 1px solid var(--line); }
-.books-detail .books-detail-statuses button.is-active { color: var(--control-selected-ink); background: var(--control-selected); border-color: var(--control-selected-border); }
+.books-detail .books-detail-statuses button.is-selected { color: var(--control-selected-ink); background: var(--control-selected); border-color: var(--control-selected-border); }
 .books-detail-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
 .books-detail-stats > div { display: grid; gap: 7px; }
 .books-detail-stats span { color: var(--muted); font-size: 11px; }

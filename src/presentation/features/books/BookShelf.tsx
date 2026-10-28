@@ -1,10 +1,10 @@
 import { BookOpen, MoreHorizontal, Star } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { bookArrangement, bookDuration, bookHasRead, bookPlanFor, bookRounds } from '../../../domain/books.ts';
+import { bookArrangement, bookDuration, bookHasRead, bookPlanFor } from '../../../domain/books.ts';
 import { personalWritingFor } from '../../../domain/personalWriting.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 import { Poster } from '../../components/MediaPrimitives.tsx';
-import { formatMinutes, readingLabel } from './bookView.ts';
+import { formatMinutes, readingLabel, latestBookRound } from './bookView.ts';
 
 export function BookShelf({ books, layout, onOpen, onEdit, disabled, onCreate, onLifecycle, recycled }: {
   books: MediaItem[]; layout: 'grid' | 'list'; onOpen: (id: string) => void; onEdit: (id: string) => void;
@@ -33,7 +33,7 @@ export function BookShelf({ books, layout, onOpen, onEdit, disabled, onCreate, o
     <button className={`media-card media-card--${layout} books-book-open`} onClick={() => onOpen(item.id)} onContextMenu={event => { event.preventDefault(); setMenu(menu === item.id ? null : item.id); }} aria-label={`查看${item.title}详情`}>
       <div className="card-cover"><Poster item={item}/><span className="card-cover-shine" aria-hidden="true"/></div>
       <div className="books-book-info"><strong>{item.title}</strong><span className="books-muted">{item.creator || '作者未记录'}{item.year ? ` · ${item.year}` : ''}</span><span className="books-reading-state" data-arrangement={bookArrangement(item)}>{readingLabel(item)}{bookHasRead(item) && bookArrangement(item) !== 'none' && ' · 有已读记录'}</span><span className="books-book-metrics">{formatMinutes(bookDuration(item))}{item.personalScore !== undefined && <span><Star size={12}/>{item.personalScore.toFixed(1)}</span>}</span></div>
-      {layout === 'list' && <p className="books-book-impression">{bookRounds(item).at(-1)?.impression || personalWritingFor(item).impression || bookPlanFor(item)?.reason || '还没有留下感想'}</p>}
+      {layout === 'list' && <p className="books-book-impression">{latestBookRound(item)?.impression || personalWritingFor(item).impression || bookPlanFor(item)?.reason || '还没有留下感想'}</p>}
     </button>
     <button className="icon-button books-book-more" data-book-menu-id={item.id} aria-label={`${item.title}更多操作`} aria-haspopup="menu" aria-expanded={menu === item.id} onClick={() => setMenu(menu === item.id ? null : item.id)}><MoreHorizontal size={17}/></button>
     {menu === item.id && <div className="books-book-menu books-surface" role="menu" aria-label={`${item.title}操作`}><button role="menuitem" className="text-button" disabled={disabled || recycled} onClick={() => { setMenu(null); onEdit(item.id); }}>编辑书籍资料</button>{recycled ? <><button role="menuitem" className="text-button" disabled={disabled} onClick={() => { onLifecycle('restore', [item.id]); setMenu(null); }}>恢复书籍</button><button role="menuitem" className="text-button books-danger" disabled={disabled} onClick={() => { onLifecycle('delete', [item.id]); setMenu(null); }}>永久删除</button></> : <button role="menuitem" className="text-button books-danger" disabled={disabled} onClick={() => { onLifecycle('trash', [item.id]); setMenu(null); }}>移到回收站</button>}</div>}

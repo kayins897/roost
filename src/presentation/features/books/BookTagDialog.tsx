@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from '../../RecordEditors.tsx';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { LibrarySnapshot, MediaItem } from '../../../domain/types.ts';
@@ -17,6 +18,7 @@ export function BookTagDialog({ tags, books, onCommit, onClose, onDeleted }: { t
   const [chosen, setChosen] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
+  useUnsavedChanges(dirty);
   function reset() { setCurrent(null); setName(''); setChosen([]); setDirty(false); setError(''); }
   function select(tag: string | null) {
     if (dirty && !window.confirm('放弃当前标签尚未保存的分配？')) return;

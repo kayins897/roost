@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from '../../RecordEditors.tsx';
 import { BookOpen, Pencil, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import type { LibrarySnapshot, MediaItem } from '../../../domain/types.ts';
@@ -35,6 +36,7 @@ function CollectionEditor({ initial, books, onClose, onSave, onDelete }: { initi
     else setError('保存失败，内容仍保留，请重试。');
   }
   const dirty = title !== (initial?.title ?? '') || description !== (initial?.description ?? '') || chosen.join() !== (initial?.bookIds ?? []).join();
+  useUnsavedChanges(dirty);
   const close = () => { if (!dirty || window.confirm('放弃尚未保存的书单修改？')) onClose(); };
   return <Modal title={initial ? '编辑主题书单' : '新建主题书单'} onClose={close} className="books-dialog"><form onSubmit={event => { event.preventDefault(); save(); }}><label className="form-field">书单名称<input value={title} onChange={event => setTitle(event.target.value)} maxLength={80} required/></label><label className="form-field">主题与想法<textarea value={description} onChange={event => setDescription(event.target.value)} rows={2}/></label><label className="form-field">分配书籍<input placeholder="搜索书名或作者" value={query} onChange={event => setQuery(event.target.value)}/></label><div className="books-checklist">{books.filter(book => `${book.title} ${book.creator}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map(book => <label key={book.id}><input type="checkbox" checked={chosen.includes(book.id)} onChange={() => setChosen(values => values.includes(book.id) ? values.filter(id => id !== book.id) : [...values, book.id])}/><span>{book.title}<small>{book.creator}</small></span></label>)}</div><p className="books-muted">已选 {chosen.length} 本</p>{error && <p role="alert" className="books-danger">{error}</p>}<footer className="books-dialog-actions">{initial && <button type="button" className="text-button books-danger" onClick={() => { if (onDelete(initial.id)) onClose(); }}>删除书单</button>}<button type="button" className="button button--secondary" onClick={close}>取消</button><button className="button button--primary" type="submit">保存书单</button></footer></form></Modal>;
 }

@@ -15,11 +15,11 @@ export function BookFilters(props: Props) {
   return <>
     <div className="books-toolbar">
       <div className="status-tabs books-views" role="group" aria-label="阅读书架">
-        {BOOK_VIEWS.map(view => <button key={view.id} className={props.view === view.id ? 'is-active' : ''} aria-pressed={props.view === view.id} onClick={() => props.onView(view.id)}>{view.label}<small>{props.books.filter(book => viewMatches(book, view.id)).length}</small></button>)}
+        {BOOK_VIEWS.map(view => <button key={view.id} className={props.view === view.id ? 'is-selected' : ''} aria-pressed={props.view === view.id} onClick={() => props.onView(view.id)}>{view.label}<small>{props.books.filter(book => viewMatches(book, view.id)).length}</small></button>)}
       </div>
       <div className="books-toolbar-tools"><span className="books-muted">{props.count} 本</span>
         <button className={`button button--secondary ${props.expanded ? 'is-selected' : ''}`} aria-expanded={props.expanded} aria-controls="books-facet-panel" onClick={props.onExpand}><SlidersHorizontal size={14}/>筛选{selectedCount ? ` ${selectedCount}` : ''}<ChevronDown size={13}/></button>
-        <select aria-label="书籍排序" value={props.sort} onChange={event => props.onSort(event.target.value)}><option value="recent">收录时间</option><option value="title">名称</option><option value="author">作者</option><option value="score">我的评分</option><option value="duration">阅读时长</option><option value="year">出版年份</option></select>
+        <select aria-label="书籍排序" value={props.sort} onChange={event => props.onSort(event.target.value)}><option value="recent">收录时间</option><option value="finished">读完时间</option><option value="title">名称</option><option value="author">作者</option><option value="score">我的评分</option><option value="duration">阅读时长</option><option value="year">出版年份</option></select>
         <button className="button button--secondary" onClick={props.onDirection} aria-label={props.descending ? '改为升序' : '改为降序'}>{props.descending ? '↓ 降序' : '↑ 升序'}</button>
         <div className="view-switch" role="group" aria-label="书架视图"><button className={props.layout === 'grid' ? 'is-active' : ''} aria-pressed={props.layout === 'grid'} aria-label="封面视图" onClick={() => props.onLayout('grid')}><LayoutGrid size={16}/></button><button className={props.layout === 'list' ? 'is-active' : ''} aria-pressed={props.layout === 'list'} aria-label="列表视图" onClick={() => props.onLayout('list')}><List size={16}/></button></div>
       </div>

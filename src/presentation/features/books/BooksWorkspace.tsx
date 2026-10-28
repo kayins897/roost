@@ -9,7 +9,7 @@ import { BookFilters, BookTagFilter } from './BookFilters.tsx';
 import { BookHeatmap } from './BookHeatmap.tsx';
 import { BookShelf } from './BookShelf.tsx';
 import { BookTagsDialog } from './BookTagDialog.tsx';
-import { matchesBook, viewMatches, type BookFacets, type BookView, type FacetKey } from './bookView.ts';
+import { lastFinishedOn, matchesBook, viewMatches, type BookFacets, type BookView, type FacetKey } from './bookView.ts';
 import './books.css';
 
 export interface BooksWorkspaceProps {
@@ -32,6 +32,7 @@ export function BooksWorkspace(props: BooksWorkspaceProps) {
   const visible = candidates.filter(item => matchesBook(item, '', selectedTags, ui.facets)).sort((a, b) => {
     let comparison = 0;
     if (ui.sort === 'title') comparison = a.title.localeCompare(b.title, 'zh');
+    else if (ui.sort === 'finished') { const aDate = lastFinishedOn(a), bDate = lastFinishedOn(b); if (!aDate || !bDate) return aDate === bDate ? 0 : !aDate ? 1 : -1; comparison = aDate.localeCompare(bDate); }
     else if (ui.sort === 'author') comparison = a.creator.localeCompare(b.creator, 'zh');
     else if (ui.sort === 'score') { if (a.personalScore === undefined || b.personalScore === undefined) return a.personalScore === b.personalScore ? 0 : a.personalScore === undefined ? 1 : -1; comparison = a.personalScore - b.personalScore; }
     else if (ui.sort === 'duration') { const left = bookDuration(a), right = bookDuration(b); if (left === undefined || right === undefined) return left === right ? 0 : left === undefined ? 1 : -1; comparison = left - right; }
@@ -55,7 +56,7 @@ export function BooksWorkspace(props: BooksWorkspaceProps) {
   return <div className="books-workspace">
     <BookHeatmap books={books} disabled={disabled} onRecord={date => openForm('entry', date)} onEditEntry={(id, entry) => setDialog({ kind: 'entry', id, entry })}/>
     <div className="books-primary-actions"><button className="button button--secondary" disabled={disabled || !books.length} onClick={() => openForm('round')}><Plus size={14}/>补录已读</button><button className="button button--secondary" disabled={disabled || !books.length} onClick={() => openForm('plan')}><Plus size={14}/>阅读计划</button><button className="button button--primary" disabled={disabled} onClick={props.onCreate}><Plus size={15}/>收录书籍</button></div>
-    <BookFilters books={books} view={ui.view} onView={view => update({ view })} count={visible.length} layout={ui.layout} onLayout={layout => update({ layout })} sort={ui.sort} onSort={sort => update({ sort })} descending={ui.descending} onDirection={() => update({ descending: !ui.descending })} facets={ui.facets} onFacet={toggleFacet} onClear={() => update({ facets: {} })} expanded={ui.facetsOpen} onExpand={() => update({ facetsOpen: !ui.facetsOpen })} disabled={disabled}/>
+    <BookFilters books={books} view={ui.view} onView={view => update({ view, sort: view === 'records' ? 'finished' : 'recent', descending: true })} count={visible.length} layout={ui.layout} onLayout={layout => update({ layout })} sort={ui.sort} onSort={sort => update({ sort })} descending={ui.descending} onDirection={() => update({ descending: !ui.descending })} facets={ui.facets} onFacet={toggleFacet} onClear={() => update({ facets: {} })} expanded={ui.facetsOpen} onExpand={() => update({ facetsOpen: !ui.facetsOpen })} disabled={disabled}/>
     <div className="books-content"><main className="books-main"><BookTagFilter tags={tags} selected={selectedTags} toggle={tag => update({ tags: selectedTags.includes(tag) ? selectedTags.filter(value => value !== tag) : [...selectedTags, tag] })} manage={() => setDialog('tags')} disabled={disabled}/>{collection && <div className="books-collection-filter"><strong>{collection.title}</strong><button className="text-button" onClick={() => update({ collection: null })}>清除书单筛选</button></div>}{visible.length === 0 && books.length > 0 && <button className="text-button" onClick={() => update({ tags: [], facets: {}, collection: null, view: 'all' })}>查看全部书籍</button>}<BookShelf books={visible} layout={ui.layout} onOpen={props.onOpen} onEdit={props.onEdit} disabled={disabled} onCreate={props.onCreate} onLifecycle={props.onLifecycle} recycled={false}/></main><BookCollections snapshot={snapshot} books={books} selected={collection?.id ?? null} onSelect={id => update({ collection: id })} onCommit={onCommit} disabled={disabled}/></div>
     {dialog === 'tags' && <BookTagsDialog snapshot={snapshot} onCommit={onCommit} onClose={() => setDialog(null)} onDeleted={tag => update({ tags: ui.tags.filter(value => value !== tag) })}/>}
     {typeof dialog === 'object' && dialog && dialogBook && <BookActionForm key={`${dialog.id}-${dialog.kind}-${dialog.entry?.id ?? 'new'}`} kind={dialog.kind} item={dialogBook} date={dialog.date} initialEntry={dialog.entry} books={dialog.entry ? undefined : books} onBook={id => setDialog({ ...dialog, id, entry: undefined })} onClose={() => setDialog(null)} onSave={value => action(dialog.id, value)}/>}

@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from '../../RecordEditors.tsx';
 import { useState } from 'react';
 import type { MediaItem } from '../../../domain/types.ts';
 import { Modal } from '../../components/MediaPrimitives.tsx';
@@ -7,6 +8,7 @@ export function BookFactsForm({ item, onClose, onSave }: { item: MediaItem; onCl
   const [draft, setDraft] = useState(initial);
   const [error, setError] = useState('');
   const dirty = JSON.stringify(initial) !== JSON.stringify(draft);
+  useUnsavedChanges(dirty);
   function save() {
     const score = draft.score === '' ? undefined : Number(draft.score);
     const doubanScore = draft.douban === '' ? undefined : Number(draft.douban);

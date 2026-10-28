@@ -1,4 +1,6 @@
 import type { ChangeEvent } from 'react';
+import { applyBookAction, type BookAction } from '../../domain/books.ts';
+import { isBookArrangement, isBookExperienceEntry, isBookReadingPlan, isBookReadingRound } from '../../domain/booksValidation.ts';
 import { bulkScorePatch } from '../../domain/gameScore.ts';
 import { useCallback,useEffect,useMemo,useRef } from 'react';
 import type { GameBatchEditPlan } from '../../domain/batchEdit.ts';
@@ -161,7 +163,20 @@ export function useWorkspaceController() {
     try { repo.save(next, { allowRecovery: restoringBackup, backupBeforeAppend }); snapshotRef.current = next; setSnapshot(next); if (restoringBackup) setLoadError(''); if (successMessage) setToast(successMessage); return true; }
     catch (error) { setToast(`保存失败：${error instanceof Error ? error.message : '可能已达到本地存储上限'}`); return false; }
   }
-  function updateItems(transform: (items: MediaItem[]) => MediaItem[], successMessage?: string) { const current = snapshotRef.current; return commit({ ...current, items: transform(current.items) }, successMessage); }
+  function updateSnapshot(transform: (current: LibrarySnapshot) => LibrarySnapshot, message?: string): boolean {
+    try {
+      const current = snapshotRef.current, next = transform(current);
+      if (next === current || JSON.stringify(next) === JSON.stringify(current)) return true;
+      return commit(next, message);
+    } catch (error) { setToast(`保存失败：${error instanceof Error ? error.message : '请重试'}`); return false; }
+  }
+  function updateItems(transform: (items: MediaItem[]) => MediaItem[], successMessage?: string) { return updateSnapshot(current => ({ ...current, items: transform(current.items) }), successMessage); }
+  function bookAction(id: string, action: BookAction): boolean {
+    const item = snapshotRef.current.items.find(value => value.id === id && value.category === 'book' && !value.removedAt);
+    const valid = action.type === 'arrangement' ? isBookArrangement(action.value) : action.type === 'entry' ? isBookExperienceEntry(action.entry) : action.type === 'round' ? isBookReadingRound(action.round) : action.type === 'plan' ? isBookReadingPlan(action) : true;
+    if (!item || !valid) { setToast('书籍或记录已变化，请检查输入后重试。'); return false; }
+    return updateItems(items => items.map(value => value.id === id ? applyBookAction(value, action, new Date().toISOString()) : value), '阅读记录已保存');
+  }
   function toggleSelection(id: string) {
     setSelectionIds(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }
@@ -353,5 +368,5 @@ export function useWorkspaceController() {
   }
 
   
-  return { importDesktopBackup, applyBulkScore, reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, experienceCategoryFilter, setExperienceCategoryFilter, patchClassification, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkClassification, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
+  return { updateSnapshot, bookAction, importDesktopBackup, applyBulkScore, reorderGame, changeGameFilter, appearance, ambient, initial, snapshot, loadError, section, setSection, selecting, setSelecting, selectionIds, setSelectionIds, batchEditOpen, setBatchEditOpen, status, setStatus, gameFilter, setGameFilter, experienceCategoryFilter, setExperienceCategoryFilter, patchClassification, libraryView, batchAction, setBatchAction, assignment, setAssignment, contextMenu, setContextMenu, quickItem, setQuickItem, subtypeFilter, setSubtypeFilter, query, setQuery, selectedTags, setSelectedTags, selectedGameTags, setSelectedGameTags, favoriteOnly, setFavoriteOnly, filtersOpen, setFiltersOpen, tagsOpen, setTagsOpen, sort, setSort, sortDirection, toggleSortDirection, view, setView, setSelectedId, editor, setEditor, metadataOpen, setMetadataOpen, batchOpen, setBatchOpen, steamOpen, setSteamOpen, metadataCandidate, setMetadataCandidate, importedDraft, setImportedDraft, tagManager, setTagManager, settings, setSettings, menuOpen, setMenuOpen, toast, setToast, fileInput, detailGuard, handleCardOpen, items, activeItems, contextItem, quickRecord, selected, scope, selectedGames, subtypes, visible, hasDemos, totalGameMinutes, appliedFilterCount, showCollectionPrompt, updateItems, startSelection, applyBatchEdit, applyBulkClassification, applyBulkGrade, patchSelected, guardDetail, closeDetail, openEditor, navigate, saveWork, importBatch, syncSteam, lifecycleAction, changeLibraryView, assignTag, manageTag, moveTagAction, openMenu, patchItem, exportBackup, importBackup, clearDemo, changeTagFilters };
 }

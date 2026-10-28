@@ -1,3 +1,5 @@
+import { applyBookEditor, bookEditorState, bookEditorError } from './bookEditor.ts';
+import { BookEditorState } from './BookEditorState.tsx';
 import {
 Check,
 Upload
@@ -59,6 +61,9 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     coverUrl: initial?.coverUrl ?? '',
     fileBusy: false,
     fileError: '',
+    bookState: bookEditorState(initial),
+    bookFinishedOn: '',
+    bookStateTouched: false,
     dirty: false
   }));
   const [title, setTitle] = fields('title');
@@ -84,6 +89,10 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
   const [fileBusy, setFileBusy] = fields('fileBusy');
   const [fileError, setFileError] = fields('fileError');
   const [dirty, setDirty] = fields('dirty');
+  const [bookState, setBookState] = fields('bookState');
+  const [bookFinishedOn, setBookFinishedOn] = fields('bookFinishedOn');
+  const [bookStateTouched, setBookStateTouched] = fields('bookStateTouched');
+  const bookValidation = type === 'book' ? bookEditorError(bookState, bookFinishedOn) : '';
   useUnsavedChanges(dirty);
   function close() { if (!dirty || window.confirm('放弃这次尚未保存的作品修改？')) onClose(); }
 
@@ -99,7 +108,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!title.trim() || fileBusy || writingValidation) return;
+    if (!title.trim() || fileBusy || writingValidation || bookValidation) return;
     const groupedTags = { ...initial?.gameTags, ...Object.fromEntries(GAME_TAG_KEYS.map(key => [key, normalizeTags(gameTagInputs[key].split(/[,，、\n]+/))])) } as GameTagGroups;
     const hours = playtimeHours.trim() === '' ? undefined : Number(playtimeHours);
     if (type === 'game' && hours !== undefined && (!Number.isFinite(hours) || hours < 0 || hours > 100000)) return;
@@ -107,12 +116,12 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
     // v0.4.24：编辑只写新维度（未触碰时保留原值/推导）；新建构造旧轴兼容投影。
     const gameFields = type !== 'game' || initial?.category === 'game' ? {} : newGameProjection('planned', 'unknown');
     const rankItem = { ...(initial ?? {}), category: type, ...experienceClassificationPatch(classification) } as MediaItem;
-    onSave({
+    const saved: MediaItem = {
       ...initial,
       ...(type === 'game' && (classificationTouched || initial?.category !== 'game') ? experienceClassificationPatch(classification) : {}),
       id: initial?.id ?? crypto.randomUUID(), title: title.trim(), originalTitle: originalTitle.trim() || undefined, category: type, subcategory: subtype.trim(),
       platforms: type === 'game' ? normalizePlatforms(platformInput.split(/[,，、;；\n]+/)) : initial?.platforms,
-      creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial?.category === 'game' ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : status,
+      creator: creator.trim(), year: year.trim(), status: type === 'game' ? (initial?.category === 'game' ? initial.status : ((gameFields as { status?: MediaItem['status'] }).status ?? 'want')) : type === 'book' && initial?.category !== 'book' ? 'want' : status,
       gamePlayState: type === 'game' ? (initial?.category === 'game' ? initial.gamePlayState : (gameFields as { gamePlayState?: MediaItem['gamePlayState'] }).gamePlayState) : initial?.gamePlayState,
       // 未触碰的维度保留 initial 原值（gameFields 编辑分支只含 touched 键；'unknown' 为合法显式值不受 ?? 影响）。
       ...(type === 'game' ? { playEngagement: (gameFields as { playEngagement?: MediaItem['playEngagement'] }).playEngagement ?? initial?.playEngagement, completion: (gameFields as { completion?: MediaItem['completion'] }).completion ?? initial?.completion } : {}),
@@ -126,7 +135,8 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
       favorite: initial?.favorite ?? false, artwork: initial?.artwork ?? 'default',
       sourceUrl: sourceUrl.trim() || undefined, coverUrl: coverUrl || undefined,
       createdAt: initial?.createdAt ?? now, updatedAt: now,
-    });
+    };
+    onSave(type === 'book' && (bookStateTouched || initial?.category !== 'book') ? applyBookEditor(saved, bookState, bookFinishedOn) : saved);
   }
 
   return <Modal title={initial && !creating ? '编辑作品' : '收录新作品'} description="先记下作品，其他信息以后再补充也不迟。" onClose={close} wide>
@@ -158,7 +168,8 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
               </div>)}
             </div>
           </> : <>
-            <label className="form-field">当前状态<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+            {type === 'book' ? <BookEditorState initial={initial} value={bookState} finishedOn={bookFinishedOn} onChange={value => { setBookState(value); setBookStateTouched(true); }} onDate={setBookFinishedOn}/> : <label className="form-field">当前状态<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
+            {bookValidation && <p className="form-error" role="alert">{bookValidation}</p>}
             <label className="form-field">标签 <span className="field-note">以逗号或顿号分隔</span><input placeholder="叙事、独立创作、想二刷" value={tags} onChange={e => setTags(e.target.value)} /></label>
           </>}
           {writing.legacy && <p className="feature-help">旧版长文字完整显示在测评中；不修改感受时保留原始记录。</p>}
@@ -174,7 +185,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
           <p className="cover-hint">{desktopInfo ? '图片会压缩并与收藏一起保存在本机。建议定期导出备份。' : '图片会压缩并存入本机浏览器。收藏较多时，建议定期导出备份。'}</p>
         </div>
       </div>
-      <div className="modal-actions"><button type="button" className="button button--ghost" onClick={close}>取消</button><button type="submit" disabled={!title.trim() || fileBusy || Boolean(writingValidation)} className="button button--primary"><Check size={16} />{initial && !creating ? '保存修改' : '加入收藏'}</button></div>
+      <div className="modal-actions"><button type="button" className="button button--ghost" onClick={close}>取消</button><button type="submit" disabled={!title.trim() || fileBusy || Boolean(writingValidation || bookValidation)} className="button button--primary"><Check size={16} />{initial && !creating ? '保存修改' : '加入收藏'}</button></div>
     </form>
   </Modal>;
 }
