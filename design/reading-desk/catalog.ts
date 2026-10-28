@@ -1,13 +1,9 @@
 import { createSeed } from '../reading-workspace/seed';
 import type { PreviewState, ReadingRound, Work } from '../reading-workspace/model';
+import { BOOK_TAGS, type BookTags } from './book-tags';
+import type { LibraryView } from './library-view';
 
 // Synthetic presentation data only. No new production fields or storage contract.
-export const BOOK_TAGS: Record<string, string[]> = {
-  b1: ['文学', '城市', '旅行', '哲学'], b2: ['文学', '哲学', '成长'],
-  b3: ['设计', '美学', '生活'], b4: ['科幻', '宇宙', '冒险'],
-  b5: ['心理', '生活', '非虚构'], b6: ['社会', '经济', '非虚构'],
-  b7: ['科普', '宇宙', '科学'], b8: ['文学', '哲学'],
-};
 export const COLLECTIONS = [
   { id: 'cities', title: '城市与远方', description: '跟随文字，去往别处。', bookIds: ['b1', 'b8', 'b4'] },
   { id: 'world', title: '理解世界', description: '从身边的生活，到更辽阔的世界。', bookIds: ['b6', 'b7', 'b5', 'b3'] },
@@ -43,18 +39,31 @@ export function latestRound(state: PreviewState, workId: string): ReadingRound |
     .sort((a, b) => (b.finishedOn ?? '').localeCompare(a.finishedOn ?? ''))[0];
 }
 
-export function matchesBook(state: PreviewState, work: Work, query: string): boolean {
+export function matchesBook(state: PreviewState, work: Work, query: string, byBook = BOOK_TAGS): boolean {
   const text = query.trim().toLocaleLowerCase();
-  return !text || [work.title, work.subtitle, work.format, ...(BOOK_TAGS[work.id] ?? []),
+  return !text || [work.title, work.subtitle, work.format, ...(byBook[work.id] ?? []),
     ...state.plans.filter(plan => plan.workId === work.id).map(plan => plan.reason),
     ...state.rounds.filter(round => round.workId === work.id).flatMap(round => [round.impression, round.review]),
   ].join(' ').toLocaleLowerCase().includes(text);
 }
 
-export function tagCounts(works: Work[]) {
-  const counts = new Map<string, number>();
-  for (const work of works) for (const tag of new Set(BOOK_TAGS[work.id] ?? [])) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-  return [...counts].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'zh-CN'));
+export function shelfBooks(state: PreviewState, tags: BookTags, view: LibraryView, applyTags = true): Work[] {
+  const planOf = (id: string) => state.plans.find(plan => plan.workId === id);
+  return state.works.filter(work => {
+    const plan = planOf(work.id);
+    return (view.face === 'plan' ? Boolean(plan) : Boolean(latestRound(state, work.id)))
+      && (!view.readingOnly || plan?.state === 'reading')
+      && matchesBook(state, work, view.query, tags.byBook)
+      && (!applyTags || view.selectedTags.every(tag => tags.byBook[work.id]?.includes(tag)));
+  }).sort((a, b) => {
+    // In-progress books use normal cover cards and remain pinned in the plan face.
+    const pinned = view.face === 'plan' ? Number(planOf(b.id)?.state === 'reading') - Number(planOf(a.id)?.state === 'reading') : 0;
+    const value = view.sort === 'name' ? a.title.localeCompare(b.title, 'zh-CN')
+      : view.sort === 'year' ? Number(a.year) - Number(b.year)
+      : view.face === 'plan' ? (planOf(a.id)?.order ?? 0) - (planOf(b.id)?.order ?? 0)
+      : (latestRound(state, b.id)?.finishedOn ?? '').localeCompare(latestRound(state, a.id)?.finishedOn ?? '');
+    return pinned || (view.ascending ? value : -value) || a.id.localeCompare(b.id);
+  });
 }
 
 export function readingSummary(state: PreviewState) {
