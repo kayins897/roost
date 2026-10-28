@@ -19,6 +19,7 @@ import './screen.css';
 export interface ScreensWorkspaceProps {
   snapshot: LibrarySnapshot; query: string; libraryView: 'library' | 'trash' | 'hidden'; disabled: boolean;
   onBatch: (kind: ScreenKind) => void; onCommit: ScreenCommit; onOpen: (id: string) => void; onCreate: (kind: ScreenKind) => void; onEdit: (id: string) => void;
+  initialKind?: ScreenKind;
   onKindChange?: (kind: ScreenKind) => void;
   onLifecycle: (action: 'trash' | 'restore' | 'delete', ids: string[]) => void; onNotice: (message: string) => void;
 }
@@ -27,7 +28,7 @@ type Dialog = 'tags' | { kind: ScreenFormKind | 'tags'; id: string } | null;
 const INITIAL: UI = { view: 'want', kind: 'movie', layout: 'grid', sort: 'recent', descending: true, facetsOpen: false, facets: {}, tags: [], collection: null, selecting: false, selected: [] };
 export function ScreensWorkspace(props: ScreensWorkspaceProps) {
   const { snapshot, libraryView, disabled, onCommit } = props;
-  const [ui, setUi] = useState<UI>(INITIAL), [dialog, setDialog] = useState<Dialog>(null), [menu, setMenu] = useState<ScreenMenuTarget | null>(null);
+  const [ui, setUi] = useState<UI>(() => ({ ...INITIAL, kind: props.initialKind ?? 'movie' })), [dialog, setDialog] = useState<Dialog>(null), [menu, setMenu] = useState<ScreenMenuTarget | null>(null);
   const screens = useMemo(() => snapshot.items.filter(item => item.category === 'screen' && !item.removedAt && !item.hiddenAt), [snapshot]);
   const kindScreens = screens.filter(item => screenKind(item) === ui.kind);
   const kindLabel = SCREEN_KINDS.find(kind => kind.id === ui.kind)!.label;
