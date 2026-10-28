@@ -42,6 +42,45 @@ export interface ExperienceEntry {
   minutes?: number;
 }
 
+/** Current reading arrangement, independent of finished reading rounds. */
+export type BookArrangement = 'want' | 'reading' | 'idle' | 'abandoned' | 'none';
+export interface BookReadingPlan {
+  reason: string;
+  /** YYYY / YYYY-MM / YYYY-MM-DD; an optional intention, never a reading event. */
+  targetDate?: string;
+  order?: number;
+}
+export interface BookReadingRound {
+  id: string;
+  /** Actual finish date at its recorded precision; absent means unknown. */
+  finishedOn?: string;
+  impression: string;
+  review: string;
+}
+export interface BookReading {
+  arrangement?: BookArrangement;
+  plan?: BookReadingPlan;
+  rounds?: BookReadingRound[];
+}
+export interface BookDetails {
+  translator?: string;
+  publisher?: string;
+  isbn?: string;
+  description?: string;
+  /** Public Douban rating; never substituted for the user's personalScore. */
+  doubanScore?: number;
+  /** Where the user reads/owns the book, independent of metadata provenance. */
+  readingSources?: string[];
+  metadataSource?: string;
+}
+export interface BookCollection {
+  id: string;
+  title: string;
+  description: string;
+  /** Missing/purged IDs remain harmless references; views resolve existing books. */
+  bookIds: string[];
+}
+
 /** Originals are copied to the app's asset store; no source path is persisted. */
 export interface GameScreenshot {
   id: string;
@@ -64,6 +103,9 @@ export interface MediaItem {
   platforms?: string[];
   externalIds?: ExternalId[];
   experienceEntries?: ExperienceEntry[];
+  /** Optional book extensions; legacy fields remain untouched on load and edit. */
+  bookReading?: BookReading;
+  bookDetails?: BookDetails;
   creator: string;
   year: string;
   status: ProgressStatus;
@@ -119,6 +161,9 @@ export interface LibrarySnapshot {
   exportedAt?: string;
   /** External works explicitly removed by the user must not return on import. */
   importExclusions?: ExternalId[];
+  bookCollections?: BookCollection[];
+  /** Includes intentionally empty book tags, without creating placeholder items. */
+  bookTagCatalog?: string[];
 }
 
 export interface LibraryRepository {
