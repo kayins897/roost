@@ -1,4 +1,6 @@
 import type { MetadataCandidate } from '../src/domain/catalog.ts';
+import type { ScreenDetails } from '../src/domain/types.ts';
+import { isPersonalScore } from '../src/domain/gameAssets.ts';
 
 /** Public store/page requests only. No account credentials or library data are sent. */
 export interface MetadataOptions {
@@ -162,6 +164,26 @@ function names(value: unknown): string | undefined {
   const rows = Array.isArray(value) ? value : [value];
   return rows.map(row => string(record(row)?.name ?? row)).filter(Boolean).join(' / ') || undefined;
 }
+function screenDetails(schema: Record<string, unknown> | undefined, fields: Map<string, string>, html: string, description: string | undefined): ScreenDetails {
+  const split = (value: string | undefined) => value?.split(/\s*\/\s*/).map(part => part.trim()).filter(Boolean);
+  const actorNames = names(schema?.actor) ?? fields.get('主演');
+  const origin = names(schema?.countryOfOrigin) ?? fields.get('制片国家/地区');
+  const rawDuration = typeof schema?.duration === 'string' ? schema.duration : undefined;
+  const iso = rawDuration && /^PT(?:(\d+)H)?(?:(\d+)M)?$/.exec(rawDuration);
+  const runtime = fields.get('单集片长') ?? fields.get('片长');
+  const duration = iso && (iso[1] || iso[2]) ? Number(iso[1] ?? 0) * 60 + Number(iso[2] ?? 0) : runtime?.match(/^(\d+)\s*分钟(?:\s|$|\/)/)?.[1];
+  const episodes = schema?.numberOfEpisodes ?? fields.get('集数');
+  const episodeCount = typeof episodes === 'number' ? episodes : typeof episodes === 'string' && /^\d+$/.test(episodes.trim()) ? Number(episodes) : undefined;
+  const rawRating = record(schema?.aggregateRating)?.ratingValue ?? html.match(/<(?:strong|span)\b[^>]*property=["']v:average["'][^>]*>([\s\S]*?)<\/(?:strong|span)>/i)?.[1];
+  const score = typeof rawRating === 'number' ? rawRating : typeof rawRating === 'string' && rawRating.trim() ? Number(cleanText(rawRating)) : undefined;
+  const synopsis = string(typeof schema?.description === 'string' ? cleanText(schema.description) : cleanText(html.match(/<span\b[^>]*property=["']v:summary["'][^>]*>([\s\S]*?)<\/span>/i)?.[1] ?? description ?? ''), 10000);
+  return {
+    ...(actorNames ? { actors: split(actorNames) } : {}), ...(origin ? { regions: split(origin) } : {}),
+    ...(duration !== undefined && Number.isSafeInteger(Number(duration)) && Number(duration) >= 0 ? { durationMinutes: Number(duration) } : {}),
+    ...(episodeCount !== undefined && Number.isSafeInteger(episodeCount) && episodeCount >= 0 ? { episodeCount } : {}),
+    ...(isPersonalScore(score) ? { doubanScore: score } : {}), ...(synopsis ? { description: synopsis } : {}), metadataSource: '豆瓣',
+  };
+}
 export function parseDoubanPage(html: string, sourceUrl: string): MetadataCandidate {
   const url = allowedUrl(sourceUrl, 'douban');
   const category = url.hostname === 'book.douban.com' ? 'book' : 'screen';
@@ -203,6 +225,7 @@ export function parseDoubanPage(html: string, sourceUrl: string): MetadataCandid
     creator: string(category === 'book' ? metas.get('book:author')?.join(' / ') ?? names(schema?.author) ?? fields.get('作者') : names(schema?.director) ?? fields.get('导演')),
     year: year(category === 'book' ? fields.get('出版年') ?? schema?.datePublished : meta('video:release_date') ?? schema?.datePublished ?? fields.get('首播') ?? fields.get('上映日期')),
     subcategory: category === 'screen' ? animated && series ? '番剧' : series ? '连续剧' : '电影' : undefined,
+    ...(category === 'screen' ? { screenDetails: screenDetails(schema, fields, html, meta('og:description')) } : {}),
     sourceUrl: url.toString(), coverSourceUrl: coverSource(meta('og:image') ?? image),
   };
 }

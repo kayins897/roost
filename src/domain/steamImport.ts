@@ -5,7 +5,8 @@ import { isImportExcluded } from './importExclusions.ts';
 import { readBookTable } from './bookImportTable.ts';
 import { isBookDetails } from './booksValidation.ts';
 import { isPersonalScore } from './gameAssets.ts';
-import type { BookDetails } from './types.ts';
+import type { BookDetails, ScreenDetails } from './types.ts';
+import { isScreenDetails } from './screensValidation.ts';
 
 export const STEAM_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 export const STEAM_IMPORT_MAX_GAMES = 2000;
@@ -14,7 +15,7 @@ export interface SteamImportGame {
   category?: MediaType; originalTitle?: string; subcategory?: string; creator?: string; year?: string;
   sourceUrl?: string; externalIds?: ExternalId[]; tags?: string[]; coverUrl?: string;
   platforms?: string[]; gameTags?: GameTagGroups;
-  bookDetails?: BookDetails; personalScore?: number;
+  bookDetails?: BookDetails; screenDetails?: ScreenDetails; personalScore?: number;
 }
 export interface SteamImportWarning { row: number; reason: string }
 export interface SteamImportResult { games: SteamImportGame[]; skipped: SteamImportWarning[] }
@@ -135,6 +136,26 @@ function parseManifestWork(value: unknown): SteamImportGame | string {
       }
     }
   }
+  if (category === 'screen') {
+    const details = own(value, 'screenDetails');
+    if (details !== undefined) {
+      if (!isScreenDetails(details)) return '影视资料格式无效，评分应为0–10分，片长和集数应为非负整数';
+      const allowed = ['actors', 'regions', 'durationMinutes', 'episodeCount', 'description', 'doubanScore', 'viewingSources', 'metadataSource'];
+      result.screenDetails = Object.fromEntries(Object.entries(details).filter(([key]) => allowed.includes(key))) as ScreenDetails;
+    }
+    const score = own(value, 'personalScore');
+    if (score !== undefined) { if (!isPersonalScore(score)) return '个人评分应为 0–10 分、最多一位小数'; result.personalScore = score; }
+    if (result.sourceUrl) {
+      const url = new URL(result.sourceUrl), id = url.hostname === 'movie.douban.com' && !url.port ? /^\/subject\/(\d{1,20})(?:\/|$)/.exec(url.pathname)?.[1] : undefined;
+      if (id && !/^0+$/.test(id)) {
+        const normalizedId = id.replace(/^0+/, '');
+        if (result.externalIds?.some(ref => ref.provider === 'douban' && ref.id.replace(/^0+/, '') !== normalizedId)) return '豆瓣链接与清单编号不一致';
+        result.sourceUrl = `https://movie.douban.com/subject/${normalizedId}/`;
+        result.externalIds = [{ provider: 'douban', id: normalizedId, url: result.sourceUrl }];
+        result.screenDetails = { ...result.screenDetails, metadataSource: result.screenDetails?.metadataSource || '豆瓣' };
+      }
+    }
+  }
   const platforms = own(value, 'platforms');
   if (platforms !== undefined) {
     if (category !== 'game' || !Array.isArray(platforms) || platforms.length > 30 || platforms.some(platform => typeof platform !== 'string' || !platform.trim() || platform.length > 80)) return '游戏平台需要为有效文字数组';
@@ -171,6 +192,12 @@ function parseBookRecord(value: unknown): SteamImportGame | string {
     ...(Object.keys(flatDetails).length || details ? { bookDetails: { ...flatDetails, ...details } } : {}) });
 }
 
+function parseScreenRecord(value: unknown): SteamImportGame | string {
+  if (!object(value) || (own(value, 'category') !== undefined && own(value, 'category') !== 'screen') ||
+    own(value, 'appid') !== undefined || own(value, 'appId') !== undefined) return '影视数组包含非影视记录';
+  return parseManifestWork({ ...value, category: 'screen', title: own(value, 'title') ?? own(value, 'name') });
+}
+
 /** Only explicit allowlisted fields enter a new item; arbitrary JSON never becomes library data. */
 export function parseSteamImport(text: string, category: MediaType = 'game'): SteamImportResult {
   if (new TextEncoder().encode(text).byteLength > STEAM_IMPORT_MAX_BYTES) throw new Error('清单超过 2 MB，请拆分后导入');
@@ -181,6 +208,7 @@ export function parseSteamImport(text: string, category: MediaType = 'game'): St
   let rows: unknown[];
   let manifest = false;
   let bookArray = false;
+  let screenArray = false;
   const json = /^[\[{]/.test(input);
   if (!json && category === 'book') {
     const table = readBookTable(original, STEAM_IMPORT_MAX_GAMES);
@@ -208,6 +236,10 @@ export function parseSteamImport(text: string, category: MediaType = 'game'): St
       const books = object(parsed) ? own(parsed, 'books') : undefined;
       if (!Array.isArray(parsed) && !Array.isArray(books)) throw new Error('书籍 JSON 请提供书籍数组、books 数组或 qiyu.batch.v1 清单；Steam 库存需切换至游戏板块');
       rows = Array.isArray(parsed) ? parsed : books as unknown[]; bookArray = true;
+    } else if (category === 'screen') {
+      const screens = object(parsed) ? own(parsed, 'screens') : undefined;
+      if (!Array.isArray(parsed) && !Array.isArray(screens)) throw new Error('影视 JSON 请提供影视数组、screens 数组或 qiyu.batch.v1 清单');
+      rows = Array.isArray(parsed) ? parsed : screens as unknown[]; screenArray = true;
     } else {
       const response = object(parsed) ? own(parsed, 'response') : undefined;
       const rawGames = Array.isArray(parsed) ? parsed : object(response) ? own(response, 'games') : object(parsed) ? own(parsed, 'games') : undefined;
@@ -221,7 +253,7 @@ export function parseSteamImport(text: string, category: MediaType = 'game'): St
   rows.forEach((row, index) => {
     if (!json && !row) return;
     let candidate: SteamImportGame | string;
-    if (json) candidate = bookArray ? parseBookRecord(row) : manifest ? parseManifestWork(row) : parseGame(row);
+    if (json) candidate = bookArray ? parseBookRecord(row) : screenArray ? parseScreenRecord(row) : manifest ? parseManifestWork(row) : parseGame(row);
     else {
       const columns = String(row).split(/\t|\s*\|\s*/).map(column => column.trim());
       const [title, source, duration] = columns;
@@ -337,7 +369,8 @@ export function createSteamImportItems(games: SteamImportGame[], initialStatus: 
     ...(game.originalTitle ? { originalTitle: game.originalTitle } : {}),
     ...(game.coverUrl ? { coverUrl: game.coverUrl } : {}),
     ...(category === 'book' && game.bookDetails ? { bookDetails: structuredClone(game.bookDetails) } : {}),
-    ...(category === 'book' && game.personalScore !== undefined ? { personalScore: game.personalScore } : {}),
+    ...(category === 'screen' && game.screenDetails ? { screenDetails: structuredClone(game.screenDetails) } : {}),
+    ...((category === 'book' || category === 'screen') && game.personalScore !== undefined ? { personalScore: game.personalScore } : {}),
     ...(game.externalIds ? { externalIds: game.externalIds.map(ref => ({ ...ref })) } : {}),
     ...(game.sourceUrl ? { sourceUrl: game.sourceUrl } : {}),
     ...(game.playtimeMinutes !== undefined ? { playtimeMinutes: game.playtimeMinutes } : {}),

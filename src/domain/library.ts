@@ -6,6 +6,7 @@ import { isGameScreenshot, isLastPlayedAt, isPersonalScore } from './gameAssets.
 import { experienceCategoryFor, experienceStatusFor, isGameExperienceCategory, isGameExperienceStatus } from './gameExperience.ts';
 import type { GameExperienceCategory, GameExperienceStatus } from './types.ts';
 import { isBookCollections, isBookDetails, isBookReading, isBookTagCatalog } from './booksValidation.ts';
+import { isScreenCollections, isScreenDetails, isScreenTagCatalog, isScreenViewing } from './screensValidation.ts';
 
 export const MEDIA_LABELS: Record<MediaType, string> = {
   game: '游戏', book: '书籍', screen: '影视', music: '音乐',
@@ -268,6 +269,8 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
   return data.schemaVersion === 1 &&
     (data.bookCollections === undefined || isBookCollections(data.bookCollections)) &&
     (data.bookTagCatalog === undefined || isBookTagCatalog(data.bookTagCatalog)) &&
+    (data.screenCollections === undefined || isScreenCollections(data.screenCollections)) &&
+    (data.screenTagCatalog === undefined || isScreenTagCatalog(data.screenTagCatalog)) &&
     (data.importExclusions === undefined || (Array.isArray(data.importExclusions) && data.importExclusions.every(isValidImportExclusion))) &&
     Array.isArray(data.items) && data.items.every(item =>
     item && typeof item.id === 'string' && item.id.length > 0 &&
@@ -277,6 +280,8 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
     statuses.includes(item.status) && Array.isArray(item.tags) &&
     (item.bookReading === undefined || isBookReading(item.bookReading)) &&
     (item.bookDetails === undefined || isBookDetails(item.bookDetails)) &&
+    (item.screenViewing === undefined || isScreenViewing(item.screenViewing)) &&
+    (item.screenDetails === undefined || isScreenDetails(item.screenDetails)) &&
     (item.gamePlayState === undefined || item.gamePlayState === 'replaying' || GAME_PLAY_STATES.includes(item.gamePlayState)) &&
     (item.category !== 'game' || item.experienceStatus === undefined || isGameExperienceStatus(item.experienceStatus)) &&
     (item.category !== 'game' || item.experienceCategory === undefined || isGameExperienceCategory(item.experienceCategory)) &&

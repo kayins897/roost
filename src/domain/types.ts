@@ -81,6 +81,43 @@ export interface BookCollection {
   bookIds: string[];
 }
 
+/** Current viewing arrangement, independent of previous completed viewings. */
+export type ScreenArrangement = 'want' | 'watching' | 'idle' | 'abandoned' | 'none';
+export interface ScreenProgress {
+  season?: number;
+  /** 0 means explicitly not started; absent means not recorded. */
+  episode?: number;
+}
+export interface ScreenViewingRound {
+  id: string;
+  /** Optional actual year/month/day; never replaced with the collection date. */
+  finishedOn?: string;
+  impression: string;
+  review: string;
+}
+export interface ScreenViewing {
+  arrangement?: ScreenArrangement;
+  progress?: ScreenProgress;
+  rounds?: ScreenViewingRound[];
+}
+export interface ScreenDetails {
+  actors?: string[];
+  regions?: string[];
+  /** Metadata runtime, not the user's actual viewing duration. */
+  durationMinutes?: number;
+  episodeCount?: number;
+  description?: string;
+  doubanScore?: number;
+  viewingSources?: string[];
+  metadataSource?: string;
+}
+export interface ScreenCollection {
+  id: string;
+  title: string;
+  description: string;
+  screenIds: string[];
+}
+
 /** Originals are copied to the app's asset store; no source path is persisted. */
 export interface GameScreenshot {
   id: string;
@@ -106,6 +143,9 @@ export interface MediaItem {
   /** Optional book extensions; legacy fields remain untouched on load and edit. */
   bookReading?: BookReading;
   bookDetails?: BookDetails;
+  /** Optional screen extensions; loading never rewrites legacy progress. */
+  screenViewing?: ScreenViewing;
+  screenDetails?: ScreenDetails;
   creator: string;
   year: string;
   status: ProgressStatus;
@@ -164,6 +204,8 @@ export interface LibrarySnapshot {
   bookCollections?: BookCollection[];
   /** Includes intentionally empty book tags, without creating placeholder items. */
   bookTagCatalog?: string[];
+  screenCollections?: ScreenCollection[];
+  screenTagCatalog?: string[];
 }
 
 export interface LibraryRepository {

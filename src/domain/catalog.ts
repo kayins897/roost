@@ -1,5 +1,6 @@
 import { emptyGameTags, normalizePlatforms, platformsFor } from './library.ts';
-import type { ExperienceEntry, ExternalId, MediaItem, MediaType, MetadataProvider } from './types.ts';
+import type { ExperienceEntry, ExternalId, MediaItem, MediaType, MetadataProvider, ScreenDetails } from './types.ts';
+import { isScreenDetails } from './screensValidation.ts';
 
 /** Remote artwork is a preview/source only; persisted coverUrl remains a local data URL. */
 export interface MetadataCandidate {
@@ -15,6 +16,7 @@ export interface MetadataCandidate {
   sourceUrl: string;
   coverUrl?: string;
   coverSourceUrl?: string;
+  screenDetails?: ScreenDetails;
 }
 
 function normalizedTitle(value: string | undefined): string {
@@ -76,6 +78,7 @@ function mergeExternalIds(existing: ExternalId[], candidate: MetadataCandidate):
 export function applyMetadataCandidate(existing: MediaItem | undefined, candidate: MetadataCandidate): MediaItem {
   if (existing && existing.category !== candidate.category) throw new Error('不能合并不同板块的作品');
   if (!candidate.title.trim() || !candidate.externalId.trim()) throw new Error('资料缺少作品名称或来源编号');
+  if (candidate.category === 'screen' && candidate.screenDetails !== undefined && !isScreenDetails(candidate.screenDetails)) throw new Error('影视资料格式无效');
   const identity = sourceIdentity(candidate.sourceUrl);
   if ((candidate.provider !== 'steam' && candidate.provider !== 'douban') || !identity ||
     (candidate.provider === 'steam' && (candidate.category !== 'game' || identity !== `steam:${candidate.externalId}`)) ||
@@ -107,9 +110,21 @@ export function applyMetadataCandidate(existing: MediaItem | undefined, candidat
     sourceUrl: filled(base.sourceUrl, candidate.sourceUrl),
     coverUrl: filled(base.coverUrl, localCover),
     ...(base.category === 'game' || platforms.length > 0 ? { platforms } : {}),
+    ...(base.category === 'screen' && candidate.screenDetails ? { screenDetails: mergeScreenDetails(base.screenDetails, candidate.screenDetails) } : {}),
     externalIds: mergeExternalIds(base.externalIds ?? [], candidate),
     updatedAt: now,
   };
+}
+
+/** Only known public fields may fill gaps; personal values, zero and unknown extensions survive. */
+function mergeScreenDetails(existing: ScreenDetails = {}, incoming: ScreenDetails): ScreenDetails {
+  const next = { ...existing };
+  for (const key of ['actors', 'regions', 'durationMinutes', 'episodeCount', 'description', 'doubanScore', 'viewingSources', 'metadataSource'] as const) {
+    const current = next[key], value = incoming[key];
+    const missing = current === undefined || (typeof current === 'string' && !current.trim()) || (Array.isArray(current) && !current.length);
+    if (missing && value !== undefined) Object.assign(next, { [key]: Array.isArray(value) ? [...value] : value });
+  }
+  return next;
 }
 
 export type TimelineEntry = ExperienceEntry & { item: MediaItem };
