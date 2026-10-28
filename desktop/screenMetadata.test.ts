@@ -3,6 +3,12 @@ import test from 'node:test';
 import { parseDoubanPage } from './metadata.ts';
 
 const url = 'https://movie.douban.com/subject/42/';
+test('豆瓣空白实体与空 HTML 评分保持未知，真实零分保留', () => {
+  for (const ratingValue of ['&nbsp;', '<span></span>', '   ']) {
+    assert.equal(parseDoubanPage(page('', { '@type': 'Movie', aggregateRating: { ratingValue } }), url).screenDetails?.doubanScore, undefined);
+  }
+  assert.equal(parseDoubanPage(page('', { '@type': 'Movie', aggregateRating: { ratingValue: '0' } }), url).screenDetails?.doubanScore, 0);
+});
 function page(fields: string, schema: object = {}, summary = '') { return `<head><meta property="og:title" content="合成作品"><script type="application/ld+json">${JSON.stringify(schema)}</script></head><h1>合成作品</h1><div id="info">${fields}</div>${summary}`; }
 
 test('豆瓣影视结构化资料解析演员、地区、片长、公开评分和简介，不误作私人记录', () => {

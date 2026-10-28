@@ -175,7 +175,8 @@ function screenDetails(schema: Record<string, unknown> | undefined, fields: Map<
   const episodes = schema?.numberOfEpisodes ?? fields.get('集数');
   const episodeCount = typeof episodes === 'number' ? episodes : typeof episodes === 'string' && /^\d+$/.test(episodes.trim()) ? Number(episodes) : undefined;
   const rawRating = record(schema?.aggregateRating)?.ratingValue ?? html.match(/<(?:strong|span)\b[^>]*property=["']v:average["'][^>]*>([\s\S]*?)<\/(?:strong|span)>/i)?.[1];
-  const score = typeof rawRating === 'number' ? rawRating : typeof rawRating === 'string' && rawRating.trim() ? Number(cleanText(rawRating)) : undefined;
+  const ratingText = typeof rawRating === 'string' ? cleanText(rawRating) : '';
+  const score = typeof rawRating === 'number' ? rawRating : ratingText ? Number(ratingText) : undefined;
   const synopsis = string(typeof schema?.description === 'string' ? cleanText(schema.description) : cleanText(html.match(/<span\b[^>]*property=["']v:summary["'][^>]*>([\s\S]*?)<\/span>/i)?.[1] ?? description ?? ''), 10000);
   return {
     ...(actorNames ? { actors: split(actorNames) } : {}), ...(origin ? { regions: split(origin) } : {}),
