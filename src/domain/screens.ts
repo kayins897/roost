@@ -21,7 +21,7 @@ export function screenRounds(item: MediaItem): ScreenViewingRound[] {
   return item.category === 'screen' ? item.screenViewing?.rounds ?? [] : [];
 }
 export function isScreenSeries(item: MediaItem): boolean {
-  return item.category === 'screen' && /连续剧|番剧|剧集|电视剧|电视|series|tv|anime/i.test(item.subcategory);
+  return item.category === 'screen' && /连续剧|番剧|动漫|剧集|电视剧|电视|series|\btv\b|anime/i.test(item.subcategory);
 }
 export function screenProgressLabel(item: MediaItem): string {
   if (item.category !== 'screen' || !isScreenSeries(item)) return '';

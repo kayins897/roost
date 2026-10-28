@@ -1,4 +1,5 @@
-import { applyScreenEditor, SCREEN_EDITOR_STATES, type ScreenEditorState } from './features/editor/screenEditor.ts';
+import { SCREEN_KINDS, screenKind, type ScreenKind } from '../domain/screenConsumption.ts';
+import { applyScreenEditor, screenEditorOptions, type ScreenEditorState } from './features/editor/screenEditor.ts';
 import { FileUp,ListPlus,X } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import { useEffect,useMemo,useRef,useState } from 'react';
@@ -12,10 +13,11 @@ import { CLASSIFICATIONS, CLASSIFICATION_LABELS } from './features/library/exper
 import './steam-import.css';
 import { useDialogKeyboard } from './useDialogKeyboard.ts';
 
-export function SteamLibraryImport({ items, exclusions, initialCategory = 'game', onClose, onImport }: {
+export function SteamLibraryImport({ items, exclusions, initialCategory = 'game', initialScreenKind = 'movie', onClose, onImport }: {
   items: MediaItem[];
   exclusions?: ExternalId[];
   initialCategory?: MediaType;
+  initialScreenKind?: ScreenKind;
   onClose: () => void;
   onImport: (newItems: MediaItem[]) => boolean;
 }) {
@@ -29,6 +31,7 @@ export function SteamLibraryImport({ items, exclusions, initialCategory = 'game'
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'new' | 'existing' | 'within' | 'excluded'>('all');
   const [category, setCategory] = useState<MediaType>(initialCategory);
+  const [textScreenKind, setTextScreenKind] = useState<ScreenKind>(initialScreenKind);
   const [initialScreenState, setInitialScreenState] = useState<ScreenEditorState | 'auto'>('auto');
   const [initialStatus, setInitialStatus] = useState<ProgressStatus>('want');
   const [initialBookState, setInitialBookState] = useState<Exclude<BookArrangement, 'none'> | 'records'>('want');
@@ -64,6 +67,8 @@ export function SteamLibraryImport({ items, exclusions, initialCategory = 'game'
     setError(''); setSubmitted(false); setSearch(''); setFilter('all');
     try {
       const result = parseSteamImport(value, category);
+      const explicit = /^[\[{]/.test(value.trim());
+      result.games = result.games.map(work => work.category === 'screen' && (!explicit || !work.subcategory) ? { ...work, subcategory: SCREEN_KINDS.find(kind => kind.id === textScreenKind)!.label } : work);
       setParsed(result);
       const categories = [...new Set(result.games.map(work => work.category ?? 'game'))];
       if (categories.length === 1) setCategory(categories[0]);
@@ -111,7 +116,9 @@ export function SteamLibraryImport({ items, exclusions, initialCategory = 'game'
       <div className="modal-heading"><div><h2>批量导入作品</h2><p>先检查清单，只把选中的新作品加入收藏。</p></div><button type="button" className="icon-button" aria-label="关闭批量导入" onClick={requestClose}><X size={19} /></button></div>
       {discard && <div className="steam-import-discard" role="alert"><p>本次清单尚未导入，关闭后将丢弃这份预览。</p><div><button type="button" className="button button--ghost" onClick={() => setDiscard(false)}>继续整理</button><button type="button" className="button button--ghost" onClick={onClose}>放弃本次清单</button></div></div>}
       <div className="steam-import-source">
-        <div className="steam-import-options"><label className="form-field">文本清单的板块<select aria-label="文本清单的板块" value={category} disabled={reading || submitted} onChange={event => { setCategory(event.target.value as MediaType); setParsed(null); setSelection(new Set()); setError(''); }}><option value="game">Steam 游戏</option><option value="screen">影视</option><option value="book">书籍</option><option value="music">音乐</option></select></label>{category === 'game' ? <><label className="form-field">新增游戏的体验分类<select aria-label="新增游戏的体验分类" value={initialClassification} disabled={submitted} onChange={event => setInitialClassification(event.target.value as GameExperienceClassification | 'auto')}><option value="auto">自动识别 · 无记录先新作开荒</option>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{CLASSIFICATION_LABELS[value]}</option>)}</select></label></> : category === 'book' ? <label className="form-field">新增书籍的阅读状态<select aria-label="新增书籍的阅读状态" value={initialBookState} disabled={submitted} onChange={event => setInitialBookState(event.target.value as typeof initialBookState)}><option value="want">想读</option><option value="reading">在读</option><option value="records">已读 · 日期未记录</option><option value="idle">闲置</option><option value="abandoned">弃读</option></select></label> : category === 'screen' ? <label className="form-field">新增影视的观看安排<select aria-label="新增影视的观看安排" value={initialScreenState} disabled={submitted} onChange={event => setInitialScreenState(event.target.value as ScreenEditorState | 'auto')}><option value="auto">默认想看 · 不推测观看经历</option>{SCREEN_EDITOR_STATES.filter(([id]) => id !== 'none').map(([id, label]) => <option key={id} value={id}>{label}{id === 'watched' ? ' · 日期未记录' : ''}</option>)}</select></label> : <label className="form-field">新增作品的初始状态<select aria-label="新增作品的初始状态" value={initialStatus} disabled={submitted} onChange={event => setInitialStatus(event.target.value as ProgressStatus)}>{(['want','active','finished','paused'] as const).map(value => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</select></label>}</div>
+        <div className="steam-import-options"><label className="form-field">文本清单的板块<select aria-label="文本清单的板块" value={category} disabled={reading || submitted} onChange={event => { setCategory(event.target.value as MediaType); setParsed(null); setSelection(new Set()); setError(''); }}><option value="game">Steam 游戏</option><option value="screen">影视</option><option value="book">书籍</option><option value="music">音乐</option></select></label>{category === 'game' ? <><label className="form-field">新增游戏的体验分类<select aria-label="新增游戏的体验分类" value={initialClassification} disabled={submitted} onChange={event => setInitialClassification(event.target.value as GameExperienceClassification | 'auto')}><option value="auto">自动识别 · 无记录先新作开荒</option>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{CLASSIFICATION_LABELS[value]}</option>)}</select></label></> : category === 'book' ? <label className="form-field">新增书籍的阅读状态<select aria-label="新增书籍的阅读状态" value={initialBookState} disabled={submitted} onChange={event => setInitialBookState(event.target.value as typeof initialBookState)}><option value="want">想读</option><option value="reading">在读</option><option value="records">已读 · 日期未记录</option><option value="idle">闲置</option><option value="abandoned">弃读</option></select></label> : category === 'screen' ? <label className="form-field">新增影视的观看安排<select aria-label="新增影视的观看安排" value={initialScreenState} disabled={submitted} onChange={event => setInitialScreenState(event.target.value as ScreenEditorState | 'auto')}><option value="auto">默认想看 · 不推测观看经历</option>{screenEditorOptions(parsed?.games.some(work => work.category === 'screen' && screenKind({ subcategory: work.subcategory ?? '' }) !== 'movie') ? '连续剧' : SCREEN_KINDS.find(kind => kind.id === textScreenKind)!.label).map(([id, label]) => <option key={id} value={id}>{label}{id === 'watched' ? ' · 日期未记录' : ''}</option>)}</select></label> : <label className="form-field">新增作品的初始状态<select aria-label="新增作品的初始状态" value={initialStatus} disabled={submitted} onChange={event => setInitialStatus(event.target.value as ProgressStatus)}>{(['want','active','finished','paused'] as const).map(value => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</select></label>}</div>
+        {category === 'screen' && <label className="form-field">文本清单的影视类型<select aria-label="文本清单的影视类型" value={textScreenKind} disabled={reading || submitted} onChange={event => { setTextScreenKind(event.target.value as ScreenKind); setInitialScreenState('auto'); setParsed(null); setSelection(new Set()); setError(''); }}>{SCREEN_KINDS.map(kind => <option key={kind.id} value={kind.id}>{kind.label}</option>)}</select><small className="books-muted">JSON 中已填写的作品类型会保留。</small></label>}
+        {category === 'screen' && initialScreenState === 'watching' && chosen.some(row => screenKind({ subcategory: row.game.subcategory ?? '' }) === 'movie') && <p className="steam-import-hint">在看仅适用于番剧和连续剧；本次选择的电影将归入想看。</p>}
         <label className="form-field">作品清单<textarea ref={source} rows={5} maxLength={STEAM_IMPORT_MAX_BYTES} value={text} disabled={reading || submitted} placeholder={category === 'game' ? '每行一个游戏名称，也支持：\n游戏名称 | https://store.steampowered.com/app/…/ | 游玩分钟\n或粘贴 GetOwnedGames / 栖域批量 JSON 清单' : category === 'book' ? '每行一本书；也可粘贴带表头的 CSV / TSV 表格：\n书名,作者,出版社,出版年份,标签,豆瓣链接\n或选择栖域批量 JSON 清单' : '每行一个作品名称\n详细资料可选择或粘贴栖域批量 JSON 清单'} onChange={event => { setText(event.target.value); setParsed(null); setSelection(new Set()); setError(''); setDiscard(false); }} /></label>
         <div className="steam-import-source-actions"><label className="button button--ghost steam-import-file"><FileUp size={16} />选择文件<input type="file" accept={category === 'book' ? '.json,.txt,.csv,.tsv,application/json,text/plain,text/csv,text/tab-separated-values' : '.json,.txt,application/json,text/plain'} aria-label="选择清单文件" disabled={reading || submitted} onChange={event => { void readFile(event); }} /></label><button type="button" className="button button--primary" disabled={reading || submitted || !text.trim()} onClick={() => parse(text)}><ListPlus size={16} />{reading ? '读取中…' : '生成预览'}</button></div>
         <p className="steam-import-hint">支持 {category === 'book' ? 'TXT / CSV / TSV / JSON' : 'JSON / TXT'}，最多 2 MB、2000 件。栖域批量清单会使用文件中各作品的板块；完整收藏备份请到“数据与设置”导入。</p>

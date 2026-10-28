@@ -1,7 +1,8 @@
 import { Check, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { screenArrangement, screenHasWatched, type ScreenAction } from '../../../domain/screens.ts';
+import { screenHasWatched, type ScreenAction } from '../../../domain/screens.ts';
+import { screenArrangementOptions, screenDisplayArrangement } from '../../../domain/screenConsumption.ts';
 import type { MediaItem, ScreenArrangement } from '../../../domain/types.ts';
 import { InlineScoreControl, type InlineScoreControlHandle } from '../../components/InlineScoreControl.tsx';
 
@@ -12,7 +13,6 @@ interface Props {
   onEdit: () => void; onTags: () => void; onRound: () => void;
   onLifecycle: (action: 'trash' | 'restore' | 'delete', ids: string[]) => void;
 }
-const ARRANGEMENTS: { value: ScreenArrangement; label: string }[] = [{ value: 'want', label: '想看' }, { value: 'watching', label: '在看' }, { value: 'none', label: '看过' }, { value: 'idle', label: '搁置' }, { value: 'abandoned', label: '弃看' }];
 export function ScreenMenu(props: Props) {
   const panel = useRef<HTMLDivElement>(null), score = useRef<InlineScoreControlHandle>(null);
   const [position, setPosition] = useState({ left: props.target.x, top: props.target.y });
@@ -50,7 +50,7 @@ export function ScreenMenu(props: Props) {
     }
   }}>
     <strong className="screen-menu-title">{props.item.title}</strong>
-    {!props.recycled && <><div className="screen-menu-arrangements" role="group" aria-label="观看安排">{ARRANGEMENTS.map(({ value, label }) => <button key={value} role="menuitemradio" aria-checked={screenArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item))} disabled={props.disabled} data-screen-state={value} onClick={() => arrange(value)}>{label}{screenArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item)) && <Check size={13}/>}</button>)}</div>
+    {!props.recycled && <><div className="screen-menu-arrangements" role="group" aria-label="观看安排">{screenArrangementOptions(props.item).map(({ value, label }) => <button key={value} role="menuitemradio" aria-checked={screenDisplayArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item))} disabled={props.disabled} data-screen-state={value} onClick={() => arrange(value)}>{label}{screenDisplayArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item)) && <Check size={13}/>}</button>)}</div>
       <div className="screen-menu-score"><span>我的评分</span>{props.disabled ? <p>{props.item.personalScore === undefined ? '未评分' : props.item.personalScore.toFixed(1)}</p> : <InlineScoreControl ref={score} value={props.item.personalScore} onSave={props.onScore} label="影视个人评分" deferUntilDismiss commitScope={panel}/>}</div>
       <button role="menuitem" disabled={props.disabled} onClick={() => open(props.onTags)}><Tags size={14}/>编辑标签</button><button role="menuitem" disabled={props.disabled} onClick={() => open(props.onRound)}><Plus size={14}/>补录看过</button><button role="menuitem" disabled={props.disabled} onClick={() => open(props.onEdit)}><Pencil size={14}/>编辑作品资料</button>
     </>}

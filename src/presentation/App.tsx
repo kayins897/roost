@@ -1,3 +1,4 @@
+import type { ScreenKind } from '../domain/screenConsumption.ts';
 import { ScreensWorkspace } from './features/screen/ScreensWorkspace.tsx';
 import { ScreenDetail } from './features/screen/ScreenDetail.tsx';
 import { ScreenTagsDialog } from './features/screen/ScreenTagDialog.tsx';
@@ -70,6 +71,7 @@ import { useWorkspaceController } from './app/useWorkspaceController.ts';
 
 function App() {
   const [collectionHub, setCollectionHub] = useState(false);
+  const [screenCreateKind, setScreenCreateKind] = useState<ScreenKind>('movie');
   const listWriting = useListWritingGuard();
   const scrollRef = useRef<HTMLDivElement>(null);
   const glass = useGlassPreference();
@@ -118,7 +120,7 @@ function App() {
         <section className="page-heading"><div className="heading-details"><h1>{MEDIA_LABELS[section]}</h1><p>{section === 'game' ? `已收藏 ${scope.length} 款游戏 · 累计记录 ${formatPlaytime(totalGameMinutes)}` : `已收藏 ${scope.length} 件作品`}</p></div></section>
 
         {libraryView !== 'library' && <div className="library-views" aria-label="收藏范围"><strong>{libraryView === 'trash' ? '回收站' : '已隐藏作品'}</strong><button onClick={() => changeLibraryView('library')}>返回收藏库</button></div>}
-        {section === 'book' ? <BooksWorkspace snapshot={snapshot} query={query} libraryView={libraryView} disabled={!!loadError} onCommit={updateSnapshot} onOpen={handleCardOpen} onBatch={() => { setBatchOpen(true); }} onCreate={openEditor} onEdit={id => { setSelectedId(id); setEditor('edit'); }} onLifecycle={lifecycleAction} onNotice={setToast} /> : section === 'screen' ? <ScreensWorkspace snapshot={snapshot} query={query} libraryView={libraryView} disabled={!!loadError} onCommit={updateSnapshot} onOpen={handleCardOpen} onBatch={() => setBatchOpen(true)} onCreate={openEditor} onEdit={id => { setSelectedId(id); setEditor('edit'); }} onLifecycle={lifecycleAction} onNotice={setToast}/> : <div className="collection-workspace">
+        {section === 'book' ? <BooksWorkspace snapshot={snapshot} query={query} libraryView={libraryView} disabled={!!loadError} onCommit={updateSnapshot} onOpen={handleCardOpen} onBatch={() => { setBatchOpen(true); }} onCreate={openEditor} onEdit={id => { setSelectedId(id); setEditor('edit'); }} onLifecycle={lifecycleAction} onNotice={setToast} /> : section === 'screen' ? <ScreensWorkspace snapshot={snapshot} query={query} libraryView={libraryView} disabled={!!loadError} onCommit={updateSnapshot} onOpen={handleCardOpen} onKindChange={setScreenCreateKind} onBatch={kind => { setScreenCreateKind(kind); setBatchOpen(true); }} onCreate={kind => { setScreenCreateKind(kind); openEditor(); }} onEdit={id => { setSelectedId(id); setEditor('edit'); }} onLifecycle={lifecycleAction} onNotice={setToast}/> : <div className="collection-workspace">
         <section className="collection-section">
           <div className="collection-toolbar">
             <div className="collection-title"><span className="collection-number">显示 {visible.length} 件作品</span>{desktopBridge && section === 'game' && <button className="text-button steam-open-link" onClick={() => guardDetail(() => setSteamOpen(true))} disabled={!!loadError}><Link2 size={14} />连接 Steam</button>}</div>
@@ -167,10 +169,10 @@ function App() {
       return selected.category === 'book' ? <BookDetail key={selected.id} {...shared} catalogTags={snapshot.bookTagCatalog} onAction={action => bookAction(selected.id, action)}/> : selected.category === 'screen' ? <ScreenDetail key={selected.id} {...shared} catalogTags={snapshot.screenTagCatalog} onAction={action => screenAction(selected.id, action)}/> : <DetailPanel key={selected.id} {...shared}/>;
     })()}
 
-    {editor && <Editor key={`${editor}-${editor === 'import' ? importedDraft?.id : selected?.id ?? 'new'}`} initial={editor === 'edit' ? selected ?? undefined : editor === 'import' ? importedDraft ?? undefined : undefined} creating={editor === 'import' && !items.some(item => item.id === importedDraft?.id)} category={section} onSave={saveWork} onClose={() => { setEditor(null); setImportedDraft(null); }} />}
+    {editor && <Editor key={`${editor}-${editor === 'import' ? importedDraft?.id : selected?.id ?? 'new'}`} initial={editor === 'edit' ? selected ?? undefined : editor === 'import' ? importedDraft ?? undefined : undefined} creating={editor === 'import' && !items.some(item => item.id === importedDraft?.id)} category={section} initialScreenKind={screenCreateKind} onSave={saveWork} onClose={() => { setEditor(null); setImportedDraft(null); }} />}
     {metadataOpen && <MetadataImport onClose={() => setMetadataOpen(false)} onSelect={candidate => { setMetadataOpen(false); setMetadataCandidate(candidate); }} />}
     {batchEditOpen && <Modal title={batchAction === 'add-tags' ? '添加标签' : '移除标签'} description="只对明确选中的游戏应用这一项操作。" wide onClose={() => setBatchEditOpen(false)}><BatchEditBody action={batchAction} items={selectedGames} availableItems={activeItems} onApply={applyBatchEdit} onClose={() => setBatchEditOpen(false)} /></Modal>}
-    {batchOpen && <SteamLibraryImport initialCategory={section} exclusions={snapshot.importExclusions} items={items} onClose={() => setBatchOpen(false)} onImport={importBatch} />}
+    {batchOpen && <SteamLibraryImport initialScreenKind={screenCreateKind} initialCategory={section} exclusions={snapshot.importExclusions} items={items} onClose={() => setBatchOpen(false)} onImport={importBatch} />}
     {steamOpen && <SteamConnect exclusions={snapshot.importExclusions} items={items} onClose={() => setSteamOpen(false)} onSync={syncSteam} />}
     {metadataCandidate && <MetadataReview candidate={metadataCandidate} matches={findDuplicateCandidates(items, metadataCandidate)} items={items} onClose={() => setMetadataCandidate(null)} onConfirm={existing => { try { if (existing?.removedAt) { setToast('这件作品在回收站中，请先恢复后再更新资料。'); return; } setImportedDraft(applyMetadataCandidate(existing, metadataCandidate)); setMetadataCandidate(null); setEditor('import'); } catch (error) { setToast(error instanceof Error ? error.message : '资料无法应用'); } }} />}
     {tagManager && section === 'book' && <BookTagsDialog snapshot={snapshot} onCommit={updateSnapshot} onClose={() => setTagManager(false)} />}

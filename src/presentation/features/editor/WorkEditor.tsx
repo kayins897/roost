@@ -1,3 +1,4 @@
+import { SCREEN_KINDS, type ScreenKind } from '../../../domain/screenConsumption.ts';
 import { applyScreenEditor, screenEditorState, screenEditorError } from './screenEditor.ts';
 import { ScreenEditorState } from './ScreenEditorState.tsx';
 import { applyBookEditor, bookEditorState, bookEditorError } from './bookEditor.ts';
@@ -35,14 +36,14 @@ async function compressCover(file: File): Promise<string> {
   } finally { image.close(); }
 }
 
-export function Editor({ initial, category, onClose, onSave, creating = false }: { initial?: MediaItem; category: MediaType; onClose: () => void; onSave: (item: MediaItem) => void; creating?: boolean }) {
+export function Editor({ initial, category, onClose, onSave, creating = false, initialScreenKind = 'movie' }: { initial?: MediaItem; category: MediaType; initialScreenKind?: ScreenKind; onClose: () => void; onSave: (item: MediaItem) => void; creating?: boolean }) {
   const writingOriginal = initial ?? { impression: '' };
   const writing = personalWritingFor(writingOriginal);
   const fields = useFieldState(() => ({
     title: initial?.title ?? '',
     originalTitle: initial?.originalTitle ?? '',
     type: (initial?.category ?? category) as MediaType,
-    subtype: initial?.subcategory ?? (category === 'screen' ? '电影' : ''),
+    subtype: initial?.subcategory ?? (category === 'screen' ? SCREEN_KINDS.find(kind => kind.id === initialScreenKind)!.label : ''),
     platformInput: initial ? platformsFor(initial).join('、') : '',
     creator: initial?.creator ?? '',
     year: initial?.year ?? '',
@@ -177,7 +178,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false }:
               </div>)}
             </div>
           </> : <>
-            {type === 'book' ? <BookEditorState initial={initial} value={bookState} finishedOn={bookFinishedOn} onChange={value => { setBookState(value); setBookStateTouched(true); }} onDate={setBookFinishedOn}/> : type === 'screen' ? <ScreenEditorState initial={initial} value={screenState} date={screenFinishedOn} onChange={value => { setScreenState(value); setScreenStateTouched(true); }} onDate={setScreenFinishedOn}/> : <label className="form-field">当前状态<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
+            {type === 'book' ? <BookEditorState initial={initial} value={bookState} finishedOn={bookFinishedOn} onChange={value => { setBookState(value); setBookStateTouched(true); }} onDate={setBookFinishedOn}/> : type === 'screen' ? <ScreenEditorState subcategory={subtype} initial={initial} value={screenState} date={screenFinishedOn} onChange={value => { setScreenState(value); setScreenStateTouched(true); }} onDate={setScreenFinishedOn}/> : <label className="form-field">当前状态<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
             {type === 'screen' && <div className="form-field"><span>个人评分</span><ScorePicker label="个人评分" value={personalScore} onChange={value => { setPersonalScore(value); setDirty(true); }}/>{personalScore !== '' && <button type="button" className="text-button" onClick={() => setPersonalScore('')}>清除评分</button>}</div>}
             {screenValidation && <p className="form-error" role="alert">{screenValidation}</p>}
             {bookValidation && <p className="form-error" role="alert">{bookValidation}</p>}

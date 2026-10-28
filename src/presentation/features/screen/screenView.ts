@@ -1,18 +1,17 @@
-import { screenArrangement, screenHasWatched, screenRounds } from '../../../domain/screens.ts';
+import { screenRounds } from '../../../domain/screens.ts';
+import { screenDisplayArrangement, type ScreenShelfView } from '../../../domain/screenConsumption.ts';
 import { personalWritingFor } from '../../../domain/personalWriting.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 
-export const SCREEN_VIEWS = [{ id: 'all', label: '全部' }, { id: 'want', label: '想看' }, { id: 'watching', label: '在看' }, { id: 'watched', label: '看过' }, { id: 'idle', label: '搁置' }, { id: 'abandoned', label: '弃看' }] as const;
-export type ScreenView = typeof SCREEN_VIEWS[number]['id'];
+export type ScreenView = ScreenShelfView;
 export const FACETS = [{ id: 'director', label: '导演' }, { id: 'year', label: '年份' }, { id: 'score', label: '我的评分' }, { id: 'douban', label: '豆瓣评分' }, { id: 'source', label: '观看来源' }, { id: 'metadata', label: '资料来源' }, { id: 'favorite', label: '喜欢' }] as const;
 export type FacetKey = typeof FACETS[number]['id'];
 export type ScreenFacets = Partial<Record<FacetKey, string[]>>;
 export type ScreenCommit = (transform: (current: import('../../../domain/types.ts').LibrarySnapshot) => import('../../../domain/types.ts').LibrarySnapshot, message?: string) => boolean;
 export function screenId() { return crypto.randomUUID(); }
-export function viewMatches(item: MediaItem, view: ScreenView) { return item.category === 'screen' && (view === 'all' || (view === 'watched' ? screenHasWatched(item) : screenArrangement(item) === view)); }
 export function viewingLabel(item: MediaItem) {
-  const arrangement = screenArrangement(item);
-  return arrangement === 'none' ? screenHasWatched(item) ? '看过' : '未安排' : SCREEN_VIEWS.find(view => view.id === arrangement)?.label ?? '未安排';
+  const arrangement = screenDisplayArrangement(item);
+  return arrangement === 'none' ? '看过' : arrangement === 'watching' ? '在看' : '想看';
 }
 export function facetValues(item: MediaItem, key: FacetKey): string[] {
   if (key === 'director') return item.creator.trim() ? item.creator.split(/\s*\/\s*|[、，；;]/).filter(Boolean) : ['未记录'];
