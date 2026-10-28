@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { applyBookAction, bookArrangement, type BookAction } from '../../../domain/books.ts';
+import { applyBookAction, bookArrangement, bookDuration, type BookAction } from '../../../domain/books.ts';
 import { normalizeTags } from '../../../domain/library.ts';
 import type { ExperienceEntry, LibrarySnapshot } from '../../../domain/types.ts';
 import { BookActionForm, type BookFormKind } from './BookActionForm.tsx';
@@ -34,6 +34,7 @@ export function BooksWorkspace(props: BooksWorkspaceProps) {
     if (ui.sort === 'title') comparison = a.title.localeCompare(b.title, 'zh');
     else if (ui.sort === 'author') comparison = a.creator.localeCompare(b.creator, 'zh');
     else if (ui.sort === 'score') { if (a.personalScore === undefined || b.personalScore === undefined) return a.personalScore === b.personalScore ? 0 : a.personalScore === undefined ? 1 : -1; comparison = a.personalScore - b.personalScore; }
+    else if (ui.sort === 'duration') { const left = bookDuration(a), right = bookDuration(b); if (left === undefined || right === undefined) return left === right ? 0 : left === undefined ? 1 : -1; comparison = left - right; }
     else if (ui.sort === 'year') comparison = a.year.localeCompare(b.year, 'zh', { numeric: true });
     else comparison = a.createdAt.localeCompare(b.createdAt);
     return (ui.descending ? -comparison : comparison) || a.title.localeCompare(b.title, 'zh');

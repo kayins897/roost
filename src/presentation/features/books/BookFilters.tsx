@@ -1,4 +1,5 @@
 import { ChevronDown, LayoutGrid, List, Plus, SlidersHorizontal } from 'lucide-react';
+import { useState } from 'react';
 import { BOOK_VIEWS, FACETS, facetValues, viewMatches, type BookFacets, type BookView, type FacetKey } from './bookView.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 
@@ -18,7 +19,7 @@ export function BookFilters(props: Props) {
       </div>
       <div className="books-toolbar-tools"><span className="books-muted">{props.count} 本</span>
         <button className={`button button--secondary ${props.expanded ? 'is-selected' : ''}`} aria-expanded={props.expanded} aria-controls="books-facet-panel" onClick={props.onExpand}><SlidersHorizontal size={14}/>筛选{selectedCount ? ` ${selectedCount}` : ''}<ChevronDown size={13}/></button>
-        <select aria-label="书籍排序" value={props.sort} onChange={event => props.onSort(event.target.value)}><option value="recent">收录时间</option><option value="title">名称</option><option value="author">作者</option><option value="score">我的评分</option><option value="year">出版年份</option></select>
+        <select aria-label="书籍排序" value={props.sort} onChange={event => props.onSort(event.target.value)}><option value="recent">收录时间</option><option value="title">名称</option><option value="author">作者</option><option value="score">我的评分</option><option value="duration">阅读时长</option><option value="year">出版年份</option></select>
         <button className="button button--secondary" onClick={props.onDirection} aria-label={props.descending ? '改为升序' : '改为降序'}>{props.descending ? '↓ 降序' : '↑ 升序'}</button>
         <div className="view-switch" role="group" aria-label="书架视图"><button className={props.layout === 'grid' ? 'is-active' : ''} aria-pressed={props.layout === 'grid'} aria-label="封面视图" onClick={() => props.onLayout('grid')}><LayoutGrid size={16}/></button><button className={props.layout === 'list' ? 'is-active' : ''} aria-pressed={props.layout === 'list'} aria-label="列表视图" onClick={() => props.onLayout('list')}><List size={16}/></button></div>
       </div>
@@ -34,5 +35,8 @@ export function BookFilters(props: Props) {
   </>;
 }
 export function BookTagFilter({ tags, selected, toggle, manage, disabled }: { tags: string[]; selected: string[]; toggle: (tag: string) => void; manage: () => void; disabled: boolean }) {
-  return <section className="books-tags" aria-label="书籍标签"><header><strong>标签筛选</strong><button className="icon-button" aria-label="管理书籍标签" title="管理书籍标签" disabled={disabled} onClick={manage}><Plus size={15}/></button></header><div>{tags.length ? tags.map(tag => <button key={tag} className={`tag-filter ${selected.includes(tag) ? 'is-selected' : ''}`} aria-pressed={selected.includes(tag)} onClick={() => toggle(tag)}>{tag}</button>) : <span className="books-muted">还没有标签</span>}</div></section>;
+  const [expanded, setExpanded] = useState(true);
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? tags : tags.filter((tag, index) => index < 12 || selected.includes(tag));
+  return <section className="books-tags" aria-label="书籍标签"><header><button className="text-button" aria-expanded={expanded} aria-controls="books-tag-options" onClick={() => setExpanded(value => !value)}><strong>标签筛选</strong><ChevronDown size={13}/></button><button className="icon-button" aria-label="管理书籍标签" title="管理书籍标签" disabled={disabled} onClick={manage}><Plus size={15}/></button></header>{expanded && <div id="books-tag-options">{tags.length ? shown.map(tag => <button key={tag} className={`tag-filter ${selected.includes(tag) ? 'is-selected' : ''}`} aria-pressed={selected.includes(tag)} onClick={() => toggle(tag)}>{tag}</button>) : <span className="books-muted">还没有标签</span>}{(showAll || shown.length < tags.length) && <button className="text-button books-muted" onClick={() => setShowAll(value => !value)}>{showAll ? '收起' : `+${tags.length - shown.length} 更多`}</button>}</div>}</section>;
 }
