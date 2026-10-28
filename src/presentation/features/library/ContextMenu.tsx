@@ -7,6 +7,7 @@ import type { GameExperienceClassification } from '../../../domain/gameExperienc
 import { CLASSIFICATIONS, CLASSIFICATION_LABELS, classificationFor } from './experienceOptions.ts';
 import './library.css';
 import { ScoreControl } from './ScoreControl.tsx';
+import type { InlineScoreControlHandle } from '../../components/InlineScoreControl.tsx';
 
 export interface ItemMenu { id: string; x: number; y: number }
 interface Props { menu: ItemMenu; item: MediaItem; onClose: () => void; onClassification: (value: GameExperienceClassification) => boolean; onGrade: (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => boolean; onScore: (value: number | undefined) => boolean; onQuick: (mode: 'time' | 'tags') => void; onEdit: () => void; onFavorite: () => void; onHide: () => void; onTrash: () => void; onRestore: () => void; onDelete: () => void }
@@ -15,7 +16,11 @@ interface Props { menu: ItemMenu; item: MediaItem; onClose: () => void; onClassi
 // 避免"菜单已关、误以为已保存"。
 export function ContextMenu(props: Props) {
   const panel = useRef<HTMLDivElement>(null);
-  const { item, onClose } = props;
+  const { item } = props;
+  const score = useRef<InlineScoreControlHandle>(null);
+  // All dismissal paths (outside, Escape, resize, scroll, menu actions) commit
+  // the final draft before sorting. A failed save retains the menu and draft.
+  const onClose = () => { if (score.current?.commit() !== false) props.onClose(); };
   const closeRef = useRef(onClose); closeRef.current = onClose;
   // 实测自适配：渲染后按真实高度钳制，保证整菜单在视口内（矮窗口依赖自身滚动）。
   const [position, setPosition] = useState({ left: Math.max(8, Math.min(props.menu.x, window.innerWidth - 248)), top: Math.max(8, Math.min(props.menu.y, window.innerHeight - 200)) });
@@ -29,7 +34,10 @@ export function ContextMenu(props: Props) {
       });
     };
     place(); const observer = new ResizeObserver(place); observer.observe(node);
-    return () => observer.disconnect();
+    // Failed drafts intentionally keep this menu open during resize; a width
+    // change alone need not resize the panel, so observe the viewport too.
+    window.addEventListener('resize', place);
+    return () => { observer.disconnect(); window.removeEventListener('resize', place); };
   }, [props.menu.x, props.menu.y]);
   useEffect(() => {
     const oldFocus = document.activeElement as HTMLElement | null;
@@ -50,27 +58,34 @@ export function ContextMenu(props: Props) {
       if (userScrolled) { userScrolled = false; closeRef.current(); }
     };
     const resize = () => closeRef.current();
+    // Final saving can remove the focused Clear button or reparent its card.
+    // A native capture listener still dismisses the menu when that happens
+    // before React's bubbling key handler gets a chance to see Escape.
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeRef.current(); } };
     document.addEventListener('pointerdown', dismiss);
     window.addEventListener('wheel', markUser, { passive: true, capture: true });
     window.addEventListener('touchmove', markUser, { passive: true, capture: true });
     window.addEventListener('keydown', markKeys, true);
+    window.addEventListener('keydown', escape, true);
     window.addEventListener('resize', resize); host?.addEventListener('scroll', scroll);
     return () => {
       document.removeEventListener('pointerdown', dismiss);
       window.removeEventListener('wheel', markUser, { capture: true } as EventListenerOptions);
       window.removeEventListener('touchmove', markUser, { capture: true } as EventListenerOptions);
       window.removeEventListener('keydown', markKeys, true);
+      window.removeEventListener('keydown', escape, true);
       window.removeEventListener('resize', resize); host?.removeEventListener('scroll', scroll);
       if (oldFocus?.isConnected) oldFocus.focus();
     };
   }, []);
-  const run = (action: () => void) => { onClose(); action(); };
+  const run = (action: () => void) => { if (score.current?.commit() === false) return; props.onClose(); action(); };
   // 双维度保存统一按结果处理：失败留在原位可重试，成功保持打开（等级行随资格重算出现/消失）。
   // 同值幂等按有效值比较——已是该关系/进度时点击不写库。
   const pickClassification = (value: GameExperienceClassification) => {
+    if (score.current?.commit() === false) return;
     if ((classificationFor(item) !== value || item.experienceStatus === undefined) && !props.onClassification(value)) return;
   };
-  const pickGrade = (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => { if (props.onGrade(mode, value)) onClose(); };
+  const pickGrade = (mode: 'priority' | 'rating', value: PersonalGrade | undefined) => { if (score.current?.commit() !== false && props.onGrade(mode, value)) props.onClose(); };
   const isGame = item.category === 'game' && !item.removedAt;
   const classification = isGame ? classificationFor(item) : null;
   const canPriority = isGame && priorityEditable(item);
@@ -79,6 +94,7 @@ export function ContextMenu(props: Props) {
     const buttons = [...(panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
     const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
     if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
+    if (event.key === 'Enter' && (event.target as HTMLElement).getAttribute('role') === 'spinbutton') { event.preventDefault(); onClose(); }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); buttons[(current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus(); }
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       const row = (document.activeElement as HTMLElement | null)?.closest('.context-grades');
@@ -93,7 +109,7 @@ export function ContextMenu(props: Props) {
     {item.removedAt ? <><button role="menuitem" onClick={() => run(props.onRestore)}>恢复作品</button><button role="menuitem" className="is-danger" onClick={() => run(props.onDelete)}><Trash2 size={14} />永久删除</button></> : <>
       {isGame && <><span className="menu-section-label">体验分类</span><div className="context-states" role="group" aria-label="体验分类">{CLASSIFICATIONS.map(value => <button className={`experience-color--${value}`} role="menuitemradio" aria-checked={classification === value} key={value} onClick={() => pickClassification(value)}>{CLASSIFICATION_LABELS[value]}</button>)}</div>
         {canPriority && <div className="context-rank" role="group" aria-label="游玩优先级"><span className="menu-section-label"><Bookmark size={11} />游玩优先级</span><div className="context-grades">{GAME_GRADES.map(grade => <button role="menuitemradio" aria-checked={item.playPriority === grade} key={grade} onClick={() => pickGrade('priority', grade)}>{grade}</button>)}<button role="menuitemradio" aria-checked={item.playPriority === undefined} onClick={() => pickGrade('priority', undefined)}>未设置</button></div></div>}
-        {canGrade && <div className="context-rank" role="group" aria-label="通关评分"><span className="menu-section-label"><Star size={11} />通关评分</span><ScoreControl key={item.id} value={item.personalScore} onSave={props.onScore} />{item.personalScore === undefined && item.personalGrade && <small>历史评级 {item.personalGrade}，未换算分数</small>}</div>}
+        {canGrade && <div className="context-rank" role="group" aria-label="通关评分"><span className="menu-section-label"><Star size={11} />通关评分</span><ScoreControl ref={score} key={item.id} value={item.personalScore} onSave={props.onScore} deferUntilDismiss commitScope={panel} />{item.personalScore === undefined && item.personalGrade && <small>历史评级 {item.personalGrade}，未换算分数</small>}</div>}
         <button role="menuitem" onClick={() => run(() => props.onQuick('time'))}><Clock3 size={14} />修改时长</button></>}
       <button role="menuitem" onClick={() => run(() => props.onQuick('tags'))}><Tag size={14} />编辑标签</button><button role="menuitem" onClick={() => run(props.onEdit)}><Pencil size={14} />编辑作品资料</button><button role="menuitem" onClick={() => run(props.onFavorite)}><Heart size={14} />{item.favorite ? '取消喜欢' : '标为喜欢'}</button>{item.hiddenAt && <button role="menuitem" onClick={() => run(props.onHide)}><EyeOff size={14} />取消隐藏</button>}<button role="menuitem" className="is-danger" onClick={() => run(props.onTrash)}><Trash2 size={14} />移到回收站</button>
     </>}

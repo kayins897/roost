@@ -71,7 +71,7 @@ async function discard() { await modal().getByRole('button', { name: '取消', e
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ width: 390, height: 700 }));
   await filter().click(); const bounds = await panel().boundingBox(); const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
   assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= viewport.width + 1 && bounds.y >= 0 && bounds.y + bounds.height <= viewport.height + 1);
-  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); await shot('filters-390px'); await page.keyboard.press('Escape');
+  assert.ok(await page.evaluate(() => { const host=document.querySelector('.main-scroll'); return document.documentElement.scrollWidth <= innerWidth && host.scrollWidth <= host.clientWidth + 1; }), 'book workspace must not overflow its scroll host horizontally'); await shot('filters-390px'); await page.keyboard.press('Escape');
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ width: 1440, height: 1000 }));
   check('390px窄窗筛选浮层完整可见，无页面横向溢出');
   await page.getByRole('button', { name: '批量收录', exact: true }).click();

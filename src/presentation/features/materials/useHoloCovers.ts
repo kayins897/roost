@@ -32,7 +32,7 @@ export function useHoloCovers() {
       if (reduced.matches) { x = tx; y = ty; } request();
     }
     function out(event: PointerEvent) { if (!active?.contains(event.relatedTarget as Node | null)) stop(); }
-    function update() { prefs = loadCoverMaterial(); if (!prefs.enabled) stop(); else if (active) request(); }
+    function update() { prefs = loadCoverMaterial(); if (!prefs.enabled) { stop(); renderer?.dispose(); renderer = null; } else if (active) request(); }
     const unsubscribe = subscribeCoverMaterial(update);
     document.addEventListener('pointermove', move, { passive: true }); document.addEventListener('pointerout', out, { passive: true });
     document.addEventListener('visibilitychange', stop); document.addEventListener('scroll', stop, { passive: true, capture: true }); window.addEventListener('blur', stop);

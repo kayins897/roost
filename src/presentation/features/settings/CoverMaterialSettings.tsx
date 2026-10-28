@@ -51,7 +51,7 @@ export function CoverMaterialSettings() {
       <div className="cover-material-sliders">{([['strength', '纹理强度'], ['filter', '底色滤镜'], ['speed', '流动速度']] as const).map(([key, label]) => <label key={key}><span>{label}</span><input aria-label={label} type="range" min="0" max="100" step="1" value={Math.round(prefs[key] * 100)} onChange={event => update({ ...prefs, [key]: Number(event.target.value) / 100 })} /><output>{Math.round(prefs[key] * 100)}%</output></label>)}</div>
       <label className="settings-toggle"><span>三角切面</span><input aria-label="三角切面" type="checkbox" checked={prefs.facets} onChange={event => update({ ...prefs, facets: event.target.checked })} /></label>
     </fieldset>
-    <div className="cover-material-actions"><button className="button button--secondary" onClick={() => { if (update({ ...DEFAULT_COVER_MATERIAL })) { setRanges(draftOf(DEFAULT_COVER_RANGES)); setRangeError(''); } }}>恢复卡面默认</button></div>
+    <div className="cover-material-actions"><button className="button button--secondary" onClick={() => { if (update({ ...prefs, ...DEFAULT_COVER_MATERIAL })) { setRanges(draftOf(DEFAULT_COVER_RANGES)); setRangeError(''); } }}>恢复卡面默认</button></div>
     {error && <p role="alert">{error}</p>}
   </div>;
 }

@@ -11,7 +11,7 @@
 
 ## 本批验证（源码阶段）
 
-- npm test：243/243。
+- npm test：251/251（书籍导入9项、卡面偏好8项及既有回归）。
 - npm run desktop:build：通过（tsc -b、Vite、桌面 TS／构建）；原有 >500kB chunk 提示仍在。
 - verify-books-controls-import.cjs：10/10，真实 Electron＋DesktopRepository＋临时目录；覆盖几何布局、七维浮层、390px、默认板块、CSV、去重、取消、真实磁盘修订冲突与重试、重启、游戏入口。
 - verify-books-production.cjs：15/15；既有书籍编辑、标签、主题书单、重读／分钟日志、数据保护均通过。
