@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { loadCoverMaterial } from '../../../infrastructure/coverMaterialPreferences.ts';
+import { loadCoverMaterial, subscribeCoverMaterial } from '../../../infrastructure/coverMaterialPreferences.ts';
 import { createHoloRenderer } from './holoRenderer.ts';
 import './materials.css';
 export function useHoloCovers() {
@@ -11,7 +11,7 @@ export function useHoloCovers() {
     function stop() { cancelAnimationFrame(raf); raf = 0; previous = 0; active?.removeAttribute('data-webgl-material'); renderer?.detach(); active = null; activeFinish = ''; }
     function tick(now: number) {
       raf = 0;
-      if (!active?.isConnected || document.hidden || active.closest('[data-selecting]') || !['holographic', 'prismatic'].includes(active.dataset.finish ?? '')) { stop(); return; }
+      if (!prefs.enabled || !active?.isConnected || document.hidden || active.closest('[data-selecting]') || !['holographic', 'prismatic'].includes(active.dataset.finish ?? '')) { stop(); return; }
       if (activeFinish !== active.dataset.finish) { activeFinish = active.dataset.finish!; renderer?.attach(active, activeFinish as 'holographic' | 'prismatic'); }
       const dt = previous ? Math.min(.05, (now - previous) / 1000) : 1 / 60; previous = now;
       const easing = 1 - Math.exp(-dt * 12); x += (tx - x) * easing; y += (ty - y) * easing;
@@ -20,7 +20,7 @@ export function useHoloCovers() {
     }
     function request() { if (!raf) raf = requestAnimationFrame(tick); }
     function move(event: PointerEvent) {
-      if (event.pointerType === 'touch' || !pointer.matches || document.hidden) { stop(); return; }
+      if (!prefs.enabled || event.pointerType === 'touch' || !pointer.matches || document.hidden) { stop(); return; }
       const cover = event.target instanceof Element ? event.target.closest<HTMLElement>('.media-card--grid:not([data-selecting]) .card-cover') : null;
       const finish = cover?.dataset.finish;
       if (!cover || !cover.querySelector('img') || !['holographic', 'prismatic'].includes(finish ?? '')) { stop(); return; }
@@ -32,10 +32,11 @@ export function useHoloCovers() {
       if (reduced.matches) { x = tx; y = ty; } request();
     }
     function out(event: PointerEvent) { if (!active?.contains(event.relatedTarget as Node | null)) stop(); }
-    function update() { prefs = loadCoverMaterial(); if (active) request(); }
+    function update() { prefs = loadCoverMaterial(); if (!prefs.enabled) stop(); else if (active) request(); }
+    const unsubscribe = subscribeCoverMaterial(update);
     document.addEventListener('pointermove', move, { passive: true }); document.addEventListener('pointerout', out, { passive: true });
     document.addEventListener('visibilitychange', stop); document.addEventListener('scroll', stop, { passive: true, capture: true }); window.addEventListener('blur', stop);
-    window.addEventListener('qiyu:cover-material', update); reduced.addEventListener('change', stop);
-    return () => { stop(); renderer?.dispose(); document.removeEventListener('pointermove', move); document.removeEventListener('pointerout', out); document.removeEventListener('visibilitychange', stop); document.removeEventListener('scroll', stop, true); window.removeEventListener('blur', stop); window.removeEventListener('qiyu:cover-material', update); reduced.removeEventListener('change', stop); };
+    reduced.addEventListener('change', stop);
+    return () => { stop(); unsubscribe(); renderer?.dispose(); document.removeEventListener('pointermove', move); document.removeEventListener('pointerout', out); document.removeEventListener('visibilitychange', stop); document.removeEventListener('scroll', stop, true); window.removeEventListener('blur', stop); reduced.removeEventListener('change', stop); };
   }, []);
 }
