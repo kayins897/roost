@@ -10,12 +10,12 @@
 
 | 项 | 值 |
 | --- | --- |
-| 接手工作树 | `D:\AI\project\栖域\.worktrees\codex-refine-score-materials-v0429` |
+| 接手工作树 | `codex-refine-score-materials-v0429`（独立工作树名） |
 | 接手分支 / 提交 | `codex/refine-score-materials-v0429` / `b6a9be1`（v0.4.29） |
 | 本轮分支 | `deepseek/card-bands-v0430` |
-| 本轮工作树 | `D:\AI\project\栖域\.worktrees\deepseek-card-bands-v0430` |
+| 本轮工作树 | `deepseek-card-bands-v0430`（独立工作树名） |
 | 版本 | 0.4.29 → **0.4.30** |
-| 未触碰 | `D:\AI\project\栖域\qiyu-desktop`（有未提交修改）、GitHub `main`、其它 25 个工作树 |
+| 未触碰 | 原开发工作树（有未提交修改）、GitHub `main`、其它 25 个工作树 |
 
 ## 2. 卡面材质精简
 

@@ -1,0 +1,101 @@
+name: Windows portable prerelease
+
+# Only an explicitly pushed version tag publishes a prerelease.
+# A normal branch push or PR never publishes anything.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Check tag, main ancestry and release notes
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -cne "v$version") { throw 'Tag must match package version' }
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw 'Release commit must be integrated into main' }
+          if (!(Test-Path "docs/release/RELEASE-v$version.md")) { throw 'Missing release notes' }
+          if (!(Test-Path "docs/release/验收步骤-$version.md")) { throw 'Missing acceptance steps' }
+      - run: npm ci
+      - run: npm run setup:desktop
+      - run: npm test
+      - run: npm run dist:zip
+      - name: Verify archive and packaged assets
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $zip = "release/Qiyu-NoInstall-$version-x64.zip"
+          $expected = ((Get-Content release/SHA256SUMS.txt -Raw).Trim() -split '\s+')[0]
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -cne $expected) { throw 'ZIP checksum mismatch' }
+          Expand-Archive -LiteralPath $zip -DestinationPath release/verify
+          node scripts/verify-package-assets.cjs "release/verify/QIYU-$version"
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged assets do not match source build' }
+          node scripts/verify-batch-intake.cjs "$PWD/release/verify/QIYU-$version/栖域.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged intake verification failed' }
+          Copy-Item "docs/release/RELEASE-v$version.md" release/RELEASE.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-${{ github.ref_name }}
+          path: |
+            release/Qiyu-NoInstall-*-x64.zip
+            release/SHA256SUMS.txt
+            release/RELEASE.md
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prerelease-checks-${{ github.ref_name }}
+          path: evidence/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-${{ github.ref_name }}
+          path: portable
+      - name: Validate transferred archive
+        working-directory: portable
+        shell: bash
+        run: |
+          set -euo pipefail
+          tr -d '\r' < SHA256SUMS.txt | sha256sum --check -
+      - name: Publish portable ZIP and checksum as a prerelease
+        working-directory: portable
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" Qiyu-NoInstall-*-x64.zip SHA256SUMS.txt \
+            --verify-tag --prerelease --latest=false \
+            --title "$RELEASE_TAG · 栖域 Windows 免安装预发行" --notes-file RELEASE.md

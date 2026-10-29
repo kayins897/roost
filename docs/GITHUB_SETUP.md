@@ -20,11 +20,11 @@ npm run desktop:build
 ## 验证入口
 
 - `npm run test:features`：构建并验收当前收藏工作区。
-- `npm run test:workflow -- --list`：列出当前15个验收阶段，不运行测试。
-- `npm run test:workflow`：顺序运行当前完整验收；失败停止，报告保留在本机 `evidence/`。
+- 当前定向入口见 README 和 `.github/workflows/ci.yml`，包含批量收录、书籍、影视、语言字体、评分分段、游戏卡面及 Bento 专项。
+- `npm run test:workflow -- --list`：只读列出历史综合套件；部分旧卡面／分类断言尚未适配，不作为本版全量通过证明。
 - 桌面测试使用隔离临时目录，浏览器测试使用独立上下文与合成收藏。浏览器套件依赖Microsoft Edge，必要时先运行 `npx playwright install msedge`。
 
-GitHub Actions保持手动触发。托管Windows runner上的原生窗口验证尚未验收，不把本机通过等同于CI通过。
+验证 CI 保持手动触发；预发行工作流只由版本标签触发。托管 Windows runner 上的原生窗口验证尚未验收，不把本机通过等同于 CI 通过。
 
 ## 仓库与发行边界
 
@@ -36,4 +36,4 @@ GitHub Actions保持手动触发。托管Windows runner上的原生窗口验证�
 
 ## 免安装发行
 
-按README先更新版本及变更说明、完成源码验收，再输出独立版本目录的免安装ZIP与校验值。旧发行包保留；新开发验证不能覆盖或冒充旧版本的验证记录。是否发布由当前用户授权决定，不将构建自动连接到推送或Release上传。
+按 README 先更新版本及变更说明、完成源码验收。普通分支推送与 PR 不会发布；只有得到所有者明确授权、将提交合入 main 并推送匹配版本标签后，才触发 Windows 免安装预发行工作流。旧发行包保留，线上构建与本地构建分别核验，不混用校验值。详见[免安装发布流程](release/PUBLISHING.md)。
