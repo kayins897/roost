@@ -1,5 +1,6 @@
 import { emptyGameTags, normalizePlatforms, platformsFor } from './library.ts';
-import type { ExperienceEntry, ExternalId, MediaItem, MediaType, MetadataProvider, ScreenDetails } from './types.ts';
+import type { BookDetails, ExperienceEntry, ExternalId, MediaItem, MediaType, MetadataProvider, ScreenDetails } from './types.ts';
+import { isBookDetails } from './booksValidation.ts';
 import { isScreenDetails } from './screensValidation.ts';
 
 /** Remote artwork is a preview/source only; persisted coverUrl remains a local data URL. */
@@ -17,6 +18,7 @@ export interface MetadataCandidate {
   coverUrl?: string;
   coverSourceUrl?: string;
   screenDetails?: ScreenDetails;
+  bookDetails?: BookDetails;
 }
 
 function normalizedTitle(value: string | undefined): string {
@@ -79,6 +81,7 @@ export function applyMetadataCandidate(existing: MediaItem | undefined, candidat
   if (existing && existing.category !== candidate.category) throw new Error('不能合并不同板块的作品');
   if (!candidate.title.trim() || !candidate.externalId.trim()) throw new Error('资料缺少作品名称或来源编号');
   if (candidate.category === 'screen' && candidate.screenDetails !== undefined && !isScreenDetails(candidate.screenDetails)) throw new Error('影视资料格式无效');
+  if (candidate.category === 'book' && candidate.bookDetails !== undefined && !isBookDetails(candidate.bookDetails)) throw new Error('书籍资料格式无效');
   const identity = sourceIdentity(candidate.sourceUrl);
   if ((candidate.provider !== 'steam' && candidate.provider !== 'douban') || !identity ||
     (candidate.provider === 'steam' && (candidate.category !== 'game' || identity !== `steam:${candidate.externalId}`)) ||
@@ -111,9 +114,20 @@ export function applyMetadataCandidate(existing: MediaItem | undefined, candidat
     coverUrl: filled(base.coverUrl, localCover),
     ...(base.category === 'game' || platforms.length > 0 ? { platforms } : {}),
     ...(base.category === 'screen' && candidate.screenDetails ? { screenDetails: mergeScreenDetails(base.screenDetails, candidate.screenDetails) } : {}),
+    ...(base.category === 'book' && candidate.bookDetails ? { bookDetails: mergeBookDetails(base.bookDetails, candidate.bookDetails) } : {}),
     externalIds: mergeExternalIds(base.externalIds ?? [], candidate),
     updatedAt: now,
   };
+}
+
+/** Reading sources and all subjective/history fields cannot be supplied by public metadata. */
+function mergeBookDetails(existing: BookDetails = {}, incoming: BookDetails): BookDetails {
+  const next = { ...existing };
+  for (const key of ['translator', 'publisher', 'isbn', 'description', 'doubanScore', 'metadataSource'] as const) {
+    const current = next[key], value = incoming[key];
+    if ((current === undefined || (typeof current === 'string' && !current.trim())) && value !== undefined) Object.assign(next, { [key]: value });
+  }
+  return next;
 }
 
 /** Only known public fields may fill gaps; personal values, zero and unknown extensions survive. */

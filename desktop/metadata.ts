@@ -1,5 +1,5 @@
 import type { MetadataCandidate } from '../src/domain/catalog.ts';
-import type { ScreenDetails } from '../src/domain/types.ts';
+import type { BookDetails, ScreenDetails } from '../src/domain/types.ts';
 import { isPersonalScore } from '../src/domain/gameAssets.ts';
 
 /** Public store/page requests only. No account credentials or library data are sent. */
@@ -164,6 +164,23 @@ function names(value: unknown): string | undefined {
   const rows = Array.isArray(value) ? value : [value];
   return rows.map(row => string(record(row)?.name ?? row)).filter(Boolean).join(' / ') || undefined;
 }
+function bookDetails(schema: Record<string, unknown> | undefined, fields: Map<string, string>, html: string, description: string | undefined): BookDetails {
+  const translator = names(schema?.translator) ?? fields.get('译者');
+  const publisher = names(schema?.publisher) ?? fields.get('出版社');
+  const isbn = string(schema?.isbn ?? fields.get('ISBN'), 80);
+  const rawRating = record(schema?.aggregateRating)?.ratingValue ?? html.match(/<(?:strong|span)\b[^>]*property=["']v:average["'][^>]*>([\s\S]*?)<\/(?:strong|span)>/i)?.[1];
+  const text = typeof rawRating === 'string' ? cleanText(rawRating) : '';
+  const score = typeof rawRating === 'number' ? rawRating : text ? Number(text) : undefined;
+  // Scope the fallback to the book introduction, never the author's biography or reviews.
+  const report = html.match(/<div\b[^>]*id=["']link-report["'][^>]*>([\s\S]*?)<\/div>/i)?.[1];
+  const intro = report?.match(/<div\b[^>]*class=["'][^"']*\bintro\b[^"']*["'][^>]*>([\s\S]*)/i)?.[1];
+  const summary = html.match(/<span\b[^>]*property=["']v:summary["'][^>]*>([\s\S]*?)<\/span>/i)?.[1];
+  const synopsis = string(cleanText(typeof schema?.description === 'string' ? schema.description : summary ?? intro ?? description ?? ''), 10000);
+  return {
+    ...(translator ? { translator } : {}), ...(publisher ? { publisher } : {}), ...(isbn ? { isbn } : {}),
+    ...(synopsis ? { description: synopsis } : {}), ...(isPersonalScore(score) ? { doubanScore: score } : {}), metadataSource: '豆瓣',
+  };
+}
 function screenDetails(schema: Record<string, unknown> | undefined, fields: Map<string, string>, html: string, description: string | undefined): ScreenDetails {
   const split = (value: string | undefined) => value?.split(/\s*\/\s*/).map(part => part.trim()).filter(Boolean);
   const actorNames = names(schema?.actor) ?? fields.get('主演');
@@ -227,6 +244,7 @@ export function parseDoubanPage(html: string, sourceUrl: string): MetadataCandid
     year: year(category === 'book' ? fields.get('出版年') ?? schema?.datePublished : meta('video:release_date') ?? schema?.datePublished ?? fields.get('首播') ?? fields.get('上映日期')),
     subcategory: category === 'screen' ? animated && series ? '番剧' : series ? '连续剧' : '电影' : undefined,
     ...(category === 'screen' ? { screenDetails: screenDetails(schema, fields, html, meta('og:description')) } : {}),
+    ...(category === 'book' ? { bookDetails: bookDetails(schema, fields, html, meta('og:description')) } : {}),
     sourceUrl: url.toString(), coverSourceUrl: coverSource(meta('og:image') ?? image),
   };
 }
