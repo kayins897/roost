@@ -105,7 +105,7 @@ function parseManifestWork(value: unknown): SteamImportGame | string {
       if (url !== undefined) {
         if (typeof url !== 'string' || !safeLink(url)) return '外部作品链接无效';
         const parsed = new URL(url);
-        if (provider === 'steam' ? steamAppIdFromUrl(url) !== appId(id) : parsed.hostname !== (category === 'book' ? 'book.douban.com' : 'movie.douban.com') || /^\/subject\/(\d+)(?:\/|$)/.exec(parsed.pathname)?.[1] !== id) return '外部作品链接与编号不匹配';
+        if (provider === 'steam' ? steamAppIdFromUrl(url) !== appId(id) : parsed.port || parsed.hostname !== (category === 'book' ? 'book.douban.com' : 'movie.douban.com') || /^\/subject\/(\d+)\/?$/.exec(parsed.pathname)?.[1] !== id) return '外部作品链接与编号不匹配';
       }
       const normalizedId = provider === 'steam' ? appId(id)! : id;
       if (!references.some(existing => existing.provider === provider && existing.id === normalizedId)) references.push({ provider, id: normalizedId, ...(typeof url === 'string' ? { url } : {}) });
@@ -128,7 +128,7 @@ function parseManifestWork(value: unknown): SteamImportGame | string {
     if (score !== undefined) { if (!isPersonalScore(score)) return '个人评分应为 0–10 分、最多一位小数'; result.personalScore = score; }
     if (result.sourceUrl) {
       const url = new URL(result.sourceUrl);
-      const id = url.hostname === 'book.douban.com' && !url.port ? /^\/subject\/(\d{1,20})(?:\/|$)/.exec(url.pathname)?.[1] : undefined;
+      const id = url.hostname === 'book.douban.com' && !url.port ? /^\/subject\/(\d{1,20})\/?$/.exec(url.pathname)?.[1] : undefined;
       if (id && !/^0+$/.test(id)) {
         const normalizedId = id.replace(/^0+/, '');
         if (result.externalIds?.some(ref => ref.provider === 'douban' && ref.id.replace(/^0+/, '') !== normalizedId)) return '豆瓣链接与清单编号不一致';
@@ -148,7 +148,7 @@ function parseManifestWork(value: unknown): SteamImportGame | string {
     const score = own(value, 'personalScore');
     if (score !== undefined) { if (!isPersonalScore(score)) return '个人评分应为 0–10 分、最多一位小数'; result.personalScore = score; }
     if (result.sourceUrl) {
-      const url = new URL(result.sourceUrl), id = url.hostname === 'movie.douban.com' && !url.port ? /^\/subject\/(\d{1,20})(?:\/|$)/.exec(url.pathname)?.[1] : undefined;
+      const url = new URL(result.sourceUrl), id = url.hostname === 'movie.douban.com' && !url.port ? /^\/subject\/(\d{1,20})\/?$/.exec(url.pathname)?.[1] : undefined;
       if (id && !/^0+$/.test(id)) {
         const normalizedId = id.replace(/^0+/, '');
         if (result.externalIds?.some(ref => ref.provider === 'douban' && ref.id.replace(/^0+/, '') !== normalizedId)) return '豆瓣链接与清单编号不一致';

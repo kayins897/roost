@@ -1,6 +1,7 @@
 import { english as baseEnglish } from './locales/en.ts';
 import { interfaceEnglish } from './locales/enInterface.ts';
-const english = { ...baseEnglish, ...interfaceEnglish };
+import { intakeEnglish } from './locales/enIntake.ts';
+const english = { ...baseEnglish, ...interfaceEnglish, ...intakeEnglish };
 
 export type InterfaceLocale = 'zh-CN' | 'en';
 type Value = string | number | undefined | null;
