@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { Check, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -41,7 +42,7 @@ export function ScreenMenu(props: Props) {
     if (props.onAction({ type: 'arrangement', value })) props.onClose(); else setError('分类未能保存，请重试。');
   }
   function open(action: () => void) { if (close()) action(); }
-  return createPortal(<div ref={panel} className="screen-menu" role="menu" aria-label={`${props.item.title}快捷编辑`} data-glass="filters" style={position} onKeyDown={event => {
+  return createPortal(<div ref={panel} className="screen-menu" role="menu" aria-label={t("{0}快捷编辑", [props.item.title])} data-glass="filters" style={position} onKeyDown={event => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true); }
     if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       const buttons = [...panel.current!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
@@ -50,11 +51,11 @@ export function ScreenMenu(props: Props) {
     }
   }}>
     <strong className="screen-menu-title">{props.item.title}</strong>
-    {!props.recycled && <><div className="screen-menu-arrangements" role="group" aria-label="观看安排">{screenArrangementOptions(props.item).map(({ value, label }) => <button key={value} role="menuitemradio" aria-checked={screenDisplayArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item))} disabled={props.disabled} data-screen-state={value} onClick={() => arrange(value)}>{label}{screenDisplayArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item)) && <Check size={13}/>}</button>)}</div>
-      <div className="screen-menu-score"><span>我的评分</span>{props.disabled ? <p>{props.item.personalScore === undefined ? '未评分' : props.item.personalScore.toFixed(1)}</p> : <InlineScoreControl ref={score} value={props.item.personalScore} onSave={props.onScore} label="影视个人评分" deferUntilDismiss commitScope={panel}/>}</div>
-      <button role="menuitem" disabled={props.disabled} onClick={() => open(props.onTags)}><Tags size={14}/>编辑标签</button><button role="menuitem" disabled={props.disabled} onClick={() => open(props.onRound)}><Plus size={14}/>补录看过</button><button role="menuitem" disabled={props.disabled} onClick={() => open(props.onEdit)}><Pencil size={14}/>编辑作品资料</button>
+    {!props.recycled && <><div className="screen-menu-arrangements" role="group" aria-label={t("观看安排")}>{screenArrangementOptions(props.item).map(({ value, label }) => <button key={value} role="menuitemradio" aria-checked={screenDisplayArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item))} disabled={props.disabled} data-screen-state={value} onClick={() => arrange(value)}>{label}{screenDisplayArrangement(props.item) === value && (value !== 'none' || screenHasWatched(props.item)) && <Check size={13}/>}</button>)}</div>
+      <div className="screen-menu-score"><span>{t("我的评分")}</span>{props.disabled ? <p>{props.item.personalScore === undefined ? t('未评分') : props.item.personalScore.toFixed(1)}</p> : <InlineScoreControl ref={score} value={props.item.personalScore} onSave={props.onScore} label={t("影视个人评分")} deferUntilDismiss commitScope={panel}/>}</div>
+      <button role="menuitem" disabled={props.disabled} onClick={() => open(props.onTags)}><Tags size={14}/>{t("编辑标签")}</button><button role="menuitem" disabled={props.disabled} onClick={() => open(props.onRound)}><Plus size={14}/>{t("补录看过")}</button><button role="menuitem" disabled={props.disabled} onClick={() => open(props.onEdit)}><Pencil size={14}/>{t("编辑作品资料")}</button>
     </>}
-    {props.recycled ? <><button role="menuitem" disabled={props.disabled} onClick={() => props.onLifecycle('restore', [props.item.id])}>恢复作品</button><button role="menuitem" className="books-danger" disabled={props.disabled} onClick={() => props.onLifecycle('delete', [props.item.id])}><Trash2 size={14}/>永久删除</button></> : <button role="menuitem" className="books-danger" disabled={props.disabled} onClick={() => { if (score.current?.commit()) props.onLifecycle('trash', [props.item.id]); }}><Trash2 size={14}/>移到回收站</button>}
-    {error && <p className="books-danger" role="alert">{error}</p>}
+    {props.recycled ? <><button role="menuitem" disabled={props.disabled} onClick={() => props.onLifecycle('restore', [props.item.id])}>{t("恢复作品")}</button><button role="menuitem" className="books-danger" disabled={props.disabled} onClick={() => props.onLifecycle('delete', [props.item.id])}><Trash2 size={14}/>{t("永久删除")}</button></> : <button role="menuitem" className="books-danger" disabled={props.disabled} onClick={() => { if (score.current?.commit()) props.onLifecycle('trash', [props.item.id]); }}><Trash2 size={14}/>{t("移到回收站")}</button>}
+    {error && <p className="books-danger" role="alert">{t(error)}</p>}
   </div>, document.body);
 }

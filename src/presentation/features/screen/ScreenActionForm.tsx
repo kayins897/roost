@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { useState } from 'react';
 import type { ScreenAction } from '../../../domain/screens.ts';
 import { isCompletionDate } from '../../../domain/gameProgress.ts';
@@ -22,7 +23,7 @@ export function ScreenActionForm({ kind, item, onClose, onSave, initialRound, in
   const [error, setError] = useState('');
   const dirty = JSON.stringify(initial) !== JSON.stringify(draft);
   useUnsavedChanges(dirty);
-  const close = () => { if (!dirty || window.confirm('放弃尚未保存的观看记录？')) onClose(); };
+  const close = () => { if (!dirty || window.confirm(t('放弃尚未保存的观看记录？'))) onClose(); };
   function edit(key: keyof typeof initial, value: string | boolean) { setDraft(current => ({ ...current, [key]: value })); setError(''); }
   function save() {
     let action: ScreenAction;
@@ -41,14 +42,14 @@ export function ScreenActionForm({ kind, item, onClose, onSave, initialRound, in
     }
     if (onSave(action)) onClose(); else setError('保存失败，草稿仍保留，请重试。');
   }
-  return <Modal title={kind === 'progress' ? '观看进度' : kind === 'round' ? initialRound ? '编辑看过记录' : '补录看过' : '记录观看'} onClose={close} className="books-dialog"><form onSubmit={event => { event.preventDefault(); save(); }}>
+  return <Modal title={kind === 'progress' ? t('观看进度') : kind === 'round' ? initialRound ? t('编辑看过记录') : t('补录看过') : t('记录观看')} onClose={close} className="books-dialog"><form onSubmit={event => { event.preventDefault(); save(); }}>
     <p className="books-form-book">{item.title}</p>
-    {kind === 'progress' ? <><div className="books-facts-fields"><label className="form-field">看到第几季<input type="number" min={1} step={1} placeholder="未记录" value={draft.season} onChange={event => edit('season', event.target.value)}/></label><label className="form-field">看到第几集<input type="number" min={0} step={1} placeholder="未记录" value={draft.episode} onChange={event => edit('episode', event.target.value)}/></label></div><p className="books-muted">进度不会自动把整部作品标记为看过。</p></> : <>
-      <label className="form-field">{kind === 'round' ? '看完日期' : '观看日期'}<input type={kind === 'round' ? 'text' : initialEntry?.date.length === 7 ? 'month' : 'date'} placeholder="如 2026、2026-10、2026-10-28；可留空" value={draft.date} onChange={event => edit('date', event.target.value)} required={kind === 'entry'}/></label>
-      {kind === 'entry' && <label className="form-field">实际观看时长（分钟）<input type="number" min={0} step={1} placeholder="未记录" value={draft.minutes} onChange={event => edit('minutes', event.target.value)}/><small className="books-muted">留空与 0 分钟不同；片长不会自动算入实际时长。</small></label>}
-      <label className="form-field">{kind === 'round' ? '这次看完的感想' : '这次看了什么'}<textarea rows={3} value={draft.note} onChange={event => edit('note', event.target.value)}/></label>
-      {kind === 'round' && <><label className="form-field">观后感<textarea rows={5} value={draft.review} onChange={event => edit('review', event.target.value)}/></label>{!initialRound && <label className="books-checkbox"><input type="checkbox" checked={draft.finishPlan} onChange={event => edit('finishPlan', event.target.checked)}/>结束当前观看安排</label>}</>}
+    {kind === 'progress' ? <><div className="books-facts-fields"><label className="form-field">{t("看到第几季")}<input type="number" min={1} step={1} placeholder={t("未记录")} value={draft.season} onChange={event => edit('season', event.target.value)}/></label><label className="form-field">{t("看到第几集")}<input type="number" min={0} step={1} placeholder={t("未记录")} value={draft.episode} onChange={event => edit('episode', event.target.value)}/></label></div><p className="books-muted">{t("进度不会自动把整部作品标记为看过。")}</p></> : <>
+      <label className="form-field">{kind === 'round' ? t('看完日期') : t('观看日期')}<input type={kind === 'round' ? 'text' : initialEntry?.date.length === 7 ? 'month' : 'date'} placeholder={t("如 2026、2026-10、2026-10-28；可留空")} value={draft.date} onChange={event => edit('date', event.target.value)} required={kind === 'entry'}/></label>
+      {kind === 'entry' && <label className="form-field">{t("实际观看时长（分钟）")}<input type="number" min={0} step={1} placeholder={t("未记录")} value={draft.minutes} onChange={event => edit('minutes', event.target.value)}/><small className="books-muted">{t("留空与 0 分钟不同；片长不会自动算入实际时长。")}</small></label>}
+      <label className="form-field">{kind === 'round' ? t('这次看完的感想') : t('这次看了什么')}<textarea rows={3} value={draft.note} onChange={event => edit('note', event.target.value)}/></label>
+      {kind === 'round' && <><label className="form-field">{t("观后感")}<textarea rows={5} value={draft.review} onChange={event => edit('review', event.target.value)}/></label>{!initialRound && <label className="books-checkbox"><input type="checkbox" checked={draft.finishPlan} onChange={event => edit('finishPlan', event.target.checked)}/>{t("结束当前观看安排")}</label>}</>}
     </>}
-    {error && <p role="alert" className="books-danger">{error}</p>}<footer className="books-dialog-actions"><button type="button" className="button button--secondary" onClick={close}>取消</button><button className="button button--primary" type="submit">保存记录</button></footer>
+    {error && <p role="alert" className="books-danger">{t(error)}</p>}<footer className="books-dialog-actions"><button type="button" className="button button--secondary" onClick={close}>{t("取消")}</button><button className="button button--primary" type="submit">{t("保存记录")}</button></footer>
   </form></Modal>;
 }

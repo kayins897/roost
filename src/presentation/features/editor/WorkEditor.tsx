@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { SCREEN_KINDS, type ScreenKind } from '../../../domain/screenConsumption.ts';
 import { applyScreenEditor, screenEditorState, screenEditorError } from './screenEditor.ts';
 import { ScreenEditorState } from './ScreenEditorState.tsx';
@@ -104,7 +105,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false, i
   const screenValidation = type === 'screen' ? screenEditorError(screenState, screenFinishedOn) : '';
   const bookValidation = type === 'book' ? bookEditorError(bookState, bookFinishedOn) : '';
   useUnsavedChanges(dirty);
-  function close() { if (!dirty || window.confirm('放弃这次尚未保存的作品修改？')) onClose(); }
+  function close() { if (!dirty || window.confirm(t('放弃这次尚未保存的作品修改？'))) onClose(); }
 
   async function onCover(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -149,55 +150,55 @@ export function Editor({ initial, category, onClose, onSave, creating = false, i
     onSave(type === 'book' && (bookStateTouched || initial?.category !== 'book') ? applyBookEditor(saved, bookState, bookFinishedOn) : type === 'screen' && (screenStateTouched || initial?.category !== 'screen') ? applyScreenEditor(saved, screenState, screenFinishedOn) : saved);
   }
 
-  return <Modal title={initial && !creating ? '编辑作品' : '收录新作品'} description="先记下作品，其他信息以后再补充也不迟。" onClose={close} wide>
+  return <Modal title={initial && !creating ? t('编辑作品') : t('收录新作品')} description={t("先记下作品，其他信息以后再补充也不迟。")} onClose={close} wide>
     <form className="editor-form" onSubmit={submit} onChangeCapture={() => setDirty(true)}>
       <div className="editor-grid">
         <div className="editor-fields">
-          <label className="form-field">作品名称 <span className="required">*</span><input autoFocus required placeholder="例如：艾尔登法环" maxLength={160} value={title} onChange={e => setTitle(e.target.value)} /></label>
-          <label className="form-field">作品原名 <span className="field-note">可留空</span><input placeholder="例如：ELDEN RING" value={originalTitle} onChange={e => setOriginalTitle(e.target.value)} /></label>
+          <label className="form-field">{t("作品名称")}{" "}<span className="required">*</span><input autoFocus required placeholder={t("例如：艾尔登法环")} maxLength={160} value={title} onChange={e => setTitle(e.target.value)} /></label>
+          <label className="form-field">{t("作品原名")}{" "}<span className="field-note">{t("可留空")}</span><input placeholder={t("例如：ELDEN RING")} value={originalTitle} onChange={e => setOriginalTitle(e.target.value)} /></label>
           <div className="two-fields">
-            <label className="form-field">归属板块<select value={type} onChange={e => { const next = e.target.value as MediaType; setType(next); setSubtype(next === 'screen' ? '电影' : ''); if (!initial) { setStatus('want'); setClassification('unplayed'); setClassificationTouched(false); } }}>{categories.map(c => <option key={c} value={c}>{MEDIA_LABELS[c]}</option>)}</select></label>
-            {type === 'game' ? <label className="form-field">拥有平台 <span className="field-note">可多选或以顿号分隔</span><input placeholder="Steam、Switch、PS5、TapTap、本地收藏" value={platformInput} onChange={e => setPlatformInput(e.target.value)} /><span className="platform-suggestions">{['Steam', 'Switch', 'PS5', 'TapTap', '本地收藏'].map(platform => { const current = normalizePlatforms(platformInput.split(/[,，、;；\n]+/)); const active = current.some(value => value.toLocaleLowerCase() === platform.toLocaleLowerCase()); return <button type="button" key={platform} className={active ? 'is-active' : ''} aria-pressed={active} onClick={() => { setDirty(true); setPlatformInput(active ? current.filter(value => value.toLocaleLowerCase() !== platform.toLocaleLowerCase()).join('、') : [...current, platform].join('、')); }}>{platform}</button>; })}</span></label> : <label className="form-field">子分类 <span className="field-note">可留空</span>{type === 'screen' ? <select aria-label="影视类型" value={subtype} onChange={e => setSubtype(e.target.value)}>{!['电影', '连续剧', '番剧'].includes(subtype) && <option value={subtype}>{subtype || '未分类'}</option>}{['电影', '连续剧', '番剧'].map(value => <option key={value}>{value}</option>)}</select> : <input placeholder={type === 'book' ? '专业书籍 / 严肃文学 / 网络小说' : '单曲 / 专辑'} value={subtype} onChange={e => setSubtype(e.target.value)} />}</label>}
+            <label className="form-field">{t("归属板块")}<select value={type} onChange={e => { const next = e.target.value as MediaType; setType(next); setSubtype(next === 'screen' ? '电影' : ''); if (!initial) { setStatus('want'); setClassification('unplayed'); setClassificationTouched(false); } }}>{categories.map(c => <option key={c} value={c}>{t(MEDIA_LABELS[c])}</option>)}</select></label>
+            {type === 'game' ? <label className="form-field">{t("拥有平台")}{" "}<span className="field-note">{t("可多选或以顿号分隔")}</span><input placeholder={t("Steam、Switch、PS5、TapTap、本地收藏")} value={platformInput} onChange={e => setPlatformInput(e.target.value)} /><span className="platform-suggestions">{['Steam', 'Switch', 'PS5', 'TapTap', '本地收藏'].map(platform => { const current = normalizePlatforms(platformInput.split(/[,，、;；\n]+/)); const active = current.some(value => value.toLocaleLowerCase() === platform.toLocaleLowerCase()); return <button type="button" key={platform} className={active ? 'is-active' : ''} aria-pressed={active} onClick={() => { setDirty(true); setPlatformInput(active ? current.filter(value => value.toLocaleLowerCase() !== platform.toLocaleLowerCase()).join('、') : [...current, platform].join('、')); }}>{platform}</button>; })}</span></label> : <label className="form-field">{t("子分类")}{" "}<span className="field-note">{t("可留空")}</span>{type === 'screen' ? <select aria-label={t("影视类型")} value={subtype} onChange={e => setSubtype(e.target.value)}>{!['电影', '连续剧', '番剧'].includes(subtype) && <option value={subtype}>{subtype || t('未分类')}</option>}{['电影', '连续剧', '番剧'].map(value => <option key={value} value={value}>{t(value)}</option>)}</select> : <input placeholder={type === 'book' ? t('专业书籍 / 严肃文学 / 网络小说') : t('单曲 / 专辑')} value={subtype} onChange={e => setSubtype(e.target.value)} />}</label>}
           </div>
           <div className="two-fields">
-            <label className="form-field">{type === 'screen' ? '导演' : '作者 / 开发商'}<input placeholder="可留空" value={creator} onChange={e => setCreator(e.target.value)} /></label>
-            <label className="form-field">发行年份<input placeholder="例如：2025" maxLength={12} value={year} onChange={e => setYear(e.target.value)} /></label>
+            <label className="form-field">{type === 'screen' ? t('导演') : t('作者 / 开发商')}<input placeholder={t("可留空")} value={creator} onChange={e => setCreator(e.target.value)} /></label>
+            <label className="form-field">{t("发行年份")}<input placeholder={t("例如：2025")} maxLength={12} value={year} onChange={e => setYear(e.target.value)} /></label>
           </div>
           {type === 'game' ? <>
             <div className="two-fields game-time-mark-fields">
-              <label className="form-field">累计游玩时长 <span className="field-note">小时 · 可留空</span><div className="time-field"><input type="number" min="0" max="100000" step="any" inputMode="decimal" placeholder="例如 42.5" value={playtimeHours} onChange={e => setPlaytimeHours(e.target.value)} /><span>h</span></div></label>
-              <label className="form-field">体验分类<select aria-label="体验分类" value={classification} onChange={e => { setClassification(e.target.value as GameExperienceClassification); setClassificationTouched(true); }}>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{CLASSIFICATION_LABELS[value]}</option>)}</select></label>
+              <label className="form-field">{t("累计游玩时长")}{" "}<span className="field-note">{t("小时 · 可留空")}</span><div className="time-field"><input type="number" min="0" max="100000" step="any" inputMode="decimal" placeholder={t("例如 42.5")} value={playtimeHours} onChange={e => setPlaytimeHours(e.target.value)} /><span>h</span></div></label>
+              <label className="form-field">{t("体验分类")}<select aria-label={t("体验分类")} value={classification} onChange={e => { setClassification(e.target.value as GameExperienceClassification); setClassificationTouched(true); }}>{CLASSIFICATIONS.map(value => <option key={value} value={value}>{t(CLASSIFICATION_LABELS[value])}</option>)}</select></label>
             </div>
-            {priorityEditable({ ...(initial ?? {}), category: 'game', ...experienceClassificationPatch(classification) } as MediaItem) && <label className="form-field">游玩优先级<select aria-label="游玩优先级" value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">未设置</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
-            {gradeEditable({ ...(initial ?? {}), category: 'game', ...experienceClassificationPatch(classification) } as MediaItem) && <div className="form-field"><span>通关评分</span><ScorePicker value={personalScore} label="通关评分" onChange={value => { setPersonalScore(value); setDirty(true); }} />{personalScore !== '' && <button type="button" className="text-button" onClick={() => { setPersonalScore(''); setDirty(true); }}>清除评分</button>}</div>}
-            <p className="game-state-help">分类表达你的体验意愿，完成次数和日志独立记录。已体验可以暂不设置二级分类；时长为空也可以标记已体验。</p>
-            <div className="game-tag-editor"><div className="game-tag-editor-title">游戏标签 <span>四个维度，按需填写即可</span></div>
+            {priorityEditable({ ...(initial ?? {}), category: 'game', ...experienceClassificationPatch(classification) } as MediaItem) && <label className="form-field">{t("游玩优先级")}<select aria-label={t("游玩优先级")} value={playPriority} onChange={event => setPlayPriority(event.target.value)}><option value="">{t("未设置")}</option>{GAME_GRADES.map(value => <option key={value} value={value}>{value}</option>)}</select></label>}
+            {gradeEditable({ ...(initial ?? {}), category: 'game', ...experienceClassificationPatch(classification) } as MediaItem) && <div className="form-field"><span>{t("通关评分")}</span><ScorePicker value={personalScore} label={t("通关评分")} onChange={value => { setPersonalScore(value); setDirty(true); }} />{personalScore !== '' && <button type="button" className="text-button" onClick={() => { setPersonalScore(''); setDirty(true); }}>{t("清除评分")}</button>}</div>}
+            <p className="game-state-help">{t("分类表达你的体验意愿，完成次数和日志独立记录。已体验可以暂不设置二级分类；时长为空也可以标记已体验。")}</p>
+            <div className="game-tag-editor"><div className="game-tag-editor-title">{t("游戏标签")}{" "}<span>{t("四个维度，按需填写即可")}</span></div>
               {GAME_TAG_KEYS.map(key => <div className={`game-tag-edit-group tag-type--${key}`} key={key}>
-                <label className="form-field">{GAME_TAG_LABELS[key]}<input placeholder={key === 'scenario' ? '例如：刚需联机、需要沉浸、放松解压' : `用顿号分隔${GAME_TAG_LABELS[key]}标签`} value={gameTagInputs[key]} onChange={e => setGameTagInputs(current => ({ ...current, [key]: e.target.value }))} /></label>
+                <label className="form-field">{t(GAME_TAG_LABELS[key])}<input placeholder={key === 'scenario' ? t('例如：刚需联机、需要沉浸、放松解压') : t("用顿号分隔{0}标签", [GAME_TAG_LABELS[key]])} value={gameTagInputs[key]} onChange={e => setGameTagInputs(current => ({ ...current, [key]: e.target.value }))} /></label>
                 <div className="game-tag-suggestions">{gameTagExamples[key].map(example => <button type="button" key={example} onClick={() => { setDirty(true); setGameTagInputs(current => ({ ...current, [key]: normalizeTags([...current[key].split(/[,，、\n]+/), example]).join('、') })); }}>+ {example}</button>)}</div>
               </div>)}
             </div>
           </> : <>
-            {type === 'book' ? <BookEditorState initial={initial} value={bookState} finishedOn={bookFinishedOn} onChange={value => { setBookState(value); setBookStateTouched(true); }} onDate={setBookFinishedOn}/> : type === 'screen' ? <ScreenEditorState subcategory={subtype} initial={initial} value={screenState} date={screenFinishedOn} onChange={value => { setScreenState(value); setScreenStateTouched(true); }} onDate={setScreenFinishedOn}/> : <label className="form-field">当前状态<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
-            {type === 'screen' && <div className="form-field"><span>个人评分</span><ScorePicker label="个人评分" value={personalScore} onChange={value => { setPersonalScore(value); setDirty(true); }}/>{personalScore !== '' && <button type="button" className="text-button" onClick={() => setPersonalScore('')}>清除评分</button>}</div>}
+            {type === 'book' ? <BookEditorState initial={initial} value={bookState} finishedOn={bookFinishedOn} onChange={value => { setBookState(value); setBookStateTouched(true); }} onDate={setBookFinishedOn}/> : type === 'screen' ? <ScreenEditorState subcategory={subtype} initial={initial} value={screenState} date={screenFinishedOn} onChange={value => { setScreenState(value); setScreenStateTouched(true); }} onDate={setScreenFinishedOn}/> : <label className="form-field">{t("当前状态")}<select value={status} onChange={e => setStatus(e.target.value as ProgressStatus)}>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
+            {type === 'screen' && <div className="form-field"><span>{t("个人评分")}</span><ScorePicker label={t("个人评分")} value={personalScore} onChange={value => { setPersonalScore(value); setDirty(true); }}/>{personalScore !== '' && <button type="button" className="text-button" onClick={() => setPersonalScore('')}>{t("清除评分")}</button>}</div>}
             {screenValidation && <p className="form-error" role="alert">{screenValidation}</p>}
             {bookValidation && <p className="form-error" role="alert">{bookValidation}</p>}
-            <label className="form-field">标签 <span className="field-note">以逗号或顿号分隔</span><input placeholder="叙事、独立创作、想二刷" value={tags} onChange={e => setTags(e.target.value)} /></label>
+            <label className="form-field">{t("标签")}{" "}<span className="field-note">{t("以逗号或顿号分隔")}</span><input placeholder={t("叙事、独立创作、想二刷")} value={tags} onChange={e => setTags(e.target.value)} /></label>
           </>}
-          {writing.legacy && <p className="feature-help">旧版长文字完整显示在测评中；不修改感受时保留原始记录。</p>}
-          <label className="form-field">一句话印象 <span className="field-note">{writingLength(impression)} / {IMPRESSION_MAX_LENGTH} 字</span><input aria-label="一句话印象" aria-invalid={Boolean(writingValidation)} placeholder="用一句话留下感受" value={impression} onChange={e => setImpression(e.target.value)} /></label>
-          {writingValidation && <p className="form-error" role="alert">{writingValidation}</p>}
-          <label className="form-field">长文测评<textarea aria-label="长文测评" rows={6} placeholder="详细记录你的个人感受" value={review} onChange={e => setReview(e.target.value)} /></label>
-          <label className="form-field">作品链接 <span className="field-note">资料识别可从「检索与导入」进入</span><input type="url" placeholder="https://..." value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} /></label>
+          {writing.legacy && <p className="feature-help">{t("旧版长文字完整显示在测评中；不修改感受时保留原始记录。")}</p>}
+          <label className="form-field">{t("一句话印象")}{" "}<span className="field-note">{writingLength(impression)} / {IMPRESSION_MAX_LENGTH} {" "}{t("字")}</span><input aria-label={t("一句话印象")} aria-invalid={Boolean(writingValidation)} placeholder={t("用一句话留下感受")} value={impression} onChange={e => setImpression(e.target.value)} /></label>
+          {writingValidation && <p className="form-error" role="alert">{t(writingValidation)}</p>}
+          <label className="form-field">{t("长文测评")}<textarea aria-label={t("长文测评")} rows={6} placeholder={t("详细记录你的个人感受")} value={review} onChange={e => setReview(e.target.value)} /></label>
+          <label className="form-field">{t("作品链接")}{" "}<span className="field-note">{t("资料识别可从「检索与导入」进入")}</span><input type="url" placeholder="https://..." value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} /></label>
         </div>
         <div className="cover-editor"><div className="cover-editor-preview"><Poster item={{ id: 'preview', title, category: type, subcategory: subtype, creator, year, status, tags: [], impression: '', favorite: false, artwork: initial?.artwork ?? 'default', coverUrl, createdAt: '', updatedAt: '' }} /></div>
-          <label className="cover-upload"><Upload size={15} />{fileBusy ? '处理封面中…' : '上传本地封面'}<input type="file" accept="image/*" onChange={onCover} disabled={fileBusy} /></label>
-          {coverUrl && <button type="button" className="subtle-link" onClick={() => { setCoverUrl(''); setDirty(true); }}>移除封面</button>}
-          {fileError && <p className="form-error">{fileError}</p>}
-          <p className="cover-hint">{desktopInfo ? '图片会压缩并与收藏一起保存在本机。建议定期导出备份。' : '图片会压缩并存入本机浏览器。收藏较多时，建议定期导出备份。'}</p>
+          <label className="cover-upload"><Upload size={15} />{fileBusy ? t('处理封面中…') : t('上传本地封面')}<input type="file" accept="image/*" onChange={onCover} disabled={fileBusy} /></label>
+          {coverUrl && <button type="button" className="subtle-link" onClick={() => { setCoverUrl(''); setDirty(true); }}>{t("移除封面")}</button>}
+          {fileError && <p className="form-error">{t(fileError)}</p>}
+          <p className="cover-hint">{desktopInfo ? t('图片会压缩并与收藏一起保存在本机。建议定期导出备份。') : t('图片会压缩并存入本机浏览器。收藏较多时，建议定期导出备份。')}</p>
         </div>
       </div>
-      <div className="modal-actions"><button type="button" className="button button--ghost" onClick={close}>取消</button><button type="submit" disabled={!title.trim() || fileBusy || Boolean(writingValidation || bookValidation || screenValidation)} className="button button--primary"><Check size={16} />{initial && !creating ? '保存修改' : '加入收藏'}</button></div>
+      <div className="modal-actions"><button type="button" className="button button--ghost" onClick={close}>{t("取消")}</button><button type="submit" disabled={!title.trim() || fileBusy || Boolean(writingValidation || bookValidation || screenValidation)} className="button button--primary"><Check size={16} />{initial && !creating ? t('保存修改') : t('加入收藏')}</button></div>
     </form>
   </Modal>;
 }

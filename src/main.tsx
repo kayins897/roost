@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './presentation/App.tsx';
 import { initializeAppearance } from './presentation/appearance.ts';
+import { initializeLocale } from './infrastructure/localePreferences.ts';
+import { initializeTypography } from './infrastructure/typographyPreferences.ts';
 import './presentation/styles.css';
 import './presentation/theme.css';
 import './presentation/cinema.css';
@@ -14,6 +16,8 @@ import './presentation/features/library/list-layout.css';
 import './presentation/components/selects.css';
 
 initializeAppearance();
+initializeLocale();
+initializeTypography();
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><App /></React.StrictMode>,
 );

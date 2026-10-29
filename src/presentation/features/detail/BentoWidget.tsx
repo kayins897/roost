@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { ArrowDown, ArrowUp, GripVertical, Minus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { DetailWidgetId, DetailWidgetPreference } from '../../../infrastructure/detailLayout.ts';
@@ -17,10 +18,10 @@ export function BentoWidget({ card, controller, children, menuOpen, onMenu, onDr
     onDragOver={event => { if (controller.editing) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
     onDrop={event => { if (!controller.editing) return; event.preventDefault(); onDrop(card.id, event.clientY > event.currentTarget.getBoundingClientRect().top + event.currentTarget.offsetHeight / 2); }}>
     {controller.editing && <div className="bento-widget-tools">
-      <button type="button" draggable aria-label={`拖动${label}`} onDragStart={event => { onDragStart(card.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', card.id); }} onDragEnd={() => onDragStart(null)} onKeyDown={event => { if (['ArrowUp', 'ArrowDown'].includes(event.key)) { event.preventDefault(); controller.step(card.id, event.key === 'ArrowUp' ? -1 : 1); } }}><GripVertical size={15} /></button>
-      <button type="button" aria-label={`上移${label}`} onClick={() => controller.step(card.id, -1)}><ArrowUp size={13} /></button>
-      <button type="button" aria-label={`下移${label}`} onClick={() => controller.step(card.id, 1)}><ArrowDown size={13} /></button>
-      <span>{SIZE_LABELS[card.size]}</span><button type="button" aria-label={`隐藏${label}卡片`} onClick={() => controller.updateCard(card.id, { visible: false })}><Minus size={15} /></button>
+      <button type="button" draggable aria-label={t("拖动{0}", [label])} onDragStart={event => { onDragStart(card.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', card.id); }} onDragEnd={() => onDragStart(null)} onKeyDown={event => { if (['ArrowUp', 'ArrowDown'].includes(event.key)) { event.preventDefault(); controller.step(card.id, event.key === 'ArrowUp' ? -1 : 1); } }}><GripVertical size={15} /></button>
+      <button type="button" aria-label={t("上移{0}", [label])} onClick={() => controller.step(card.id, -1)}><ArrowUp size={13} /></button>
+      <button type="button" aria-label={t("下移{0}", [label])} onClick={() => controller.step(card.id, 1)}><ArrowDown size={13} /></button>
+      <span>{t(SIZE_LABELS[card.size])}</span><button type="button" aria-label={t("隐藏{0}卡片", [label])} onClick={() => controller.updateCard(card.id, { visible: false })}><Minus size={15} /></button>
     </div>}
     <div className="bento-widget-body" inert={controller.editing}>{children}</div>
   </section>;

@@ -1,0 +1,17 @@
+export const interfaceEnglish: Record<string, string> = {
+  '已加密记住密钥': 'Key saved securely', '当前连接可用': 'Connection available',
+  '音乐板块暂未开放，已跳过 {0} 条音乐记录。': 'Music is currently unavailable. Skipped {0} music records.',
+  '次': 'times', '即时切换，作品和个人记录保持原文。': 'Switch instantly. Titles and personal records stay in their original language.',
+  '选择界面语言与字体，离线使用。': 'Choose your interface language and fonts. Available offline.',
+  '选择适合自己的阅读风格，即时生效。': 'Choose a comfortable reading style. Changes apply immediately.',
+  '现代黑体': 'Modern sans', '书卷宋体': 'Literary serif',
+  '使用设备默认界面字体': 'Use your device’s interface font',
+  '内置字体均可免费使用，随应用离线提供。更换字体不影响收藏和个人记录。': 'Bundled fonts are free to use and available offline. Changing fonts leaves your collection and records unchanged.',
+  '字体设置未能保存，请重试。': 'Could not save font preferences. Please try again.',
+  '无法保存语言设置，请稍后重试。': 'Could not save the language setting. Please try again.',
+  '游戏、书籍与影视': 'Games, books and screen',
+  '{0} 小时 {1} 分钟': '{0} h {1} min', '{0} 小时 {1} 分': '{0} h {1} min', '{0} 小时': '{0} h',
+  '第 {0} 季 · 第 {1} 集': 'Season {0} · Episode {1}', '第 {0} 季 · 尚未开始': 'Season {0} · Not started',
+  '第 {0} 季': 'Season {0}', '第 {0} 集': 'Episode {0}',
+  '年': '', '取消选择{0}': 'Deselect {0}',
+};

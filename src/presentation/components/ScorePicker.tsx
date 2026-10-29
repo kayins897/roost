@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts';
 import { useEffect, useImperativeHandle, useRef, type KeyboardEvent, type PointerEvent, type Ref } from 'react';
 import './score-picker.css';
 
@@ -34,11 +35,11 @@ export function ScorePicker({ value, onChange, label = '通关评分', disabled 
     if (whole === 10) return;
     draft.current = `${whole}.${next}`; onChange(draft.current);
   }
-  return <div className="score-picker" role="group" aria-label={label}>
-    <ScoreWheel ref={wholeWheel} value={integer} maximum={10} label={`${label}整数`} disabled={disabled} onChange={updateWhole} />
+  return <div className="score-picker" role="group" aria-label={t(label)}>
+    <ScoreWheel ref={wholeWheel} value={integer} maximum={10} label={t("{0}整数", [t(label)])} disabled={disabled} onChange={updateWhole} />
     <span className="score-picker-dot" aria-hidden="true">.</span>
-    <ScoreWheel ref={decimalWheel} value={integer === 10 ? 0 : decimal} maximum={9} label={`${label}小数`} disabled={disabled || integer === 10} onChange={updateDecimal} />
-    <span className="score-picker-unit" aria-hidden="true">分</span>
+    <ScoreWheel ref={decimalWheel} value={integer === 10 ? 0 : decimal} maximum={9} label={t("{0}小数", [t(label)])} disabled={disabled || integer === 10} onChange={updateDecimal} />
+    <span className="score-picker-unit" aria-hidden="true">{t("分")}</span>
   </div>;
 }
 

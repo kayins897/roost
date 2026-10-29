@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import type { ExperienceEntry } from '../../../domain/types.ts';
@@ -53,13 +54,13 @@ export function GameBentoDetail({ item, availableItems = [], onClose, onPatch, o
       case 'cover': return <BentoArtwork item={item} />;
       case 'grade': return <BentoScore item={item} />;
       case 'hours': return <BentoHours item={item} />;
-      case 'platform': return <><div className="bento-heading"><h3>拥有平台</h3></div><BentoPlatforms item={item} /></>;
+      case 'platform': return <><div className="bento-heading"><h3>{t("拥有平台")}</h3></div><BentoPlatforms item={item} /></>;
       case 'facts': return <BentoFacts item={item} fields={controller.layout.fields} />;
       case 'tags': return <BentoTags item={item} fields={controller.layout.fields} onFilter={onFilterTag} />;
-      case 'impression': return <><div className="bento-heading"><h3>一句话印象</h3></div><p className="bento-impression-text">{writing.draft.impression || <span className="bento-muted">还没有一句话印象</span>}</p></>;
+      case 'impression': return <><div className="bento-heading"><h3>{t("一句话印象")}</h3></div><p className="bento-impression-text">{writing.draft.impression || <span className="bento-muted">{t("还没有一句话印象")}</span>}</p></>;
       case 'footprint': return <BentoFootprint item={item} save={onPatch} />;
       case 'gallery': return <BentoGallery item={item} mode={controller.layout.galleryMode} onOpen={setPhoto} />;
-      case 'count': return <><div className="bento-heading"><h3>完成次数</h3></div><strong className="bento-stat-number">{item.completionCount === undefined ? '未记录' : <>{item.completionCount}<small>次</small></>}</strong></>;
+      case 'count': return <><div className="bento-heading"><h3>{t("完成次数")}</h3></div><strong className="bento-stat-number">{item.completionCount === undefined ? t('未记录') : <>{item.completionCount}<small>{t("次")}</small></>}</strong></>;
       case 'review': return <BentoReview value={writing.draft.review} />;
     }
   };
@@ -70,7 +71,7 @@ export function GameBentoDetail({ item, availableItems = [], onClose, onPatch, o
       case 'grade': return <BentoScoreEditor {...props} />;
       case 'hours': return <BentoStatEditor {...props} count={false} />;
       case 'count': return <BentoStatEditor {...props} count />;
-      case 'facts': return <><BentoFactsEditor {...props} /><div className="bento-context-divider" />{locked ? <><button type="button" onClick={onRestore}>恢复作品</button><button type="button" onClick={onDeletePermanently}>永久删除</button></> : <button type="button" onClick={onDelete}>移到回收站</button>}</>;
+      case 'facts': return <><BentoFactsEditor {...props} /><div className="bento-context-divider" />{locked ? <><button type="button" onClick={onRestore}>{t("恢复作品")}</button><button type="button" onClick={onDeletePermanently}>{t("永久删除")}</button></> : <button type="button" onClick={onDelete}>{t("移到回收站")}</button>}</>;
       case 'platform': return <BentoPlatformEditor {...props} />;
       case 'tags': return <BentoTagsEditor {...props} availableItems={availableItems} />;
       case 'impression': return <BentoWritingEditor {...props} review={false} />;
@@ -81,19 +82,19 @@ export function GameBentoDetail({ item, availableItems = [], onClose, onPatch, o
     }
   };
   return <div className="detail-shell detail-dialog-backdrop game-bento-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section ref={panel} className={`game-bento-dialog ${controller.editing ? 'game-bento-dialog--editing' : ''}`} role="dialog" aria-modal="true" aria-label={`${item.title}详情`}>
-      <button type="button" className="icon-button game-bento-close detail-close" aria-label="关闭详情" onClick={onClose}><X size={21} /></button>
-      <main className="game-bento-grid" aria-label="游戏档案卡片" onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); openMenu(null, event.clientX, event.clientY); } }}>
+    <section ref={panel} className={`game-bento-dialog ${controller.editing ? 'game-bento-dialog--editing' : ''}`} role="dialog" aria-modal="true" aria-label={t("{0}详情", [item.title])}>
+      <button type="button" className="icon-button game-bento-close detail-close" aria-label={t("关闭详情")} onClick={onClose}><X size={21} /></button>
+      <main className="game-bento-grid" aria-label={t("游戏档案卡片")} onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); openMenu(null, event.clientX, event.clientY); } }}>
         {controller.layout.cards.filter(card => card.visible).map(card => <BentoWidget key={card.id} card={card} controller={controller} menuOpen={menu?.id === card.id} onMenu={openMenu} onDragStart={id => { dragged.current = id; }} onDrop={(target, after) => { if (dragged.current) controller.move(dragged.current, target, after); dragged.current = null; }}>{content(card.id)}</BentoWidget>)}
-        {!controller.layout.cards.some(card => card.visible) && <div className="bento-layout-empty"><p>卡片已隐藏，收藏内容仍完整保留。</p><button type="button" onClick={() => controller.begin(true)}>管理卡片</button></div>}
+        {!controller.layout.cards.some(card => card.visible) && <div className="bento-layout-empty"><p>{t("卡片已隐藏，收藏内容仍完整保留。")}</p><button type="button" onClick={() => controller.begin(true)}>{t("管理卡片")}</button></div>}
       </main>
       {(controller.error || message) && <p className="bento-status" role="status">{controller.error || message}</p>}
-      {locked && <div className="bento-recycle-actions"><span>回收站 · 只读</span><button type="button" onClick={onRestore}>恢复作品</button><button type="button" onClick={onDeletePermanently}>永久删除</button></div>}
+      {locked && <div className="bento-recycle-actions"><span>{t("回收站 · 只读")}</span><button type="button" onClick={onRestore}>{t("恢复作品")}</button><button type="button" onClick={onDeletePermanently}>{t("永久删除")}</button></div>}
       <BentoLayoutTools controller={controller} />
     </section>
     {menu && <BentoContextMenu key={menu.id ?? 'layout'} anchor={menu} controller={controller} close={closeMenu} locked={locked}>{editor(menu.id)}</BentoContextMenu>}
     {experience && <ExperienceEditor initial={experience === 'new' ? undefined : experience} onClose={() => setExperience(null)} onSave={entry => onPatch({ experienceEntries: [...(item.experienceEntries ?? []).filter(value => value.id !== entry.id), entry] })} />}
-    {completion && <Modal title={completion === 'new' ? '记录一次完成' : '整理完成事件'} onClose={() => setCompletion(null)}>{completion === 'new' ? <CompletionRecordForm item={item} onPatch={onPatch} onCancel={() => setCompletion(null)} onRecorded={receipt => { setUndoable(receipt); setCompletion(null); setMessage('已记录一次完成。'); }} /> : <CompletionEvents item={item} onPatch={onPatch} />}</Modal>}
+    {completion && <Modal title={completion === 'new' ? t('记录一次完成') : t('整理完成事件')} onClose={() => setCompletion(null)}>{completion === 'new' ? <CompletionRecordForm item={item} onPatch={onPatch} onCancel={() => setCompletion(null)} onRecorded={receipt => { setUndoable(receipt); setCompletion(null); setMessage('已记录一次完成。'); }} /> : <CompletionEvents item={item} onPatch={onPatch} />}</Modal>}
     {photo && <BentoLightbox item={item} initialId={photo} save={onPatch} close={() => setPhoto(null)} />}
   </div>;
 }

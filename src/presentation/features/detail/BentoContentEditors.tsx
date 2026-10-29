@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { gradeEditable } from '../../../domain/gameProgress.ts';
 import { impressionError, personalWritingFor, personalWritingPatch } from '../../../domain/personalWriting.ts';
@@ -7,11 +8,11 @@ import { InlineScoreControl } from '../../components/InlineScoreControl.tsx';
 export type BentoSave = (patch: Partial<MediaItem>) => boolean;
 export function BentoSaveForm({ children, onSubmit, onClose, error = '' }: { children: ReactNode; onSubmit: () => boolean; onClose: () => void; error?: string }) {
   function submit(event: FormEvent) { event.preventDefault(); if (onSubmit()) onClose(); }
-  return <form className="bento-context-form" onSubmit={submit}>{children}{error && <p role="alert" className="bento-context-error">{error}</p>}<div className="bento-context-save"><button type="button" onClick={onClose}>取消</button><button className="bento-menu-primary" type="submit">保存</button></div></form>;
+  return <form className="bento-context-form" onSubmit={submit}>{children}{error && <p role="alert" className="bento-context-error">{t(error)}</p>}<div className="bento-context-save"><button type="button" onClick={onClose}>{t("取消")}</button><button className="bento-menu-primary" type="submit">{t("保存")}</button></div></form>;
 }
 export function BentoScoreEditor({ item, save }: { item: MediaItem; save: BentoSave; close: () => void }) {
-  if (!gradeEditable(item)) return <p className="bento-context-description">新游戏+与收官完结可设置通关评分。已有分数会保留。</p>;
-  return <div className="bento-context-form"><InlineScoreControl value={item.personalScore} onSave={score => save({ personalScore: score, ratingOrder: undefined })} />{item.personalGrade && item.personalScore === undefined && <p className="bento-context-description">原通关评级 {item.personalGrade} 保留，不自动换算。</p>}</div>;
+  if (!gradeEditable(item)) return <p className="bento-context-description">{t("新游戏+与收官完结可设置通关评分。已有分数会保留。")}</p>;
+  return <div className="bento-context-form"><InlineScoreControl value={item.personalScore} onSave={score => save({ personalScore: score, ratingOrder: undefined })} />{item.personalGrade && item.personalScore === undefined && <p className="bento-context-description">{t("原通关评级")}{" "}{item.personalGrade} {" "}{t("保留，不自动换算。")}</p>}</div>;
 }
 function localTimestamp(value?: string) {
   if (!value) return '';
@@ -30,7 +31,7 @@ export function BentoStatEditor({ item, count, save, close }: { item: MediaItem;
     const lastPlayedAt = date === localTimestamp(item.lastPlayedAt) ? item.lastPlayedAt : date ? new Date(date).toISOString() : undefined;
     const patch = count ? { completionCount: amount } : { playtimeMinutes: amount === undefined ? undefined : Math.round(amount * 60), lastPlayedAt };
     const ok = save(patch); if (!ok) setError('记录未能保存，请重试。'); return ok;
-  }}><label>{count ? '累计完成次数' : '累计游玩小时'}<input autoFocus type="number" min="0" step={count ? '1' : 'any'} aria-label={count ? '累计完成次数' : '累计游玩小时'} placeholder="未记录" value={value} onChange={event => setValue(event.target.value)} /></label>{!count && <label>最后运行时间<input type="datetime-local" aria-label="最后运行时间" value={date} onChange={event => setDate(event.target.value)} /></label>}<p className="bento-context-description">留空表示未记录，与 0 不同。{count ? '普通日志不会增加完成次数。' : '最后运行独立记录，不从日志推算。'}</p></BentoSaveForm>;
+  }}><label>{count ? t('累计完成次数') : t('累计游玩小时')}<input autoFocus type="number" min="0" step={count ? '1' : 'any'} aria-label={count ? t('累计完成次数') : t('累计游玩小时')} placeholder={t("未记录")} value={value} onChange={event => setValue(event.target.value)} /></label>{!count && <label>{t("最后运行时间")}<input type="datetime-local" aria-label={t("最后运行时间")} value={date} onChange={event => setDate(event.target.value)} /></label>}<p className="bento-context-description">{t("留空表示未记录，与 0 不同。")}{count ? t('普通日志不会增加完成次数。') : t('最后运行独立记录，不从日志推算。')}</p></BentoSaveForm>;
 }
 export function BentoFactsEditor({ item, save, close }: { item: MediaItem; save: BentoSave; close: () => void }) {
   const [draft, setDraft] = useState({ title: item.title, originalTitle: item.originalTitle ?? '', creator: item.creator, year: item.year, createdAt: item.createdAt.slice(0, 10), sourceUrl: item.sourceUrl ?? '' });
@@ -51,7 +52,7 @@ export function BentoWritingEditor({ item, review, save, close }: { item: MediaI
   return <BentoSaveForm onClose={close} error={error} onSubmit={() => {
     const validation = !review && impressionError(value); if (validation) { setError(validation); return false; }
     const ok = save(personalWritingPatch(item, { ...original, [key]: value })); if (!ok) setError('感受未能保存，草稿仍保留。'); return ok;
-  }}><label>{review ? '长文测评' : '一句话印象'}<textarea autoFocus aria-label={review ? '长文测评' : '一句话印象'} rows={review ? 10 : 4} maxLength={review ? undefined : 80} value={value} onChange={event => setValue(event.target.value)} /></label>{!review && <p className="bento-context-description">{Array.from(value).length} / 80 字</p>}</BentoSaveForm>;
+  }}><label>{review ? t('长文测评') : t('一句话印象')}<textarea autoFocus aria-label={review ? t('长文测评') : t('一句话印象')} rows={review ? 10 : 4} maxLength={review ? undefined : 80} value={value} onChange={event => setValue(event.target.value)} /></label>{!review && <p className="bento-context-description">{Array.from(value).length} {" "}{t("/ 80 字")}</p>}</BentoSaveForm>;
 }
 export function BentoCoverEditor({ item, save, close }: { item: MediaItem; save: BentoSave; close: () => void }) {
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
@@ -70,5 +71,5 @@ export function BentoCoverEditor({ item, save, close }: { item: MediaItem; save:
     } catch { setError('图片无法读取，请选择其他文件。'); }
     finally { setBusy(false); }
   }
-  return <div className="bento-context-form"><label>更换封面图片<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => select(event.target.files?.[0])} /></label>{item.coverUrl && <button type="button" disabled={busy} onClick={() => { if (save({ coverUrl: undefined })) close(); else setError('封面未能清除，请重试。'); }}>移除当前封面</button>}{busy && <p role="status">正在处理图片…</p>}{error && <p className="bento-context-error" role="alert">{error}</p>}</div>;
+  return <div className="bento-context-form"><label>{t("更换封面图片")}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => select(event.target.files?.[0])} /></label>{item.coverUrl && <button type="button" disabled={busy} onClick={() => { if (save({ coverUrl: undefined })) close(); else setError('封面未能清除，请重试。'); }}>{t("移除当前封面")}</button>}{busy && <p role="status">{t("正在处理图片…")}</p>}{error && <p className="bento-context-error" role="alert">{t(error)}</p>}</div>;
 }

@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DetailWidgetId, DetailWidgetPreference } from '../../../infrastructure/detailLayout.ts';
@@ -27,19 +28,19 @@ export function BentoContextMenu({ anchor, controller, close, locked, children }
     return () => { document.removeEventListener('pointerdown', outside, true); window.removeEventListener('resize', resize); };
   }, [close]);
   const card = controller.layout.cards.find(value => value.id === anchor.id);
-  return <aside ref={panel} role="dialog" aria-modal="true" aria-label={`${title}设置`} className="bento-context-menu">
-    <header>{appearance && anchor.id && <button type="button" className="bento-menu-back" aria-label="返回内容编辑" onClick={() => setAppearance(false)}><ChevronLeft size={16} /></button>}<strong>{appearance ? '外观与布局' : title}</strong></header>
+  return <aside ref={panel} role="dialog" aria-modal="true" aria-label={t("{0}设置", [title])} className="bento-context-menu">
+    <header>{appearance && anchor.id && <button type="button" className="bento-menu-back" aria-label={t("返回内容编辑")} onClick={() => setAppearance(false)}><ChevronLeft size={16} /></button>}<strong>{appearance ? t('外观与布局') : title}</strong></header>
     {appearance ? <>
       {card && <BentoAppearance card={card} controller={controller} onResize={close} />}
-      <div className="bento-context-divider" /><button type="button" className="bento-context-action" onClick={() => { controller.begin(); close(); }}>整理整体布局<ChevronRight size={14} /></button><button type="button" className="bento-context-action" onClick={() => { controller.begin(true); close(); }}>管理卡片与显示内容<ChevronRight size={14} /></button>
-    </> : <>{locked ? <p className="bento-context-description">回收站中的作品只读，恢复后可编辑。</p> : children}<div className="bento-context-divider" /><button className="bento-context-action" type="button" onClick={() => setAppearance(true)}>外观与布局<ChevronRight size={14} /></button></>}
+      <div className="bento-context-divider" /><button type="button" className="bento-context-action" onClick={() => { controller.begin(); close(); }}>{t("整理整体布局")}<ChevronRight size={14} /></button><button type="button" className="bento-context-action" onClick={() => { controller.begin(true); close(); }}>{t("管理卡片与显示内容")}<ChevronRight size={14} /></button>
+    </> : <>{locked ? <p className="bento-context-description">{t("回收站中的作品只读，恢复后可编辑。")}</p> : children}<div className="bento-context-divider" /><button className="bento-context-action" type="button" onClick={() => setAppearance(true)}>{t("外观与布局")}<ChevronRight size={14} /></button></>}
   </aside>;
 }
 function BentoAppearance({ card, controller, onResize }: { card: DetailWidgetPreference; controller: BentoLayoutController; onResize: () => void }) {
   const [hex, setHex] = useState(card.color === 'default' ? '#202124' : card.color);
   const valid = /^#[0-9a-f]{6}$/i.test(hex);
-  return <div className="bento-context-form"><p className="bento-context-description">卡片尺寸</p><div className="bento-context-options">{(Object.keys(WIDGET_SIZES[card.id]) as DetailWidgetPreference['size'][]).map(size => <button type="button" aria-pressed={card.size === size} key={size} onClick={() => { if (controller.updateCard(card.id, { size })) onResize(); }}>{SIZE_LABELS[size]}</button>)}</div>
-    <p className="bento-context-description">卡片颜色</p><div className="bento-color-options">{WIDGET_COLORS.map(color => <button key={color} type="button" style={{ background: color }} aria-label={`卡片颜色 ${color}`} aria-pressed={card.color === color} onClick={() => { controller.updateCard(card.id, { color }); setHex(color); }} />)}</div>
-    <div className="bento-custom-color"><input type="color" aria-label="选取卡片颜色" value={valid ? hex : '#202124'} onChange={event => { setHex(event.target.value); controller.updateCard(card.id, { color: event.target.value }); }} /><input aria-label="卡片颜色色号" value={hex} aria-invalid={!valid} onChange={event => setHex(event.target.value)} /><button type="button" disabled={!valid} onClick={() => controller.updateCard(card.id, { color: hex })}>应用</button></div><button type="button" onClick={() => controller.updateCard(card.id, { color: 'default' })}>恢复默认配色</button>
+  return <div className="bento-context-form"><p className="bento-context-description">{t("卡片尺寸")}</p><div className="bento-context-options">{(Object.keys(WIDGET_SIZES[card.id]) as DetailWidgetPreference['size'][]).map(size => <button type="button" aria-pressed={card.size === size} key={size} onClick={() => { if (controller.updateCard(card.id, { size })) onResize(); }}>{t(SIZE_LABELS[size])}</button>)}</div>
+    <p className="bento-context-description">{t("卡片颜色")}</p><div className="bento-color-options">{WIDGET_COLORS.map(color => <button key={color} type="button" style={{ background: color }} aria-label={t("卡片颜色 {0}", [color])} aria-pressed={card.color === color} onClick={() => { controller.updateCard(card.id, { color }); setHex(color); }} />)}</div>
+    <div className="bento-custom-color"><input type="color" aria-label={t("选取卡片颜色")} value={valid ? hex : '#202124'} onChange={event => { setHex(event.target.value); controller.updateCard(card.id, { color: event.target.value }); }} /><input aria-label={t("卡片颜色色号")} value={hex} aria-invalid={!valid} onChange={event => setHex(event.target.value)} /><button type="button" disabled={!valid} onClick={() => controller.updateCard(card.id, { color: hex })}>{t("应用")}</button></div><button type="button" onClick={() => controller.updateCard(card.id, { color: 'default' })}>{t("恢复默认配色")}</button>
   </div>;
 }

@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { ChevronLeft, ChevronRight, Image as ImageIcon, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { GameScreenshot, MediaItem } from '../../../domain/types.ts';
@@ -12,12 +13,12 @@ export function BentoGallery({ item, mode, onOpen }: GalleryProps) {
   const safePage = Math.min(page, pages - 1), cover = images.find(image => image.id === item.screenshotCoverId) ?? images[0];
   const visible = mode === 1 ? cover ? [cover] : [] : images.slice(safePage * mode, (safePage + 1) * mode);
   return <div className="bento-gallery" data-mode={mode}>
-    <div className="bento-gallery-heading"><span><ImageIcon size={13} />我的截图<small>{images.length} 张</small></span></div>
-    <div className="bento-gallery-grid">{visible.map(image => <button type="button" key={image.id} className="bento-gallery-image" aria-label={`查看截图 ${image.filename}`} onClick={() => onOpen(image.id)}>{failed.includes(image.id) ? <span className="bento-gallery-unavailable">图片暂不可用</span> : <img src={screenshotUrl(image, true)} alt={image.caption || image.filename} loading="lazy" draggable={false} onError={() => setFailed(current => [...current, image.id])} />}</button>)}
-      {!images.length && <p className="bento-gallery-empty">还没有截图</p>}
+    <div className="bento-gallery-heading"><span><ImageIcon size={13} />{t("我的截图")}<small>{images.length} {" "}{t("张")}</small></span></div>
+    <div className="bento-gallery-grid">{visible.map(image => <button type="button" key={image.id} className="bento-gallery-image" aria-label={t("查看截图 {0}", [image.filename])} onClick={() => onOpen(image.id)}>{failed.includes(image.id) ? <span className="bento-gallery-unavailable">{t("图片暂不可用")}</span> : <img src={screenshotUrl(image, true)} alt={image.caption || image.filename} loading="lazy" draggable={false} onError={() => setFailed(current => [...current, image.id])} />}</button>)}
+      {!images.length && <p className="bento-gallery-empty">{t("还没有截图")}</p>}
       {mode > 1 && images.length > 0 && Array.from({ length: Math.max(0, mode - visible.length) }, (_, index) => <span className="bento-gallery-slot" key={`empty-${index}`} />)}
     </div>
-    {mode > 1 && pages > 1 && <div className="bento-gallery-pages"><button type="button" aria-label="上一组截图" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}><ChevronLeft size={15} /></button><span>{safePage + 1} / {pages}</span><button type="button" aria-label="下一组截图" disabled={safePage === pages - 1} onClick={() => setPage(safePage + 1)}><ChevronRight size={15} /></button></div>}
+    {mode > 1 && pages > 1 && <div className="bento-gallery-pages"><button type="button" aria-label={t("上一组截图")} disabled={safePage === 0} onClick={() => setPage(safePage - 1)}><ChevronLeft size={15} /></button><span>{safePage + 1} / {pages}</span><button type="button" aria-label={t("下一组截图")} disabled={safePage === pages - 1} onClick={() => setPage(safePage + 1)}><ChevronRight size={15} /></button></div>}
   </div>;
 }
 export function BentoGalleryEditor({ item, mode, setMode, save }: { item: MediaItem; mode: 1 | 4 | 9; setMode: (mode: 1 | 4 | 9) => void; save: BentoSave }) {
@@ -32,9 +33,9 @@ export function BentoGalleryEditor({ item, mode, setMode, save }: { item: MediaI
     } catch (error) { setError(error instanceof Error ? error.message : '截图导入失败，请重试。'); }
     finally { setBusy(false); }
   }
-  return <div className="bento-context-form"><p className="bento-context-description">展示方式</p><div className="bento-context-options">{([1, 4, 9] as const).map(value => <button type="button" key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{value === 1 ? '单图' : value === 4 ? '四宫格' : '九宫格'}</button>)}</div>
-    <button type="button" disabled={!desktopGameAssetsAvailable || busy} onClick={add}>{busy ? '正在保存原图…' : '导入截图'}</button>{!desktopGameAssetsAvailable && <p className="bento-context-description">截图原图保存在本机，需在桌面版导入。</p>}
-    {(item.screenshots?.length ?? 0) > 0 && <label>封面截图<select aria-label="封面截图" value={item.screenshotCoverId ?? item.screenshots![0].id} onChange={event => { if (!save({ screenshotCoverId: event.target.value })) setError('截图封面未能保存。'); }}>{item.screenshots!.map(image => <option key={image.id} value={image.id}>{image.caption || image.filename}</option>)}</select></label>}{error && <p className="bento-context-error" role="alert">{error}</p>}
+  return <div className="bento-context-form"><p className="bento-context-description">{t("展示方式")}</p><div className="bento-context-options">{([1, 4, 9] as const).map(value => <button type="button" key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{value === 1 ? t('单图') : value === 4 ? t('四宫格') : t('九宫格')}</button>)}</div>
+    <button type="button" disabled={!desktopGameAssetsAvailable || busy} onClick={add}>{busy ? t('正在保存原图…') : t('导入截图')}</button>{!desktopGameAssetsAvailable && <p className="bento-context-description">{t("截图原图保存在本机，需在桌面版导入。")}</p>}
+    {(item.screenshots?.length ?? 0) > 0 && <label>{t("封面截图")}<select aria-label={t("封面截图")} value={item.screenshotCoverId ?? item.screenshots![0].id} onChange={event => { if (!save({ screenshotCoverId: event.target.value })) setError('截图封面未能保存。'); }}>{item.screenshots!.map(image => <option key={image.id} value={image.id}>{image.caption || image.filename}</option>)}</select></label>}{error && <p className="bento-context-error" role="alert">{t(error)}</p>}
   </div>;
 }
 export function BentoLightbox({ item, initialId, save, close }: { item: MediaItem; initialId: string; save: BentoSave; close: () => void }) {
@@ -58,10 +59,10 @@ export function BentoLightbox({ item, initialId, save, close }: { item: MediaIte
     if (!next.length) close(); else setId(next[Math.min(index, next.length - 1)].id);
   }
   return <div className="bento-lightbox-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) tryClose(); }}>
-    <section ref={panel} className="bento-lightbox" role="dialog" aria-modal="true" aria-label="截图原图" onKeyDown={event => { if (event.target instanceof HTMLInputElement) return; if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); } if (event.key === 'ArrowRight') { event.preventDefault(); move(1); } }}>
-      <header><span>{image?.filename} · {index + 1} / {images.length}</span><button type="button" className="icon-button" onClick={tryClose} aria-label="关闭截图"><X size={20} /></button></header>
-      <div className="bento-lightbox-stage"><button type="button" aria-label="上一张截图" onClick={() => move(-1)} disabled={images.length < 2}><ChevronLeft /></button>{image && <img src={screenshotUrl(image)} alt={image.caption || image.filename} />}<button type="button" aria-label="下一张截图" onClick={() => move(1)} disabled={images.length < 2}><ChevronRight /></button></div>
-      {!item.removedAt && <footer><input aria-label="截图说明" placeholder="留下这张截图的故事…" maxLength={500} value={caption} onChange={event => setCaption(event.target.value)} onBlur={saveCaption} onKeyDown={event => { if (event.key === 'Enter' && saveCaption()) event.currentTarget.blur(); }} /><button type="button" disabled={image?.id === item.screenshotCoverId} onClick={() => { if (image && saveCaption() && !save({ screenshotCoverId: image.id })) setError('封面未能保存。'); }}>设为封面</button><button type="button" onClick={remove}>移出相册</button></footer>}{error && <p className="bento-context-error" role="alert">{error}</p>}
+    <section ref={panel} className="bento-lightbox" role="dialog" aria-modal="true" aria-label={t("截图原图")} onKeyDown={event => { if (event.target instanceof HTMLInputElement) return; if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); } if (event.key === 'ArrowRight') { event.preventDefault(); move(1); } }}>
+      <header><span>{image?.filename} · {index + 1} / {images.length}</span><button type="button" className="icon-button" onClick={tryClose} aria-label={t("关闭截图")}><X size={20} /></button></header>
+      <div className="bento-lightbox-stage"><button type="button" aria-label={t("上一张截图")} onClick={() => move(-1)} disabled={images.length < 2}><ChevronLeft /></button>{image && <img src={screenshotUrl(image)} alt={image.caption || image.filename} />}<button type="button" aria-label={t("下一张截图")} onClick={() => move(1)} disabled={images.length < 2}><ChevronRight /></button></div>
+      {!item.removedAt && <footer><input aria-label={t("截图说明")} placeholder={t("留下这张截图的故事…")} maxLength={500} value={caption} onChange={event => setCaption(event.target.value)} onBlur={saveCaption} onKeyDown={event => { if (event.key === 'Enter' && saveCaption()) event.currentTarget.blur(); }} /><button type="button" disabled={image?.id === item.screenshotCoverId} onClick={() => { if (image && saveCaption() && !save({ screenshotCoverId: image.id })) setError('封面未能保存。'); }}>{t("设为封面")}</button><button type="button" onClick={remove}>{t("移出相册")}</button></footer>}{error && <p className="bento-context-error" role="alert">{t(error)}</p>}
     </section>
   </div>;
 }

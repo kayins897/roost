@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { RefreshCw, Square, Sparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { desktopBridge } from '../../../infrastructure/repository.ts';
@@ -89,17 +90,17 @@ export function EnrichSelected({ selectedGames, items, exclusions, onClose, onSy
       else { setSubmitted(false); setError('保存未完成，预览和选择已保留。请处理收藏库提示后重试'); }
     } catch (failure) { setSubmitted(false); setError(failure instanceof Error ? failure.message : '未能保存，预览和选择已保留'); }
   }
-  return <Modal title="补齐 Steam 资料" description={`对选中的 ${selectedGames.length} 款游戏读取 Steam 公开资料，只补缺失字段；不读取账号库存，不更新时长，不新增作品。`} onClose={onClose} wide>
+  return <Modal title={t("补齐 Steam 资料")} description={t("对选中的 {0} 款游戏读取 Steam 公开资料，只补缺失字段；不读取账号库存，不更新时长，不新增作品。", [selectedGames.length])} onClose={onClose} wide>
     <div ref={panel as React.RefObject<HTMLDivElement>}>
-      {skipped.length > 0 && <details className="steam-import-warnings" open><summary>{skipped.length} 款将跳过</summary><ul>{skipped.map(({ item, reason }) => <li key={item.id}>{item.title}：{reason}</li>)}</ul></details>}
-      {phase === 'idle' && <div className="modal-actions"><span className="feature-help">{candidates.length ? `可补齐 ${candidates.length} 款。` : '没有可补齐的游戏。'}</span>{candidates.length > 0 && <button className="button button--primary" onClick={() => { void start(); }} disabled={busy}><Sparkles size={15} />开始读取</button>}</div>}
-      {phase === 'enriching' && <div className="enrich-progress" role="status"><progress value={progress?.completed ?? 0} max={progress?.total ?? candidates.length} /><span>{progress ? `${progress.completed} / ${progress.total}${progress.title ? ' · ' + progress.title : ''}` : '准备中…'}</span><button className="button button--ghost" onClick={() => desktopBridge?.cancelSteamRequest()}><Square size={14} />停止</button></div>}
-      {phase === 'preview' && <><div className="steam-import-summary" role="status"><span><strong>{chosen.length}</strong> 款将补齐资料</span>{updateRows.length - updateRows.filter(row => row.kind === 'update').length > 0 && <span><strong>{updateRows.length - updateRows.filter(row => row.kind === 'update').length}</strong> 款已齐全，无需更新</span>}</div>
-        <div className="steam-import-rows" aria-label="资料补齐预览">{updateRows.map(row => <label key={row.appId} className="steam-import-row"><input type="checkbox" aria-label={`补齐 ${row.game.title}`} disabled={row.kind !== 'update' || submitted} checked={row.kind === 'update' && choice.has(row.appId)} onChange={event => setChoice(current => { const next = new Set(current); event.target.checked ? next.add(row.appId) : next.delete(row.appId); return next; })} /><span className="steam-import-game"><strong>{row.game.title}</strong><small>{row.kind === 'update' ? `将补：${row.fields.map(field => FIELD_LABELS[field] ?? field).join('、')}` : '资料已齐全'}</small></span></label>)}</div>
-        <div className="modal-actions"><button className="button button--ghost" onClick={() => { setPhase('idle'); setGames(null); }} disabled={busy || submitted}><RefreshCw size={14} />重新读取</button><button className="button button--primary" onClick={apply} disabled={!chosen.length || submitted || busy}>{submitted ? '正在保存…' : `补齐选中的 ${chosen.length} 款`}</button></div></>}
-      {message && <p className="metadata-note" role="status">{message}</p>}
-      {error && <p className="form-error" role="alert">{error}</p>}
-      {phase === 'preview' && <p className="steam-import-hint">已有封面、开发商、年份与原名不会被覆盖；状态、时长、两个等级、标签、印象与记录均不变。<button type="button" className="text-button" onClick={onClose}><X size={13} />取消不写入</button></p>}
+      {skipped.length > 0 && <details className="steam-import-warnings" open><summary>{skipped.length} {" "}{t("款将跳过")}</summary><ul>{skipped.map(({ item, reason }) => <li key={item.id}>{item.title}：{reason}</li>)}</ul></details>}
+      {phase === 'idle' && <div className="modal-actions"><span className="feature-help">{candidates.length ? t("可补齐 {0} 款。", [candidates.length]) : t('没有可补齐的游戏。')}</span>{candidates.length > 0 && <button className="button button--primary" onClick={() => { void start(); }} disabled={busy}><Sparkles size={15} />{t("开始读取")}</button>}</div>}
+      {phase === 'enriching' && <div className="enrich-progress" role="status"><progress value={progress?.completed ?? 0} max={progress?.total ?? candidates.length} /><span>{progress ? `${progress.completed} / ${progress.total}${progress.title ? ' · ' + progress.title : ''}` : t('准备中…')}</span><button className="button button--ghost" onClick={() => desktopBridge?.cancelSteamRequest()}><Square size={14} />{t("停止")}</button></div>}
+      {phase === 'preview' && <><div className="steam-import-summary" role="status"><span><strong>{chosen.length}</strong> {" "}{t("款将补齐资料")}</span>{updateRows.length - updateRows.filter(row => row.kind === 'update').length > 0 && <span><strong>{updateRows.length - updateRows.filter(row => row.kind === 'update').length}</strong> {" "}{t("款已齐全，无需更新")}</span>}</div>
+        <div className="steam-import-rows" aria-label={t("资料补齐预览")}>{updateRows.map(row => <label key={row.appId} className="steam-import-row"><input type="checkbox" aria-label={t("补齐 {0}", [row.game.title])} disabled={row.kind !== 'update' || submitted} checked={row.kind === 'update' && choice.has(row.appId)} onChange={event => setChoice(current => { const next = new Set(current); event.target.checked ? next.add(row.appId) : next.delete(row.appId); return next; })} /><span className="steam-import-game"><strong>{row.game.title}</strong><small>{row.kind === 'update' ? t("将补：{0}", [row.fields.map(field => FIELD_LABELS[field] ?? field).join('、')]) : t('资料已齐全')}</small></span></label>)}</div>
+        <div className="modal-actions"><button className="button button--ghost" onClick={() => { setPhase('idle'); setGames(null); }} disabled={busy || submitted}><RefreshCw size={14} />{t("重新读取")}</button><button className="button button--primary" onClick={apply} disabled={!chosen.length || submitted || busy}>{submitted ? t('正在保存…') : t("补齐选中的 {0} 款", [chosen.length])}</button></div></>}
+      {message && <p className="metadata-note" role="status">{t(message)}</p>}
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
+      {phase === 'preview' && <p className="steam-import-hint">{t("已有封面、开发商、年份与原名不会被覆盖；状态、时长、两个等级、标签、印象与记录均不变。")}<button type="button" className="text-button" onClick={onClose}><X size={13} />{t("取消不写入")}</button></p>}
     </div>
   </Modal>;
 }

@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -17,5 +18,5 @@ export function CompletionCountEditor({ count, onSave, onCancel }: { count: numb
     if (value === count) { onCancel(); return; }
     if (!onSave(value)) setError('次数保存失败，请重试。');
   }
-  return <span className="completion-count-edit"><input inputMode="numeric" aria-label="累计完成次数" placeholder="留空=未记录" value={draft} onChange={event => setDraft(event.target.value)} /><button className="icon-button icon-button--positive" aria-label="保存次数" onClick={save}><Check size={14} /></button><button className="icon-button" aria-label="取消修改次数" onClick={onCancel}><X size={14} /></button>{error && <small role="alert" className="form-error">{error}</small>}</span>;
+  return <span className="completion-count-edit"><input inputMode="numeric" aria-label={t("累计完成次数")} placeholder={t("留空=未记录")} value={draft} onChange={event => setDraft(event.target.value)} /><button className="icon-button icon-button--positive" aria-label={t("保存次数")} onClick={save}><Check size={14} /></button><button className="icon-button" aria-label={t("取消修改次数")} onClick={onCancel}><X size={14} /></button>{error && <small role="alert" className="form-error">{t(error)}</small>}</span>;
 }

@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { useState, type DragEvent, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, GripVertical } from 'lucide-react';
 import { groupRankedGames, type RankMode } from '../../../domain/gamePlanning.ts';
@@ -28,15 +29,15 @@ export function RankedGallery({ items, mode, view, manualOrder, rankDirection = 
     event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData(dragType, item.id); setDragging(item.id);
   }
   return <div className={`ranked-gallery ranked-gallery--${view}`} data-rank-mode={mode} data-reorder-enabled={reorderEnabled}>
-    <p className="ranked-gallery__hint">{reorderEnabled ? '可在同档内拖动封面排序，也可用封面左上角的上移／下移按钮。' : `分档展示当前结果；选择“${mode === 'priority' ? '优先级' : '评分'}”并退出多选后可调整同档顺序。`}</p>
+    <p className="ranked-gallery__hint">{reorderEnabled ? t('可在同档内拖动封面排序，也可用封面左上角的上移／下移按钮。') : t("分档展示当前结果；选择“{0}”并退出多选后可调整同档顺序。", [mode === 'priority' ? '优先级' : '评分'])}</p>
     <span className="ranked-gallery__notice" role="status" aria-live="polite">{notice}</span>
     {groups.map(group => <details key={`${mode}-${group.id}`} className={`ranked-gallery__group ${group.id === 'paused' ? 'ranked-gallery__group--paused' : ''}`} open={!collapsed.has(`${mode}-${group.id}`)} onToggle={event => {
       const closed = !event.currentTarget.open, key = `${mode}-${group.id}`;
       setCollapsed(previous => { if (previous.has(key) === closed) return previous; const next = new Set(previous); if (closed) next.add(key); else next.delete(key); return next; });
     }}>
       <summary className={group.id === 'paused' ? 'plan-divider' : undefined}>
-        <span className={`ranked-gallery__badge ${group.id === 'unranked' || group.id === 'paused' ? 'ranked-gallery__badge--plain' : ''}`}>{group.id === 'paused' ? 'Ⅱ' : group.id === 'unranked' ? '—' : group.label}</span>
-        <strong>{group.id === 'paused' || group.id === 'unranked' ? group.label : `${mode === 'priority' ? '优先级' : '个人评分'} ${group.label}`}</strong><small>{group.items.length} 款</small><ChevronDown size={16} />
+        <span className={`ranked-gallery__badge ${group.id === 'unranked' || group.id === 'paused' ? 'ranked-gallery__badge--plain' : ''}`}>{group.id === 'paused' ? 'Ⅱ' : group.id === 'unranked' ? '—' : t(group.label)}</span>
+        <strong>{group.id === 'paused' || group.id === 'unranked' ? t(group.label) : t("{0} {1}", [t(mode === 'priority' ? '优先级' : '个人评分'), t(group.label)])}</strong><small>{group.items.length} {" "}{t("款")}</small><ChevronDown size={16} />
       </summary>
       <div className={`media-gallery media-gallery--${view} ranked-gallery__items`}>
         {group.items.map(item => {
@@ -49,7 +50,7 @@ export function RankedGallery({ items, mode, view, manualOrder, rankDirection = 
             else { setDragging(null); setOver(null); }
           }}>
             {renderItem(item)}
-            {reorderEnabled && <div className="ranked-gallery__tools" data-rank-controls="true"><GripVertical size={14} aria-hidden="true" /><button type="button" aria-label={`上移《${item.title}》`} title="上移" disabled={position === 0} onClick={() => move(item.id, peers[position - 1].id)}><ArrowUp size={14} /></button><button type="button" aria-label={`下移《${item.title}》`} title="下移" disabled={position === peers.length - 1} onClick={() => move(item.id, peers[position + 1].id)}><ArrowDown size={14} /></button></div>}
+            {reorderEnabled && <div className="ranked-gallery__tools" data-rank-controls="true"><GripVertical size={14} aria-hidden="true" /><button type="button" aria-label={t("上移《{0}》", [item.title])} title={t("上移")} disabled={position === 0} onClick={() => move(item.id, peers[position - 1].id)}><ArrowUp size={14} /></button><button type="button" aria-label={t("下移《{0}》", [item.title])} title={t("下移")} disabled={position === peers.length - 1} onClick={() => move(item.id, peers[position + 1].id)}><ArrowDown size={14} /></button></div>}
           </div>;
         })}
       </div>

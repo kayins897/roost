@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { Check, Tag } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { createGameBatchEditPlan, type GameBatchEditPlan } from '../../../domain/batchEdit.ts';
@@ -26,14 +27,14 @@ export function TagAssignmentBar({ assignment, items, visibleIds, canSelectAll, 
     if (onApply(plan)) setError('');
     else setError('保存未完成，标签与作品选择已保留，请重试。');
   }
-  return <section className="selection-actionbar tag-assignment-bar" role="region" aria-label="分配标签">
-    <div className="selection-summary"><div className="tag-assignment-info"><Tag size={15} /><span title={assignment.name}>{assignment.name}</span><small>{GAME_TAG_LABELS[assignment.group]}</small></div><small role="status">已选择 {items.length} 件{outside > 0 && ` · 其中 ${outside} 件不在当前结果中`}</small></div>
-    <div className="selection-management"><button className="button button--secondary" disabled={!canSelectAll} onClick={onSelectAll}>全选当前结果</button><button className="button button--secondary" disabled={!items.length} onClick={onClear}>清空选择</button><button className="button button--ghost" onClick={onCancel}>取消分配</button></div>
+  return <section className="selection-actionbar tag-assignment-bar" role="region" aria-label={t("分配标签")}>
+    <div className="selection-summary"><div className="tag-assignment-info"><Tag size={15} /><span title={assignment.name}>{assignment.name}</span><small>{t(GAME_TAG_LABELS[assignment.group])}</small></div><small role="status">{t("已选择")}{" "}{items.length} {" "}{t("件")}{outside > 0 && t(" · 其中 {0} 件不在当前结果中", [outside])}</small></div>
+    <div className="selection-management"><button className="button button--secondary" disabled={!canSelectAll} onClick={onSelectAll}>{t("全选当前结果")}</button><button className="button button--secondary" disabled={!items.length} onClick={onClear}>{t("清空选择")}</button><button className="button button--ghost" onClick={onCancel}>{t("取消分配")}</button></div>
     <div className="selection-commands">
-      <div className="tag-assignment-mode" role="group" aria-label="分配方式"><button aria-pressed={mode === 'add'} onClick={() => { setMode('add'); setError(''); }}>添加标签</button><button aria-pressed={mode === 'remove'} onClick={() => { setMode('remove'); setError(''); }}>移除标签</button></div>
-      <span className="tag-assignment-feedback" role="status">{!items.length ? '选择要整理的作品' : plan.changedCount ? `${plan.changedCount} 款将更新${items.length > plan.changedCount ? ` · ${items.length - plan.changedCount} 款无需修改` : ''}` : mode === 'add' ? '所选作品已有此标签' : '所选作品没有此标签'}</span>
-      <button className="button button--primary" disabled={!plan.changedCount} onClick={apply}><Check size={14} />{mode === 'add' ? `添加到 ${plan.changedCount} 款` : `从 ${plan.changedCount} 款移除`}</button>
+      <div className="tag-assignment-mode" role="group" aria-label={t("分配方式")}><button aria-pressed={mode === 'add'} onClick={() => { setMode('add'); setError(''); }}>{t("添加标签")}</button><button aria-pressed={mode === 'remove'} onClick={() => { setMode('remove'); setError(''); }}>{t("移除标签")}</button></div>
+      <span className="tag-assignment-feedback" role="status">{!items.length ? t('选择要整理的作品') : plan.changedCount ? t("{0} 款将更新{1}", [plan.changedCount, items.length > plan.changedCount ? ` · ${items.length - plan.changedCount} 款无需修改` : '']) : mode === 'add' ? t('所选作品已有此标签') : t('所选作品没有此标签')}</span>
+      <button className="button button--primary" disabled={!plan.changedCount} onClick={apply}><Check size={14} />{mode === 'add' ? t("添加到 {0} 款", [plan.changedCount]) : t("从 {0} 款移除", [plan.changedCount])}</button>
     </div>
-    {error && <p className="form-error" role="alert">{error}</p>}
+    {error && <p className="form-error" role="alert">{t(error)}</p>}
   </section>;
 }

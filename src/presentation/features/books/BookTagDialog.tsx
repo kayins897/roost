@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { useUnsavedChanges } from '../../RecordEditors.tsx';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -21,10 +22,10 @@ export function BookTagDialog({ tags, books, onCommit, onClose, onDeleted }: { t
   useUnsavedChanges(dirty);
   function reset() { setCurrent(null); setName(''); setChosen([]); setDirty(false); setError(''); }
   function select(tag: string | null) {
-    if (dirty && !window.confirm('放弃当前标签尚未保存的分配？')) return;
+    if (dirty && !window.confirm(t('放弃当前标签尚未保存的分配？'))) return;
     setCurrent(tag); setName(tag ?? ''); setChosen(tag ? books.filter(book => book.tags.some(value => value.toLocaleLowerCase() === tag.toLocaleLowerCase())).map(book => book.id) : []); setDirty(false); setError('');
   }
-  const close = () => { if (!dirty || window.confirm('放弃尚未保存的标签修改？')) onClose(); };
+  const close = () => { if (!dirty || window.confirm(t('放弃尚未保存的标签修改？'))) onClose(); };
   function save() {
     const next = name.trim();
     if (!next) { setError('请填写标签名称。'); return; }
@@ -40,9 +41,9 @@ export function BookTagDialog({ tags, books, onCommit, onClose, onDeleted }: { t
     else setError('保存失败，当前标签和分配仍保留，请重试。');
   }
   function remove(tag: string) {
-    if (!window.confirm(`删除标签「${tag}」及当前书架中的书籍关联？隐藏和回收站内的记录保留。`)) return;
+    if (!window.confirm(t(`删除标签「${tag}」及当前书架中的书籍关联？隐藏和回收站内的记录保留。`))) return;
     if (onCommit(snapshot => ({ ...snapshot, bookTagCatalog: (snapshot.bookTagCatalog ?? []).filter(value => value.toLocaleLowerCase() !== tag.toLocaleLowerCase()), items: snapshot.items.map(item => item.category === 'book' && !item.removedAt && !item.hiddenAt && item.tags.some(value => value.toLocaleLowerCase() === tag.toLocaleLowerCase()) ? { ...item, tags: item.tags.filter(value => value.toLocaleLowerCase() !== tag.toLocaleLowerCase()), updatedAt: new Date().toISOString() } : item) }), '书籍标签已删除')) { onDeleted(tag); reset(); }
     else setError('删除失败，请重试。');
   }
-  return <Modal title="管理书籍标签" onClose={close} className="books-dialog"><div className="books-tag-manager"><nav aria-label="已有书籍标签"><button className="button button--secondary" onClick={() => select(null)}><Plus size={14}/>新增标签</button>{tags.map(tag => <button key={tag} className={`tag-filter ${current === tag ? 'is-selected' : ''}`} aria-pressed={current === tag} onClick={() => select(tag)}>{tag}</button>)}</nav><div><label className="form-field">标签名称<input value={name} maxLength={60} onChange={event => { setName(event.target.value); setDirty(true); }}/></label><p className="books-muted">选择要使用这个标签的书籍</p><div className="books-checklist">{books.map(book => <label key={book.id}><input type="checkbox" checked={chosen.includes(book.id)} onChange={() => { setChosen(values => values.includes(book.id) ? values.filter(id => id !== book.id) : [...values, book.id]); setDirty(true); }}/><span>{book.title}</span></label>)}</div></div></div>{error && <p role="alert" className="books-danger">{error}</p>}<footer className="books-dialog-actions">{current && <button className="text-button books-danger" onClick={() => remove(current)}><Trash2 size={14}/>删除标签</button>}<button className="button button--secondary" onClick={close}>完成</button><button className="button button--primary" onClick={save}>保存标签</button></footer></Modal>;
+  return <Modal title={t("管理书籍标签")} onClose={close} className="books-dialog"><div className="books-tag-manager"><nav aria-label={t("已有书籍标签")}><button className="button button--secondary" onClick={() => select(null)}><Plus size={14}/>{t("新增标签")}</button>{tags.map(tag => <button key={tag} className={`tag-filter ${current === tag ? 'is-selected' : ''}`} aria-pressed={current === tag} onClick={() => select(tag)}>{tag}</button>)}</nav><div><label className="form-field">{t("标签名称")}<input value={name} maxLength={60} onChange={event => { setName(event.target.value); setDirty(true); }}/></label><p className="books-muted">{t("选择要使用这个标签的书籍")}</p><div className="books-checklist">{books.map(book => <label key={book.id}><input type="checkbox" checked={chosen.includes(book.id)} onChange={() => { setChosen(values => values.includes(book.id) ? values.filter(id => id !== book.id) : [...values, book.id]); setDirty(true); }}/><span>{book.title}</span></label>)}</div></div></div>{error && <p role="alert" className="books-danger">{t(error)}</p>}<footer className="books-dialog-actions">{current && <button className="text-button books-danger" onClick={() => remove(current)}><Trash2 size={14}/>{t("删除标签")}</button>}<button className="button button--secondary" onClick={close}>{t("完成")}</button><button className="button button--primary" onClick={save}>{t("保存标签")}</button></footer></Modal>;
 }

@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { Gamepad2 } from 'lucide-react';
 import { useState } from 'react';
 import { platformsFor } from '../../../domain/library.ts';
@@ -23,7 +24,7 @@ function PlatformLogo({ name }: { name: string }) {
 }
 export function BentoPlatforms({ item }: { item: MediaItem }) {
   const platforms = platformsFor(item).filter((name, index, all) => all.findIndex(other => platformKey(name) === platformKey(other)) === index);
-  return <div className="bento-platforms">{platforms.length ? platforms.map(name => <div className="bento-platform-badge" key={name}><PlatformLogo name={name} /><span>{name}</span></div>) : <p className="bento-muted">未记录</p>}</div>;
+  return <div className="bento-platforms">{platforms.length ? platforms.map(name => <div className="bento-platform-badge" key={name}><PlatformLogo name={name} /><span>{name}</span></div>) : <p className="bento-muted">{t("未记录")}</p>}</div>;
 }
 export function BentoPlatformEditor({ item, save }: { item: MediaItem; save: BentoSave }) {
   const [custom, setCustom] = useState(''), [error, setError] = useState('');
@@ -34,6 +35,6 @@ export function BentoPlatformEditor({ item, save }: { item: MediaItem; save: Ben
     if (!save({ platforms: next, subcategory: next.join(' / ') })) setError('平台未能保存，请重试。'); else setError('');
   }
   return <div className="bento-context-form"><div className="bento-platform-choices">{choices.map(name => <button type="button" key={name} aria-pressed={owned.some(value => platformKey(value) === platformKey(name))} onClick={() => toggle(name)}><PlatformLogo name={name} /><span>{name}</span></button>)}</div>
-    <form onSubmit={event => { event.preventDefault(); const name = custom.trim(); if (!name) return; if (owned.some(value => platformKey(value) === platformKey(name))) { setError('已添加该平台。'); return; } toggle(name); setCustom(''); }}><label>其他平台<input maxLength={60} aria-label="其他平台名称" value={custom} onChange={event => setCustom(event.target.value)} /></label><button type="submit">加入</button></form>{error && <p role="alert" className="bento-context-error">{error}</p>}
+    <form onSubmit={event => { event.preventDefault(); const name = custom.trim(); if (!name) return; if (owned.some(value => platformKey(value) === platformKey(name))) { setError('已添加该平台。'); return; } toggle(name); setCustom(''); }}><label>{t("其他平台")}<input maxLength={60} aria-label={t("其他平台名称")} value={custom} onChange={event => setCustom(event.target.value)} /></label><button type="submit">{t("加入")}</button></form>{error && <p role="alert" className="bento-context-error">{t(error)}</p>}
   </div>;
 }

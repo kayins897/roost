@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { Check, Search, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -67,13 +68,13 @@ export function BookFacetPopover({ books, facets, onFacet, onClear, onClose, anc
     return () => { window.cancelAnimationFrame(focusFrame); window.removeEventListener('pointerdown', outside); window.removeEventListener('keydown', key, true); window.removeEventListener('focusin', focus); };
   }, [anchorRef]);
   function close() { requestClose(); anchorRef.current?.focus(); }
-  return createPortal(<section ref={panel} id="books-facet-panel" className="books-facet-popover" role="region" aria-label="书籍筛选" data-glass="filters" style={{ ...position, visibility: position.width ? 'visible' : 'hidden' }}>
-    <header><strong>筛选书籍</strong><span className="books-facet-total">已选 {selectedCount} 项</span>{selectedCount > 0 && <button className="text-button" onClick={onClear}>清空筛选</button>}<button className="icon-button" aria-label="关闭书籍筛选" onClick={close}><X size={16}/></button></header>
-    {!books.length ? <p className="books-facet-empty">书架还没有书，收录后即可按作者、评分和来源筛选。</p> : <div className="books-facet-body">
-      <nav aria-label="筛选维度">{FACETS.map(facet => <button key={facet.id} aria-pressed={dimension === facet.id} className={dimension === facet.id ? 'is-selected' : ''} onClick={() => { setDimension(facet.id); setQuery(''); }}>{facet.label}{Boolean(facets[facet.id]?.length) && <small>{facets[facet.id]!.length}</small>}</button>)}</nav>
-      <div className="books-facet-values"><label className="books-facet-search"><Search size={14} aria-hidden="true"/><input ref={search} aria-label={`搜索${label}候选`} placeholder={`搜索${label}`} value={query} onChange={event => setQuery(event.target.value)}/>{query && <button className="icon-button" aria-label="清除候选搜索" onClick={() => { setQuery(''); search.current?.focus(); }}><X size={13}/></button>}</label>
-        <div className="books-facet-current"><strong>{label}</strong><small>{visible.length} 个选项</small></div>
-        <div className="books-facet-options" aria-label={`${label}选项`}>{visible.map(([value, count]) => { const selected = Boolean(facets[dimension]?.includes(value)); return <button key={value} aria-pressed={selected} className={`books-facet-option ${selected ? 'is-selected' : ''}`} onClick={() => onFacet(dimension, value)}><span>{value}</span><small>{count}</small>{selected && <Check size={13} aria-hidden="true"/>}</button>; })}{!visible.length && <p className="books-facet-empty">没有匹配的选项</p>}</div>
+  return createPortal(<section ref={panel} id="books-facet-panel" className="books-facet-popover" role="region" aria-label={t("书籍筛选")} data-glass="filters" style={{ ...position, visibility: position.width ? 'visible' : 'hidden' }}>
+    <header><strong>{t("筛选书籍")}</strong><span className="books-facet-total">{t("已选")}{" "}{selectedCount} {" "}{t("项")}</span>{selectedCount > 0 && <button className="text-button" onClick={onClear}>{t("清空筛选")}</button>}<button className="icon-button" aria-label={t("关闭书籍筛选")} onClick={close}><X size={16}/></button></header>
+    {!books.length ? <p className="books-facet-empty">{t("书架还没有书，收录后即可按作者、评分和来源筛选。")}</p> : <div className="books-facet-body">
+      <nav aria-label={t("筛选维度")}>{FACETS.map(facet => <button key={facet.id} aria-pressed={dimension === facet.id} className={dimension === facet.id ? 'is-selected' : ''} onClick={() => { setDimension(facet.id); setQuery(''); }}>{t(facet.label)}{Boolean(facets[facet.id]?.length) && <small>{facets[facet.id]!.length}</small>}</button>)}</nav>
+      <div className="books-facet-values"><label className="books-facet-search"><Search size={14} aria-hidden="true"/><input ref={search} aria-label={t("搜索{0}候选", [label])} placeholder={t("搜索{0}", [label])} value={query} onChange={event => setQuery(event.target.value)}/>{query && <button className="icon-button" aria-label={t("清除候选搜索")} onClick={() => { setQuery(''); search.current?.focus(); }}><X size={13}/></button>}</label>
+        <div className="books-facet-current"><strong>{label}</strong><small>{visible.length} {" "}{t("个选项")}</small></div>
+        <div className="books-facet-options" aria-label={t("{0}选项", [label])}>{visible.map(([value, count]) => { const selected = Boolean(facets[dimension]?.includes(value)); return <button key={value} aria-pressed={selected} className={`books-facet-option ${selected ? 'is-selected' : ''}`} onClick={() => onFacet(dimension, value)}><span>{value}</span><small>{count}</small>{selected && <Check size={13} aria-hidden="true"/>}</button>; })}{!visible.length && <p className="books-facet-empty">{t("没有匹配的选项")}</p>}</div>
       </div>
     </div>}
   </section>, document.body);

@@ -1,3 +1,4 @@
+import { uiLocale, t } from '../../i18n/index.ts';
 import { Check, Pencil, X } from 'lucide-react';
 import { useState } from 'react';
 import { editCompletionEvent, isCompletionDate, removeCompletionEvent } from '../../../domain/gameProgress.ts';
@@ -25,14 +26,14 @@ function CompletionEventRow({ item, event, onPatch }: { item: MediaItem; event: 
   }
   return <li>
     {mode === 'edit' && !locked ? <div className="completion-event-edit">
-      <input value={date} aria-label="完成日期" placeholder="YYYY / YYYY-MM / YYYY-MM-DD 或留空" onChange={change => setDate(change.target.value)} />
-      <input value={note} aria-label="完成备注" maxLength={80} onChange={change => setNote(change.target.value)} />
-      <button className="icon-button icon-button--positive" aria-label="保存修改" onClick={saveEdit}><Check size={14} /></button><button className="icon-button" aria-label="取消修改完成记录" onClick={() => setMode(null)}><X size={14} /></button>
-    </div> : mode === 'delete' && !locked ? <div className="completion-event-delete"><p>删除这条完成事件？默认保留独立的累计次数。</p><label><input type="checkbox" checked={correctCount} onChange={change => setCorrectCount(change.target.checked)} />同时把累计次数修正为</label>{correctCount && <input inputMode="numeric" aria-label="删除后累计次数" value={count} onChange={change => setCount(change.target.value)} />}<button className="button button--secondary" onClick={deleteEvent}>确认删除完成事件</button><button className="text-button" onClick={() => setMode(null)}>取消</button></div> : <>
-      <span><strong>{event.occurredAt ?? '日期未知'}</strong>{event.note && <small> · {event.note}</small>}<small> · 录入于 {new Date(event.recordedAt).toLocaleDateString('zh-CN')}</small></span>
-      {!locked && <span><button className="icon-button" aria-label={`编辑完成记录${event.occurredAt ?? ''}`} onClick={beginEdit}><Pencil size={13} /></button><button className="icon-button icon-button--danger" aria-label={`删除完成记录${event.occurredAt ?? ''}`} onClick={() => { setCorrectCount(false); setCount(item.completionCount === undefined ? '' : String(item.completionCount)); setError(''); setMode('delete'); }}><X size={13} /></button></span>}
+      <input value={date} aria-label={t("完成日期")} placeholder={t("YYYY / YYYY-MM / YYYY-MM-DD 或留空")} onChange={change => setDate(change.target.value)} />
+      <input value={note} aria-label={t("完成备注")} maxLength={80} onChange={change => setNote(change.target.value)} />
+      <button className="icon-button icon-button--positive" aria-label={t("保存修改")} onClick={saveEdit}><Check size={14} /></button><button className="icon-button" aria-label={t("取消修改完成记录")} onClick={() => setMode(null)}><X size={14} /></button>
+    </div> : mode === 'delete' && !locked ? <div className="completion-event-delete"><p>{t("删除这条完成事件？默认保留独立的累计次数。")}</p><label><input type="checkbox" checked={correctCount} onChange={change => setCorrectCount(change.target.checked)} />{t("同时把累计次数修正为")}</label>{correctCount && <input inputMode="numeric" aria-label={t("删除后累计次数")} value={count} onChange={change => setCount(change.target.value)} />}<button className="button button--secondary" onClick={deleteEvent}>{t("确认删除完成事件")}</button><button className="text-button" onClick={() => setMode(null)}>{t("取消")}</button></div> : <>
+      <span><strong>{event.occurredAt ?? t('日期未知')}</strong>{event.note && <small> · {event.note}</small>}<small> {" "}{t("· 录入于")}{" "}{new Date(event.recordedAt).toLocaleDateString(uiLocale())}</small></span>
+      {!locked && <span><button className="icon-button" aria-label={t("编辑完成记录{0}", [event.occurredAt ?? ''])} onClick={beginEdit}><Pencil size={13} /></button><button className="icon-button icon-button--danger" aria-label={t("删除完成记录{0}", [event.occurredAt ?? ''])} onClick={() => { setCorrectCount(false); setCount(item.completionCount === undefined ? '' : String(item.completionCount)); setError(''); setMode('delete'); }}><X size={13} /></button></span>}
     </>}
-    {error && <small className="form-error" role="alert">{error}</small>}
+    {error && <small className="form-error" role="alert">{t(error)}</small>}
   </li>;
 }
 
@@ -41,5 +42,5 @@ export function CompletionEvents({ item, onPatch }: { item: MediaItem; onPatch: 
   if (!events.length) return null;
   const dated = events.filter(event => event.occurredAt !== undefined).sort((a, b) => b.occurredAt!.localeCompare(a.occurredAt!));
   const unknown = events.filter(event => event.occurredAt === undefined);
-  return <div className="completion-events"><h4>已记录的完成事件</h4>{dated.length > 0 && <ul className="completion-event-list" aria-label="有日期的完成事件">{dated.map(event => <CompletionEventRow key={event.id} item={item} event={event} onPatch={onPatch} />)}</ul>}{unknown.length > 0 && <><p className="feature-help">实际日期未知（不按录入日期推算发生时间）</p><ul className="completion-event-list" aria-label="日期未知的完成事件">{unknown.map(event => <CompletionEventRow key={event.id} item={item} event={event} onPatch={onPatch} />)}</ul></>}</div>;
+  return <div className="completion-events"><h4>{t("已记录的完成事件")}</h4>{dated.length > 0 && <ul className="completion-event-list" aria-label={t("有日期的完成事件")}>{dated.map(event => <CompletionEventRow key={event.id} item={item} event={event} onPatch={onPatch} />)}</ul>}{unknown.length > 0 && <><p className="feature-help">{t("实际日期未知（不按录入日期推算发生时间）")}</p><ul className="completion-event-list" aria-label={t("日期未知的完成事件")}>{unknown.map(event => <CompletionEventRow key={event.id} item={item} event={event} onPatch={onPatch} />)}</ul></>}</div>;
 }

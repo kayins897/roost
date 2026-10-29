@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts';
 import { useEffect, useImperativeHandle, useRef, useState, type Ref, type RefObject } from 'react';
 import { isPersonalScore } from '../../domain/gameAssets.ts';
 import { ScorePicker, type ScorePickerHandle } from './ScorePicker.tsx';
@@ -83,7 +84,7 @@ export function InlineScoreControl({ value, onSave, label = '通关评分', defe
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) event.stopPropagation();
   }}>
     <ScorePicker ref={picker} value={draft} label={label} onChange={choose} />
-    {(draft !== '' || value !== undefined) && <button type="button" className="text-button" onClick={() => { choose(''); if (!deferUntilDismiss) flush(); }}>清除评分</button>}
-    {error && <div className="score-control-error" role="alert"><span>{error}</span><button type="button" data-score-retry onClick={() => flush(true)}>重试</button><button type="button" onClick={() => { if (timer.current) clearTimeout(timer.current); pending.current = undefined; failed.current = false; draftRef.current = textFor(persisted.current); setDraft(draftRef.current); setError(''); }}>撤销修改</button></div>}
+    {(draft !== '' || value !== undefined) && <button type="button" className="text-button" onClick={() => { choose(''); if (!deferUntilDismiss) flush(); }}>{t("清除评分")}</button>}
+    {error && <div className="score-control-error" role="alert"><span>{t(error)}</span><button type="button" data-score-retry onClick={() => flush(true)}>{t("重试")}</button><button type="button" onClick={() => { if (timer.current) clearTimeout(timer.current); pending.current = undefined; failed.current = false; draftRef.current = textFor(persisted.current); setDraft(draftRef.current); setError(''); }}>{t("撤销修改")}</button></div>}
   </div>;
 }
