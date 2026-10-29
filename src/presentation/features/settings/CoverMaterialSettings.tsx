@@ -42,14 +42,14 @@ export function CoverMaterialSettings() {
         {ranges.map((range, index) => <div className="cover-material-range" key={index}>
           <input aria-label={t("区间 {0} 最低分", [index + 1])} type="number" min="0" max="10" step="0.1" value={range.min} onChange={event => editRange(index, { min: event.target.value })} /><span>{t("至")}</span>
           <input aria-label={t("区间 {0} 最高分", [index + 1])} type="number" min="0" max="10" step="0.1" value={range.max} onChange={event => editRange(index, { max: event.target.value })} />
-          <select aria-label={t("区间 {0} 材质", [index + 1])} value={range.finish} onChange={event => editRange(index, { finish: event.target.value as DraftRange['finish'] })}>{Object.entries(finishNames).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
+          <select aria-label={t("区间 {0} 材质", [index + 1])} value={range.finish} onChange={event => editRange(index, { finish: event.target.value as DraftRange['finish'] })}>{Object.entries(finishNames).map(([id, label]) => <option key={id} value={id}>{t(label)}</option>)}</select>
           <button className="text-button" aria-label={t("删除区间 {0}", [index + 1])} onClick={() => { setRanges(previous => previous.filter((_, i) => i !== index)); setRangeError(''); }}>{t("删除")}</button>
         </div>)}
         {!ranges.length && <p>{t("未设置区间，所有评分均显示原始封面。")}</p>}
         <div className="cover-material-actions"><button className="button button--secondary" disabled={ranges.length >= 20} onClick={() => setRanges(previous => [...previous, { min: '', max: '', finish: 'holographic' }])}>{t("添加区间")}</button><button className="button button--primary" onClick={applyRanges}>{t("应用区间")}</button></div>
-        <p className="cover-material-note">{t("区间草稿应用后生效；非法输入不会覆盖当前规则。")}</p>{rangeError && <p role="alert">{rangeError}</p>}
+        <p className="cover-material-note">{t("区间草稿应用后生效；非法输入不会覆盖当前规则。")}</p>{rangeError && <p role="alert">{t(rangeError)}</p>}
       </div>}
-      <div className="cover-material-sliders">{([['strength', '纹理强度'], ['filter', '底色滤镜'], ['speed', '流动速度']] as const).map(([key, label]) => <label key={key}><span>{t(label)}</span><input aria-label={label} type="range" min="0" max="100" step="1" value={Math.round(prefs[key] * 100)} onChange={event => update({ ...prefs, [key]: Number(event.target.value) / 100 })} /><output>{Math.round(prefs[key] * 100)}%</output></label>)}</div>
+      <div className="cover-material-sliders">{([['strength', '纹理强度'], ['filter', '底色滤镜'], ['speed', '流动速度']] as const).map(([key, label]) => <label key={key}><span>{t(label)}</span><input aria-label={t(label)} type="range" min="0" max="100" step="1" value={Math.round(prefs[key] * 100)} onChange={event => update({ ...prefs, [key]: Number(event.target.value) / 100 })} /><output>{Math.round(prefs[key] * 100)}%</output></label>)}</div>
       <label className="settings-toggle"><span>{t("三角切面")}</span><input aria-label={t("三角切面")} type="checkbox" checked={prefs.facets} onChange={event => update({ ...prefs, facets: event.target.checked })} /></label>
     </fieldset>
     <div className="cover-material-actions"><button className="button button--secondary" onClick={() => { if (update({ ...prefs, ...DEFAULT_COVER_MATERIAL })) { setRanges(draftOf(DEFAULT_COVER_RANGES)); setRangeError(''); } }}>{t("恢复卡面默认")}</button></div>

@@ -29,6 +29,11 @@ try {
   const bundle = path.join(staging, `QIYU-${version}`);
   fs.cpSync(source, bundle, { recursive: true, force: false, errorOnExist: true });
   fs.copyFileSync(path.join(root, 'build', 'demo-library.json'), path.join(bundle, 'demo-library.json'));
+  const fontLicenses = path.join(bundle, 'LICENSES', 'fonts');
+  fs.mkdirSync(fontLicenses, { recursive: true });
+  for (const name of ['Inter-OFL.txt', 'NotoSansSC-OFL.txt', 'NotoSerifSC-OFL.txt', 'README.md', 'sources.json']) {
+    fs.copyFileSync(path.join(root, 'public', 'fonts', name), path.join(fontLicenses, name));
+  }
   // PowerShell 5.1 需要 BOM 才能正确显示中文；CMD 本身只含 ASCII。
   fs.writeFileSync(path.join(bundle, 'launch-demo.ps1'), '\ufeff' + fs.readFileSync(path.join(root, 'build', 'launch-demo.ps1'), 'utf8').replace(/^\ufeff/, ''), 'utf8');
   fs.writeFileSync(path.join(bundle, '启动演示.cmd'), '@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch-demo.ps1" %*\r\n', 'ascii');

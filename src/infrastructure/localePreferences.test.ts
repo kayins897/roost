@@ -29,3 +29,7 @@ test('界面字典保留模板占位符且通用分类不触碰业务枚举', ()
   assert.equal(translateMessage('番剧', 'en'), 'Anime');
   assert.equal(translateMessage('番剧', 'zh-CN'), '番剧');
 });
+
+test('未知界面字符串不会读取字典的原型属性', () => {
+  for (const value of ['constructor', 'toString', '__proto__']) assert.equal(translateMessage(value, 'en'), value);
+});

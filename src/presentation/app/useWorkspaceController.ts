@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts';
 import type { ChangeEvent } from 'react';
 import { applyScreenAction, validateScreenAction, type ScreenAction } from '../../domain/screens.ts';
 import { applyBookAction, type BookAction } from '../../domain/books.ts';
@@ -269,8 +270,8 @@ export function useWorkspaceController() {
   }
   function lifecycleAction(action: 'hide' | 'unhide' | 'trash' | 'restore' | 'delete', ids: string[]) {
     if (!ids.length) return;
-    if (action === 'trash' && !window.confirm('将选中的 ' + ids.length + ' 件作品移到回收站？可恢复，后续导入会跳过。')) return;
-    if (action === 'delete' && !window.confirm('永久删除这 ' + ids.length + ' 件作品及个人记录？无法撤销。导入排除记录仍保留。')) return;
+    if (action === 'trash' && !window.confirm(t('将选中的 {0} 件作品移到回收站？可恢复，后续导入会跳过。', [ids.length]))) return;
+    if (action === 'delete' && !window.confirm(t('永久删除这 {0} 件作品及个人记录？无法撤销。导入排除记录仍保留。', [ids.length]))) return;
     const current = snapshotRef.current;
     const next = action === 'hide' || action === 'unhide' ? setItemsHidden(current, ids, action === 'hide') : action === 'trash' ? trashItems(current, ids) : action === 'restore' ? restoreItems(current, ids) : permanentlyDeleteItems(current, ids);
     if (commit(next, action === 'hide' ? '已隐藏，可在「数据与设置 → 数据与备份」找回' : action === 'unhide' ? '已取消隐藏' : action === 'trash' ? '已移到回收站' : action === 'restore' ? '已恢复作品' : '已永久删除')) {
@@ -292,7 +293,7 @@ export function useWorkspaceController() {
     const affected = active.filter(item => item.category === 'game' && gameTagsFor(item)[from].some(tag => tag.toLocaleLowerCase() === lower));
     if (!affected.length) { setToast('该标签当前没有关联作品，无需移动。'); return false; }
     const merges = affected.some(item => gameTagsFor(item)[to].some(tag => tag.toLocaleLowerCase() === lower));
-    if (!window.confirm(`将「${label}」从「${GAME_TAG_LABELS[from]}」移动到「${GAME_TAG_LABELS[to]}」？\n${affected.length} 件作品的该标签将移入新分组${merges ? '；部分作品的目标组已有同名标签，将按既有规则合并' : ''}。其他分组的同名标签保持不变。`)) return false;
+    if (!window.confirm(t('将「{0}」从「{1}」移动到「{2}」？\n{3} 件作品的该标签将移入新分组{4}。其他分组的同名标签保持不变。', [label, t(GAME_TAG_LABELS[from]), t(GAME_TAG_LABELS[to]), affected.length, merges ? t('；部分作品的目标组已有同名标签，将按既有规则合并') : '']))) return false;
     const saved = updateItems(items => {
       const scope = items.filter(item => !item.hiddenAt && !item.removedAt);
       const edited = new Map(moveGameTag(scope, label, from, to).map(item => [item.id, item]));
@@ -339,7 +340,7 @@ export function useWorkspaceController() {
     try {
       const prepared = await chooseFullBackup(); if (!prepared) return;
       token = prepared.token;
-      if (!window.confirm(`备份包含 ${prepared.snapshot.items.length} 件作品。将替换当前收藏，并保留操作前备份，确定继续吗？`)) return;
+      if (!window.confirm(t('备份包含 {0} 件作品。将替换当前收藏，并保留操作前备份，确定继续吗？', [prepared.snapshot.items.length]))) return;
       if (token) await installBackupAssets(token);
       if (commit(prepared.snapshot, '完整备份已恢复', true)) resetAfterBackup();
     } catch (error) { setToast(`恢复失败：${error instanceof Error ? error.message : '请重试'}`); }
@@ -357,14 +358,14 @@ export function useWorkspaceController() {
       const content: unknown = JSON.parse(await file.text());
       if (!isValidSnapshot(content)) throw new Error('文件不是受支持的栖域 v1 备份');
       const confirmation = loadError
-        ? `备份包含 ${content.items.length} 件作品。将以此备份恢复收藏库，确定继续吗？`
-        : `备份包含 ${content.items.length} 件作品。导入会替换当前 ${items.length} 件作品，确定继续吗？`;
+        ? t('备份包含 {0} 件作品。将以此备份恢复收藏库，确定继续吗？', [content.items.length])
+        : t('备份包含 {0} 件作品。导入会替换当前 {1} 件作品，确定继续吗？', [content.items.length, items.length]);
       if (!window.confirm(confirmation)) return;
       if (commit({ ...content, items: content.items }, '备份导入成功', true)) resetAfterBackup();
     } catch (error) { setToast(`导入失败：${error instanceof Error ? error.message : '文件无法读取'}`); }
   }
   function clearDemo() {
-    if (!window.confirm('仅移除初次体验用的演示作品，保留你自己添加的内容。确定吗？')) return;
+    if (!window.confirm(t('仅移除初次体验用的演示作品，保留你自己添加的内容。确定吗？'))) return;
     if (updateItems(current => current.filter(item => !demoIds.has(item.id)), '演示作品已清除') && selectedId && demoIds.has(selectedId)) setSelectedId(null);
   }
   function changeTagFilters(oldName: string, newName: string | undefined, tagScope: TagScope) {

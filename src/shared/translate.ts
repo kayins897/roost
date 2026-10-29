@@ -13,7 +13,7 @@ const patterns = Object.entries(english).filter(([key]) => key.includes('{0}') &
 
 /** Translate interface copy only. User content and persisted classification values stay untouched. */
 export function translateMessage(message: string, locale: InterfaceLocale, values?: readonly Value[]): string {
-  let result = locale === 'en' ? english[message] ?? message : message;
+  let result = locale === 'en' && Object.hasOwn(english, message) ? english[message] : message;
   if (locale === 'en' && !values && result === message && /[\u3400-\u9fff]/.test(message)) {
     for (const pattern of patterns) {
       const match = pattern.expression.exec(message);

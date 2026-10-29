@@ -174,7 +174,7 @@ export function Editor({ initial, category, onClose, onSave, creating = false, i
             <p className="game-state-help">{t("分类表达你的体验意愿，完成次数和日志独立记录。已体验可以暂不设置二级分类；时长为空也可以标记已体验。")}</p>
             <div className="game-tag-editor"><div className="game-tag-editor-title">{t("游戏标签")}{" "}<span>{t("四个维度，按需填写即可")}</span></div>
               {GAME_TAG_KEYS.map(key => <div className={`game-tag-edit-group tag-type--${key}`} key={key}>
-                <label className="form-field">{t(GAME_TAG_LABELS[key])}<input placeholder={key === 'scenario' ? t('例如：刚需联机、需要沉浸、放松解压') : t("用顿号分隔{0}标签", [GAME_TAG_LABELS[key]])} value={gameTagInputs[key]} onChange={e => setGameTagInputs(current => ({ ...current, [key]: e.target.value }))} /></label>
+                <label className="form-field">{t(GAME_TAG_LABELS[key])}<input placeholder={key === 'scenario' ? t('例如：刚需联机、需要沉浸、放松解压') : t("用顿号分隔{0}标签", [t(GAME_TAG_LABELS[key])])} value={gameTagInputs[key]} onChange={e => setGameTagInputs(current => ({ ...current, [key]: e.target.value }))} /></label>
                 <div className="game-tag-suggestions">{gameTagExamples[key].map(example => <button type="button" key={example} onClick={() => { setDirty(true); setGameTagInputs(current => ({ ...current, [key]: normalizeTags([...current[key].split(/[,，、\n]+/), example]).join('、') })); }}>+ {example}</button>)}</div>
               </div>)}
             </div>
