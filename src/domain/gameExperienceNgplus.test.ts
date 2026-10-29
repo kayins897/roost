@@ -93,7 +93,7 @@ test('全部分类资格矩阵独立于完成事实、旧状态、历史评级�
       const item = Object.freeze(make(row.value, row.value, { completion, gamePlayState, personalGrade })), raw = JSON.stringify(item);
       assert.equal(priorityEditable(item), row.priority, row.value); assert.equal(inPlanView(item), row.priority);
       assert.equal(gradeEditable(item), row.rating, row.value);
-      assert.equal(coverFinishFor(item), row.rating && personalGrade === 'SSS' ? 'prismatic' : 'standard');
+      assert.equal(coverFinishFor(item), row.rating && personalGrade === 'SSS' ? 'holographic' : 'standard');
       assert.equal(JSON.stringify(item), raw);
     }
   }

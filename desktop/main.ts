@@ -6,6 +6,7 @@ import { LibraryStore } from './store.ts';
 import { assertDemoProfile, resolveLaunchMode } from './launchMode.ts';
 import { lookupMetadata } from './metadata.ts';
 import { enrichSteamLibrary, readSteamLibrary, SteamConnectionStore } from './steam.ts';
+import { createGameAssetStore, registerAssetIpc } from './assetIpc.ts';
 
 const ENTRY_URL = 'qiyu://app/index.html';
 const runtime = (() => {
@@ -38,6 +39,7 @@ function publishWindowVisibility() {
   }
 }
 const store = new LibraryStore(dataDirectory);
+const gameAssets = createGameAssetStore(dataDirectory);
 const steamConnection = new SteamConnectionStore(dataDirectory, safeStorage);
 let steamRequest: AbortController | null = null;
 function trusted(event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) {
@@ -54,6 +56,7 @@ function coverToDataUrl(bytes: Uint8Array, maxWidth: number, maxHeight: number) 
   return `data:image/jpeg;base64,${resized.toJPEG(76).toString('base64')}`;
 }
 function registerIpc() {
+  registerAssetIpc(gameAssets, () => mainWindow, trusted);
   ipcMain.handle('qiyu:steam-state', event => {
     if (!trusted(event)) return { ok: false, error: '请求来源无效' };
     try { return { ok: true, value: steamConnection.state() }; }
@@ -180,6 +183,15 @@ else {
       try {
         const url = new URL(request.url);
         if (url.hostname !== 'app') return new Response('Not found', { status: 404 });
+        if (url.pathname.startsWith('/_images/')) {
+          const match = /^\/_images\/([a-f0-9]{64})\/(original|thumb)$/.exec(url.pathname);
+          if (!match || request.method !== 'GET') return new Response('Not found', { status: 404 });
+          const original = gameAssets.file(match[1]);
+          const thumbnail = gameAssets.file(match[1], true);
+          const file = match[2] === 'thumb' && fs.existsSync(thumbnail) ? thumbnail : original;
+          if (!fs.existsSync(file)) return new Response('Screenshot missing', { status: 404 });
+          return net.fetch(pathToFileURL(file).toString());
+        }
         const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
         const resource = path.resolve(distDirectory, '.' + pathname);
         if (!resource.startsWith(distDirectory + path.sep)) return new Response('Forbidden', { status: 403 });

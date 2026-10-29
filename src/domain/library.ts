@@ -2,8 +2,11 @@ import { completionFor, engagementFor, inPlanView, isValidCompletionEvent, PLAY_
 import type { GamePlayState, GameTagGroupKey, GameTagGroups, LibrarySnapshot, MediaItem, MediaType, PersonalGrade, ProgressStatus
 , CompletionStatus, PlayEngagement } from './types.ts';
 import { isValidImportExclusion } from './importExclusions.ts';
+import { isGameScreenshot, isLastPlayedAt, isPersonalScore } from './gameAssets.ts';
 import { experienceCategoryFor, experienceStatusFor, isGameExperienceCategory, isGameExperienceStatus } from './gameExperience.ts';
 import type { GameExperienceCategory, GameExperienceStatus } from './types.ts';
+import { isBookCollections, isBookDetails, isBookReading, isBookTagCatalog } from './booksValidation.ts';
+import { isScreenCollections, isScreenDetails, isScreenTagCatalog, isScreenViewing } from './screensValidation.ts';
 
 export const MEDIA_LABELS: Record<MediaType, string> = {
   game: '游戏', book: '书籍', screen: '影视', music: '音乐',
@@ -264,6 +267,10 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
   const categories: MediaType[] = ['game', 'book', 'screen', 'music'];
   const statuses: ProgressStatus[] = ['want', 'active', 'finished', 'paused'];
   return data.schemaVersion === 1 &&
+    (data.bookCollections === undefined || isBookCollections(data.bookCollections)) &&
+    (data.bookTagCatalog === undefined || isBookTagCatalog(data.bookTagCatalog)) &&
+    (data.screenCollections === undefined || isScreenCollections(data.screenCollections)) &&
+    (data.screenTagCatalog === undefined || isScreenTagCatalog(data.screenTagCatalog)) &&
     (data.importExclusions === undefined || (Array.isArray(data.importExclusions) && data.importExclusions.every(isValidImportExclusion))) &&
     Array.isArray(data.items) && data.items.every(item =>
     item && typeof item.id === 'string' && item.id.length > 0 &&
@@ -271,12 +278,20 @@ export function isValidSnapshot(value: unknown): value is LibrarySnapshot {
     categories.includes(item.category) && typeof item.subcategory === 'string' &&
     typeof item.creator === 'string' && typeof item.year === 'string' &&
     statuses.includes(item.status) && Array.isArray(item.tags) &&
+    (item.bookReading === undefined || isBookReading(item.bookReading)) &&
+    (item.bookDetails === undefined || isBookDetails(item.bookDetails)) &&
+    (item.screenViewing === undefined || isScreenViewing(item.screenViewing)) &&
+    (item.screenDetails === undefined || isScreenDetails(item.screenDetails)) &&
     (item.gamePlayState === undefined || item.gamePlayState === 'replaying' || GAME_PLAY_STATES.includes(item.gamePlayState)) &&
     (item.category !== 'game' || item.experienceStatus === undefined || isGameExperienceStatus(item.experienceStatus)) &&
     (item.category !== 'game' || item.experienceCategory === undefined || isGameExperienceCategory(item.experienceCategory)) &&
     item.tags.every((tag: unknown) => typeof tag === 'string') &&
     (item.playtimeMinutes === undefined || (typeof item.playtimeMinutes === 'number' && Number.isSafeInteger(item.playtimeMinutes) && item.playtimeMinutes >= 0)) &&
     (item.personalGrade === undefined || isValidPersonalGrade(item.personalGrade)) &&
+    (item.personalScore === undefined || isPersonalScore(item.personalScore)) &&
+    (item.lastPlayedAt === undefined || isLastPlayedAt(item.lastPlayedAt)) &&
+    (item.screenshots === undefined || (Array.isArray(item.screenshots) && item.screenshots.length <= 1000 && item.screenshots.every(isGameScreenshot) && new Set(item.screenshots.map(image => image.id)).size === item.screenshots.length)) &&
+    (item.screenshotCoverId === undefined || (typeof item.screenshotCoverId === 'string' && item.screenshotCoverId.length <= 100)) &&
     (item.playPriority === undefined || isValidPersonalGrade(item.playPriority)) &&
     (item.priorityOrder === undefined || (Number.isSafeInteger(item.priorityOrder) && item.priorityOrder >= 0)) &&
     (item.ratingOrder === undefined || (Number.isSafeInteger(item.ratingOrder) && item.ratingOrder >= 0)) &&

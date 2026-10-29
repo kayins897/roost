@@ -1,6 +1,7 @@
 import { isValidPersonalGrade } from './library.ts';
 import { gradeEditable, priorityEditable } from './gameProgress.ts';
 import { GAME_GRADES } from './gameRating.ts';
+import { isPersonalScore } from './gameAssets.ts';
 import type { MediaItem } from './types.ts';
 import type { SortDirection } from './librarySort.ts';
 
@@ -10,7 +11,20 @@ const orderKey = (mode: RankMode) => mode === 'priority' ? 'priorityOrder' : 'ra
 const normalGame = (item: MediaItem) => item.category === 'game' && !item.hiddenAt && !item.removedAt;
 const inRankView = (item: MediaItem, mode: RankMode) => normalGame(item) && (mode === 'priority' ? priorityEditable(item) : gradeEditable(item));
 const validOrder = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+/** Numeric scores are grouped into ten bands; a perfect 10 joins the top band. */
+export const SCORE_BAND_TOP = 9;
+export function scoreBand(score: number): number {
+  return Math.min(SCORE_BAND_TOP, Math.max(0, Math.floor(score)));
+}
+export function scoreBandId(band: number): string {
+  return `score-${band}`;
+}
+export function scoreBandLabel(band: number): string {
+  return band >= SCORE_BAND_TOP ? '9–10 分' : `${band}–${band}.9 分`;
+}
+const scoreOf = (item: MediaItem): number => isPersonalScore(item.personalScore) ? item.personalScore : Number.NEGATIVE_INFINITY;
 function rankId(item: MediaItem, mode: RankMode): string {
+  if (mode === 'rating' && isPersonalScore(item.personalScore)) return scoreBandId(scoreBand(item.personalScore));
   const grade = mode === 'priority' ? item.playPriority : item.personalGrade;
   return isValidPersonalGrade(grade) ? grade : 'unranked';
 }
@@ -21,13 +35,24 @@ function sortRank(items: MediaItem[], mode: RankMode): MediaItem[] {
     const first = a.item[key], second = b.item[key];
     if (validOrder(first) && validOrder(second) && first !== second) return first - second;
     if (validOrder(first) !== validOrder(second)) return validOrder(first) ? -1 : 1;
+    // 未手动排序时，同一分段内默认按真实分降序；拖动写入顺序后由上面的顺序值接管。
+    if (mode === 'rating') {
+      const difference = scoreOf(b.item) - scoreOf(a.item);
+      if (difference) return difference;
+    }
     return a.index - b.index;
   }).map(entry => entry.item);
 }
 /** Presentation derivation only: reading groups never adds ranks or order to an old library. */
 export function groupRankedGames(items: MediaItem[], mode: RankMode, manualOrder = true, direction: SortDirection = 'desc'): RankedGameGroup[] {
   const grades = direction === 'asc' ? [...GAME_GRADES].reverse() : GAME_GRADES;
-  const groups: RankedGameGroup[] = grades.map(id => ({ id, label: id, items: [] }));
+  const bands = Array.from({ length: SCORE_BAND_TOP + 1 }, (_, index) => SCORE_BAND_TOP - index);
+  const orderedBands = direction === 'asc' ? [...bands].reverse() : bands;
+  // 固定区间：空段由视图过滤，不因某次录入出现或消失而改变折叠键。
+  const groups: RankedGameGroup[] = mode === 'rating'
+    ? orderedBands.map(band => ({ id: scoreBandId(band), label: scoreBandLabel(band), items: [] }))
+    : grades.map(id => ({ id, label: id, items: [] }));
+  if (mode === 'rating') groups.push(...grades.map(id => ({ id, label: `历史 ${id}`, items: [] })));
   groups.push({ id: 'unranked', label: mode === 'priority' ? '未设置优先级' : '未评级', items: [] });
   const byId = new Map(groups.map(group => [group.id, group]));
   for (const item of items) if (inRankView(item, mode)) byId.get(rankId(item, mode))!.items.push(item);

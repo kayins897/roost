@@ -1,6 +1,6 @@
 import { useEffect,useRef,type RefObject } from 'react';
 
-const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), textarea, select, a[href]';
+const FOCUSABLE = 'button:not(:disabled):not([tabindex="-1"]), input:not(:disabled), textarea, select, a[href], [tabindex="0"]';
 
 // 弹层键盘行为的单一实现：Escape 关闭（经 closeRef 追踪最新回调）、Tab 在首尾控件间循环、
 // 挂载聚焦初始控件、卸载恢复先前焦点。选择器与可见性过滤按调用方原样传入，保持既有行为。
@@ -28,7 +28,8 @@ export function useDialogKeyboard(
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); return; }
       if (event.key !== 'Tab') return;
       let controls = [...(panel.current?.querySelectorAll<HTMLElement>(selector) ?? [])];
-      if (options?.filterVisible) controls = controls.filter(element => element.offsetParent !== null);
+      // Fixed controls have no offsetParent, but remain visible and keyboard reachable.
+      if (options?.filterVisible) controls = controls.filter(element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden');
       const first = controls[0];
       const last = controls[controls.length - 1];
       if (!first || !last) return;

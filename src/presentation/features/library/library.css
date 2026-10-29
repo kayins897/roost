@@ -28,3 +28,24 @@
 
 .game-status-tabs > small { color: var(--muted); font-size: 11px; font-weight: 400; align-self: center; margin-left: 4px; }
 .experience-category-filters { flex-basis: 100%; margin-top: 8px; }
+/* Match each filter to its cover border; the theme accent remains for neutral actions. */
+:root[data-theme] .status-tabs.experience-category-filters button[class*="experience-color--"]:not(.experience-color--all) { color: var(--play-state-color); border-color: color-mix(in srgb,var(--play-state-color) 32%,transparent); }
+:root[data-theme] .status-tabs.experience-category-filters button[class*="experience-color--"]:not(.experience-color--all)::before { content: ''; display: inline-block; vertical-align: middle; margin-right: 6px; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--play-state-color); }
+:root[data-theme] .status-tabs.experience-category-filters button[class*="experience-color--"].is-selected:not(.experience-color--all) { color: var(--play-state-color); border-color: var(--play-state-color); background: color-mix(in srgb,var(--play-state-color) 16%,var(--control-fill)); box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--play-state-color) 30%,transparent); }
+.media-card--grid .card-game-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 7px 10px; margin-top: 9px; }
+.media-card--grid .card-game-summary .card-playtime { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.media-card--grid .card-game-summary .card-playtime strong { font-size: 12px; font-weight: 500; color: var(--muted); }
+.media-card--grid .card-game-summary .card-score { display: inline-flex; align-items: baseline; gap: 4px; margin: 0; padding: 0; color: var(--accent-ink); }
+.media-card--grid .card-game-summary .card-score svg { align-self: center; }
+.media-card--grid .card-game-summary .card-score strong { font-size: 19px; font-weight: 700; line-height: 1.15; letter-spacing: -.035em; color: var(--text); font-variant-numeric: tabular-nums; }
+.media-card--grid .card-game-summary .card-score small { font-size: 10px; color: var(--muted); }
+.media-card--grid .card-game-summary .card-score.is-unrated { color: var(--muted); }
+.media-card--grid .card-game-summary .card-score.is-unrated strong { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.score-control { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 0; }
+.score-control>.score-picker { flex-basis:100%; }
+.score-control>button { width:auto; }
+.bulk-score-bar { flex-wrap:wrap; gap:10px; }
+.bulk-score-field { display:flex; align-items:center; gap:8px; }
+.bulk-score-field>span { max-width:45px; font-size:11px; color:var(--muted); }
+.bulk-score-field>.score-picker { width:156px; }
+.selection-actionbar:has(.bulk-score-bar) { max-height:calc(100dvh - 30px); overflow-y:auto; overscroll-behavior:contain; }

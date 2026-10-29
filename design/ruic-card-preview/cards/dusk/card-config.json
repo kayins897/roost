@@ -1,0 +1,32 @@
+{
+  "title": "潮汐档案",
+  "subtitle": "退潮之后",
+  "technique": "分层视差 · 镭射膜",
+  "tagline": "海水退去，露出写满字的礁石。",
+  "edition": "017 / 080",
+  "collection": "栖域 · 卡面试作",
+  "description": "海水退去，露出写满字的礁石。",
+  "appearance": {
+    "background": "#101216"
+  },
+  "assets": {
+    "subject": "./assets/subject.png",
+    "background": "./assets/background.png",
+    "text": "./assets/text.png",
+    "lineart": "./assets/lineart.png",
+    "model": "./assets/card.glb"
+  },
+  "parameters": {
+    "subjectScale": 1.18,
+    "subjectDepth": 0.3,
+    "backgroundDepth": -0.22,
+    "foil": 0.62
+  },
+  "safeArea": {
+    "scale": 1.1,
+    "offset": [
+      0,
+      0
+    ]
+  }
+}

@@ -1,3 +1,4 @@
+import { t } from './i18n/index.ts';
 import { Check, ChevronDown, Plus, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { availableTags, GAME_TAG_KEYS, GAME_TAG_LABELS, gameTagCounts } from '../domain/library.ts';
@@ -45,19 +46,19 @@ export function TagFilterPanel(props: Props) {
     const label = group ? GAME_TAG_LABELS[group] : '';
     return <div className="tag-strip">
       {shown.map(tag => chip(tag.name, tag.count, group))}
-      {remaining > 0 && <button className="tag-more" title={`展开${label}全部标签`} aria-label={`展开${label}全部标签，共${matching.length}个`} onClick={() => setExpanded(current => new Set([...current, key]))}>+{remaining}<span className="tag-more-label"> 更多</span></button>}
-      {all && matching.length > limit && <button className="tag-more" aria-label={`收起${label}更多标签`} onClick={() => setExpanded(current => { const next = new Set(current); next.delete(key); return next; })}>收起</button>}
-      {!matching.length && <span className="no-tags">{props.game ? '暂无标签' : '添加标签后即可在这里筛选'}</span>}
+      {remaining > 0 && <button className="tag-more" title={t("展开{0}全部标签", [t(label)])} aria-label={t("展开{0}全部标签，共{1}个", [t(label), matching.length])} onClick={() => setExpanded(current => new Set([...current, key]))}>+{remaining}<span className="tag-more-label"> {" "}{t("更多")}</span></button>}
+      {all && matching.length > limit && <button className="tag-more" aria-label={t("收起{0}更多标签", [t(label)])} onClick={() => setExpanded(current => { const next = new Set(current); next.delete(key); return next; })}>{t("收起")}</button>}
+      {!matching.length && <span className="no-tags">{props.game ? t('暂无标签') : t('添加标签后即可在这里筛选')}</span>}
     </div>;
   }
-  return <section className="tag-panel" aria-label="标签筛选">
+  return <section className="tag-panel" aria-label={t("标签筛选")}>
     <div className="tag-panel-heading">
-      <button className="tag-panel-toggle" aria-label={props.open ? '收起标签' : '展开标签'} aria-expanded={props.open} aria-controls="library-tag-filters" onClick={props.onToggle}><Tag size={15} /><strong>标签筛选</strong>{count > 0 && <span className="filter-counter">{count}</span>}<ChevronDown size={14} /></button>
-      {props.onCreate && <button type="button" className="icon-button tag-create-button" aria-label="新增标签" title="新增标签" disabled={props.creationDisabled} onClick={props.onCreate}><Plus size={15} /></button>}
-      {props.open && count > 0 && <button className="reset-tags" onClick={props.onClear}>清除标签</button>}
+      <button className="tag-panel-toggle" aria-label={props.open ? t('收起标签') : t('展开标签')} aria-expanded={props.open} aria-controls="library-tag-filters" onClick={props.onToggle}><Tag size={15} /><strong>{t("标签筛选")}</strong>{count > 0 && <span className="filter-counter">{count}</span>}<ChevronDown size={14} /></button>
+      {props.onCreate && <button type="button" className="icon-button tag-create-button" aria-label={t("新增标签")} title={t("新增标签")} disabled={props.creationDisabled} onClick={props.onCreate}><Plus size={15} /></button>}
+      {props.open && count > 0 && <button className="reset-tags" onClick={props.onClear}>{t("清除标签")}</button>}
     </div>
     <div id="library-tag-filters" hidden={!props.open}>
-      {props.game ? <div className="game-tag-filter">{GAME_TAG_KEYS.map(key => <div className={`game-filter-group tag-type--${key}`} key={key}><span className="game-filter-label">{GAME_TAG_LABELS[key]}</span>{strip(groups[key], key)}</div>)}</div> : <div className="filter-tags">{strip(tags)}</div>}
+      {props.game ? <div className="game-tag-filter">{GAME_TAG_KEYS.map(key => <div className={`game-filter-group tag-type--${key}`} key={key}><span className="game-filter-label">{t(GAME_TAG_LABELS[key])}</span>{strip(groups[key], key)}</div>)}</div> : <div className="filter-tags">{strip(tags)}</div>}
     </div>
   </section>;
 }

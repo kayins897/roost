@@ -23,6 +23,7 @@
 .steam-import-search input::placeholder { color: var(--muted); }
 .steam-import-search input:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
 .steam-import-rows { max-height: 300px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.steam-import-rows.is-correcting { max-height: none; overflow: visible; }
 .steam-import-row { display: flex; align-items: center; gap: 12px; min-height: 61px; padding: 11px 13px; cursor: pointer; }
 .steam-import-row + .steam-import-row { border-top: 1px solid var(--line); }
 .steam-import-row:hover { background: var(--hover, var(--panel-2)); }
@@ -51,3 +52,27 @@
 .steam-import-filter{padding:5px 10px;font-size:11px;border-radius:999px;border:1px solid var(--control-border);background:var(--control-fill);color:var(--muted)}
 .steam-import-filter.is-active{background:var(--control-selected);color:var(--control-selected-ink);border-color:var(--control-selected-border)}
 .steam-import-hidden{font-size:11px;color:var(--muted)}
+.intake-preview-entry + .intake-preview-entry { border-top: 1px solid var(--line); }
+.intake-row-select { display: flex; align-items: center; flex: 1; gap: 12px; min-width: 0; cursor: inherit; }
+.intake-preview-cover { width: 38px; height: 52px; object-fit: contain; border-radius: 5px; flex: 0 0 38px; }
+.intake-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; max-width: 140px; }
+.intake-row-actions button { font-size: 12px; white-space: nowrap; }
+.intake-row-message { margin: 0; padding: 0 13px 10px 41px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.intake-correction { margin: 0 12px 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--control-border); background: var(--control-fill); }
+.intake-correction-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.intake-correction-fields .form-field { margin: 0; font-size: 12px; min-width: 0; }
+.intake-correction-fields input, .intake-correction-fields select { width: 100%; min-width: 0; }
+.intake-correction-link { grid-column: 1 / -1; min-width: 0; }
+.intake-correction-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.intake-enrichment { margin: 12px 0; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-radius: 14px; border: 1px solid var(--control-border); background: var(--control-fill); }
+.intake-enrichment > div:first-child { flex: 1 1 250px; }
+.intake-enrichment strong { font-size: 13px; }
+.intake-enrichment p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.intake-enrichment .button { font-size: 12px; }
+.intake-enrichment-progress { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+@media (max-width: 530px) {
+  .intake-correction { margin: 0 8px 8px; padding: 10px; }
+  .intake-correction-fields { grid-template-columns: minmax(0, 1fr); }
+  .intake-row-actions { flex-direction: column; max-width: 90px; }
+  .steam-import-options { grid-template-columns: minmax(0, 1fr); }
+}

@@ -19,6 +19,7 @@ export const gameTagExamples: Record<GameTagGroupKey, string[]> = {
   scenario: ['刚需联机', '需要沉浸', '放松解压', '碎片时间'],
   other: ['独立游戏', '高难度', '音乐出色', '想二刷'],
 };
-export const categories: MediaType[] = ['game', 'book', 'screen', 'music'];
+// Music records remain valid for backup compatibility; creation is temporarily unavailable.
+export const categories: MediaType[] = ['game', 'book', 'screen'];
 
-export const COVER_FINISH_LABELS = { standard: '原始封面', silver: '烫银', gold: '烫金', foil: '闪箔', holographic: '镭射', prismatic: '多彩' };
+export const COVER_FINISH_LABELS = { standard: '原始封面', holographic: '镭射', prismatic: '多彩' };

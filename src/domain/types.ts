@@ -42,6 +42,94 @@ export interface ExperienceEntry {
   minutes?: number;
 }
 
+/** Current reading arrangement, independent of finished reading rounds. */
+export type BookArrangement = 'want' | 'reading' | 'idle' | 'abandoned' | 'none';
+export interface BookReadingPlan {
+  reason: string;
+  /** YYYY / YYYY-MM / YYYY-MM-DD; an optional intention, never a reading event. */
+  targetDate?: string;
+  order?: number;
+}
+export interface BookReadingRound {
+  id: string;
+  /** Actual finish date at its recorded precision; absent means unknown. */
+  finishedOn?: string;
+  impression: string;
+  review: string;
+}
+export interface BookReading {
+  arrangement?: BookArrangement;
+  plan?: BookReadingPlan;
+  rounds?: BookReadingRound[];
+}
+export interface BookDetails {
+  translator?: string;
+  publisher?: string;
+  isbn?: string;
+  description?: string;
+  /** Public Douban rating; never substituted for the user's personalScore. */
+  doubanScore?: number;
+  /** Where the user reads/owns the book, independent of metadata provenance. */
+  readingSources?: string[];
+  metadataSource?: string;
+}
+export interface BookCollection {
+  id: string;
+  title: string;
+  description: string;
+  /** Missing/purged IDs remain harmless references; views resolve existing books. */
+  bookIds: string[];
+}
+
+/** Current viewing arrangement, independent of previous completed viewings. */
+export type ScreenArrangement = 'want' | 'watching' | 'idle' | 'abandoned' | 'none';
+export interface ScreenProgress {
+  season?: number;
+  /** 0 means explicitly not started; absent means not recorded. */
+  episode?: number;
+}
+export interface ScreenViewingRound {
+  id: string;
+  /** Optional actual year/month/day; never replaced with the collection date. */
+  finishedOn?: string;
+  impression: string;
+  review: string;
+}
+export interface ScreenViewing {
+  arrangement?: ScreenArrangement;
+  progress?: ScreenProgress;
+  rounds?: ScreenViewingRound[];
+}
+export interface ScreenDetails {
+  actors?: string[];
+  regions?: string[];
+  /** Metadata runtime, not the user's actual viewing duration. */
+  durationMinutes?: number;
+  episodeCount?: number;
+  description?: string;
+  doubanScore?: number;
+  viewingSources?: string[];
+  metadataSource?: string;
+}
+export interface ScreenCollection {
+  id: string;
+  title: string;
+  description: string;
+  screenIds: string[];
+}
+
+/** Originals are copied to the app's asset store; no source path is persisted. */
+export interface GameScreenshot {
+  id: string;
+  assetId: string;
+  filename: string;
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp';
+  width: number;
+  height: number;
+  addedAt: string;
+  caption?: string;
+}
+
 export interface MediaItem {
   id: string;
   title: string;
@@ -52,6 +140,12 @@ export interface MediaItem {
   platforms?: string[];
   externalIds?: ExternalId[];
   experienceEntries?: ExperienceEntry[];
+  /** Optional book extensions; legacy fields remain untouched on load and edit. */
+  bookReading?: BookReading;
+  bookDetails?: BookDetails;
+  /** Optional screen extensions; loading never rewrites legacy progress. */
+  screenViewing?: ScreenViewing;
+  screenDetails?: ScreenDetails;
   creator: string;
   year: string;
   status: ProgressStatus;
@@ -73,6 +167,11 @@ export interface MediaItem {
   playtimeMinutes?: number;
   /** User-authored grade, retained across status/category changes; undefined is unrated. */
   personalGrade?: PersonalGrade;
+  /** Explicit 0–10 score, in tenths. Legacy letter grades are never converted. */
+  personalScore?: number;
+  lastPlayedAt?: string;
+  screenshots?: GameScreenshot[];
+  screenshotCoverId?: string;
   /** Planned consumption priority; independent of a completed game's personal grade. */
   playPriority?: PersonalGrade;
   /** Explicit order within a priority or completed-grade group. */
@@ -102,6 +201,11 @@ export interface LibrarySnapshot {
   exportedAt?: string;
   /** External works explicitly removed by the user must not return on import. */
   importExclusions?: ExternalId[];
+  bookCollections?: BookCollection[];
+  /** Includes intentionally empty book tags, without creating placeholder items. */
+  bookTagCatalog?: string[];
+  screenCollections?: ScreenCollection[];
+  screenTagCatalog?: string[];
 }
 
 export interface LibraryRepository {

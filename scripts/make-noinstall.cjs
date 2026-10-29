@@ -29,6 +29,11 @@ try {
   const bundle = path.join(staging, `QIYU-${version}`);
   fs.cpSync(source, bundle, { recursive: true, force: false, errorOnExist: true });
   fs.copyFileSync(path.join(root, 'build', 'demo-library.json'), path.join(bundle, 'demo-library.json'));
+  const fontLicenses = path.join(bundle, 'LICENSES', 'fonts');
+  fs.mkdirSync(fontLicenses, { recursive: true });
+  for (const name of ['Inter-OFL.txt', 'NotoSansSC-OFL.txt', 'NotoSerifSC-OFL.txt', 'README.md', 'sources.json']) {
+    fs.copyFileSync(path.join(root, 'public', 'fonts', name), path.join(fontLicenses, name));
+  }
   // PowerShell 5.1 需要 BOM 才能正确显示中文；CMD 本身只含 ASCII。
   fs.writeFileSync(path.join(bundle, 'launch-demo.ps1'), '\ufeff' + fs.readFileSync(path.join(root, 'build', 'launch-demo.ps1'), 'utf8').replace(/^\ufeff/, ''), 'utf8');
   fs.writeFileSync(path.join(bundle, '启动演示.cmd'), '@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch-demo.ps1" %*\r\n', 'ascii');
@@ -41,8 +46,8 @@ try {
     '正式使用：先在原版本导出完整备份，退出原程序，再双击本目录「栖域.exe」。\r\n' +
     '正常模式沿用本机 %APPDATA%\\QIYU；启动不会迁移或补写旧数据，本次发布流程未读写真实收藏。\r\n' +
     '如旧版仍在运行，正常 EXE 可能只唤醒旧版，请核对界面左下角版本号。\r\n' +
-    `收藏格式仍为 schemaVersion 1，但本版新增二级类别 playing 等取值。旧版程序不认识这些取值，` +
-    '旧版读取新版收藏会丢失该分类语义；请勿用旧版与本版交替编辑同一份收藏。\r\n' +
+    `收藏格式仍为 schemaVersion 1，新版可含扩展分类、数值评分与外置截图。旧版程序不理解全部字段，` +
+    '请勿用旧版与本版交替编辑同一份收藏；含截图时请导出 .roost 完整备份，并保留截图目录。\r\n' +
     '回退前保留升级前备份与新版完整导出，回退时用旧版打开备份副本，不要直接覆盖原定位目录。\r\n\r\n' +
     '五分钟验收见「验收步骤.md」，功能与已知限制见「更新说明.md」。仅供本地验收，未正式发布。\r\n';
   fs.writeFileSync(path.join(bundle, '先读我-免安装版.txt'), '\ufeff' + instructions, 'utf8');

@@ -49,12 +49,8 @@ async function startServer() {
 const stored = () => page.evaluate(key => localStorage.getItem(key), key);
 const modal = () => page.getByRole('dialog', { name: '批量导入作品', exact: true });
 async function openImport() {
-  const direct = page.getByRole('button', { name: '批量导入作品', exact: true });
-  if (!await direct.count()) {
-    const source = page.getByRole('button', { name: '检索与导入', exact: true });
-    if (await source.count()) await source.click();
-  }
-  await page.getByRole('button', { name: '批量导入作品', exact: true }).click();
+  await page.getByRole('button', { name: '收录作品', exact: true }).first().click();
+  await page.locator('.collection-hub-actions').getByRole('button', { name: /批量收录/ }).click();
   await modal().waitFor();
 }
 async function closeDiscard() {
@@ -90,7 +86,7 @@ async function screenshot(name) {
       await openImport();
       await source('纯名称新游戏\n链接缺少名称 | https://evil.example/game/1');
       assert.match(await modal().locator('.steam-import-summary').innerText(), /1\s*件可新增/);
-      assert.match(await modal().locator('.steam-import-summary').innerText(), /1\s*行未识别/);
+      assert.match(await modal().locator('.steam-import-summary').innerText(), /1\s*条提示/);
       await modal().getByRole('button', { name: '取消', exact: true }).click();
       await modal().getByRole('button', { name: '继续整理', exact: true }).click();
       assert.equal(await modal().getByRole('textbox', { name: '作品清单', exact: true }).inputValue(), '纯名称新游戏\n链接缺少名称 | https://evil.example/game/1');
@@ -119,7 +115,7 @@ async function screenshot(name) {
       await modal().getByLabel('选择清单文件', { exact: true }).setInputFiles({ name: 'owned-games.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(input)) });
       await modal().locator('.steam-import-summary').waitFor();
       const summary = await modal().locator('.steam-import-summary').innerText();
-      assert.match(summary, /2\s*件可新增/); assert.match(summary, /3\s*件重复/); assert.match(summary, /1\s*行未识别/);
+      assert.match(summary, /2\s*件可新增/); assert.match(summary, /3\s*件重复/); assert.match(summary, /1\s*条提示/);
       assert.equal(await modal().getByRole('checkbox', { name: '导入 已有作品的另一个名称', exact: true }).isDisabled(), true);
       assert.equal(await modal().getByRole('checkbox', { name: '导入 已有收藏', exact: true }).isDisabled(), true);
       await modal().getByRole('textbox', { name: '查找清单中的作品', exact: true }).fill('新游戏乙');
@@ -169,14 +165,15 @@ async function screenshot(name) {
       await closeDiscard();
       assert.equal(JSON.parse(await stored()).items.length, fixture.items.length + 1);
     });
-    await check('书籍影视音乐文本模式与完整备份防误导入', async () => {
+    await check('书籍影视文本模式、音乐入口撤下与完整备份防误导入', async () => {
       const before = await stored();
-      for (const category of ['screen', 'book', 'music']) {
+      for (const category of ['screen', 'book']) {
         await openImport();
         await modal().getByRole('combobox', { name: '文本清单的板块', exact: true }).selectOption(category);
         await source(`未入库的${category}作品`);
         assert.match(await modal().locator('.steam-import-summary').innerText(), /1\s*件可新增/);
-        assert.equal(await modal().getByRole('combobox', { name: '新增作品的初始状态', exact: true }).inputValue(), 'want');
+        assert.equal(await modal().getByRole('combobox', { name: category === 'book' ? '新增书籍的阅读状态' : '新增影视的观看安排', exact: true }).inputValue(), category === 'book' ? 'want' : 'auto');
+        assert.equal(await modal().locator('select[aria-label="文本清单的板块"] option[value="music"]').count(), 0);
         await closeDiscard();
       }
       await openImport();
@@ -199,11 +196,11 @@ async function screenshot(name) {
       await modal().getByLabel('选择清单文件', { exact: true }).setInputFiles(manifestFile);
       await modal().locator('.steam-import-summary').waitFor();
       const summary = await modal().locator('.steam-import-summary').innerText();
-      assert.match(summary, /12\s*件可新增/); assert.match(summary, /1\s*件重复/); assert.match(summary, /0\s*行未识别/);
+      assert.match(summary, /12\s*件可新增/); assert.match(summary, /1\s*件重复/); assert.match(summary, /0\s*条提示/);
       assert.equal(await modal().getByRole('combobox', { name: '文本清单的板块', exact: true }).inputValue(), 'screen');
       assert.equal(await modal().getByRole('checkbox', { name: '导入 星际穿越', exact: true }).isDisabled(), true);
-      assert.equal(await modal().getByRole('combobox', { name: '新增作品的初始状态', exact: true }).inputValue(), 'want');
-      await modal().getByRole('combobox', { name: '新增作品的初始状态', exact: true }).selectOption('finished');
+      assert.equal(await modal().getByRole('combobox', { name: '新增影视的观看安排', exact: true }).inputValue(), 'auto');
+      await modal().getByRole('combobox', { name: '新增影视的观看安排', exact: true }).selectOption('watched');
       await screenshot('movies-synthetic-preview.png');
       await modal().getByRole('button', { name: '导入选中的 12 件', exact: true }).click();
       await modal().waitFor({ state: 'detached' });
@@ -214,7 +211,9 @@ async function screenshot(name) {
       const added = updated.items.filter(item => !before.items.some(previous => previous.id === item.id));
       assert.equal(added.length, 12);
       for (const movie of added) {
-        assert.equal(movie.category, 'screen'); assert.equal(movie.subcategory, '电影'); assert.equal(movie.status, 'finished');
+        assert.equal(movie.category, 'screen'); assert.equal(movie.subcategory, '电影'); assert.equal(movie.status, 'want');
+        assert.equal(movie.screenViewing.arrangement, 'none'); assert.equal(movie.screenViewing.rounds.length, 1);
+        assert.equal(movie.screenViewing.rounds[0].finishedOn, undefined);
         assert.equal(movie.experienceEntries, undefined); assert.equal(movie.impression, ''); assert.equal(movie.favorite, false);
         const expected = manifest.items.find(item => item.title === movie.title);
         assert.ok(expected); assert.equal(movie.year, expected.year); assert.equal(movie.creator, expected.creator);
@@ -239,9 +238,9 @@ async function screenshot(name) {
       await openImport();
       await source(JSON.stringify(gameManifest));
       const gamesSummary = await modal().locator('.steam-import-summary').innerText();
-      assert.match(gamesSummary, /2\s*件可新增/); assert.match(gamesSummary, /0\s*件重复/); assert.match(gamesSummary, /0\s*行未识别/);
+      assert.match(gamesSummary, /2\s*件可新增/); assert.match(gamesSummary, /0\s*件重复/); assert.match(gamesSummary, /0\s*条提示/);
       assert.equal(await modal().getByRole('combobox', { name: '新增游戏的体验分类', exact: true }).inputValue(), 'auto');
-      assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).inputValue(), 'unknown');
+      assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).count(), 0);
       assert.equal(await stored(), beforeGames, '游戏清单预览不写入收藏');
       await modal().getByRole('button', { name: '导入选中的 2 件', exact: true }).click();
       await modal().waitFor({ state: 'detached' });
@@ -274,7 +273,7 @@ async function screenshot(name) {
         await source(JSON.stringify({ format: 'qiyu.batch.v1', items: [{ title, category: 'game', playtimeMinutes: classification === 'unplayed' ? 90 : 0 }] }));
         assert.equal(await modal().getByRole('combobox', { name: '新增游戏的体验分类', exact: true }).inputValue(), 'auto');
         await modal().getByRole('combobox', { name: '新增游戏的体验分类', exact: true }).selectOption(classification);
-        assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).inputValue(), 'unknown');
+        assert.equal(await modal().getByRole('combobox', { name: '新增游戏的通关进度', exact: true }).count(), 0);
         assert.equal(await stored(), beforeRaw, '分类预览仍不写库');
         await modal().getByRole('button', { name: '导入选中的 1 件', exact: true }).click();
         await modal().waitFor({ state: 'detached' });

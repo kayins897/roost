@@ -103,13 +103,13 @@ test('批量预览与追加流程保留已有个人数据、未知字段和输�
   assert.equal(isValidSnapshot({ schemaVersion: 1, items: updated }), true);
 });
 
-test('影视书籍音乐纯文本按所选板块新增，影视默认电影，不把名称解析成游戏', () => {
+test('影视书籍音乐纯文本按所选板块解析，不推断影视类型或把名称解析成游戏', () => {
   for (const category of ['screen', 'book', 'music'] as const) {
     const parsed = parseSteamImport('作品甲\n作品乙', category);
     const items = createSteamImportItems(parsed.games);
     assert.equal(items.length, 2);
     items.forEach(item => { assert.equal(item.category, category); assert.equal(item.status, 'want'); assert.equal(item.gamePlayState, undefined); assert.equal(item.platforms, undefined); });
-    assert.equal(items[0].subcategory, category === 'screen' ? '电影' : '');
+    assert.equal(items[0].subcategory, '');
   }
 });
 

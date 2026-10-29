@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts';
 import { ArrowUp } from 'lucide-react';
 import { useEffect, useState, type RefObject } from 'react';
 import './navigation.css';
@@ -21,5 +22,5 @@ export function BackToTop({ scrollRef, focusRef, onReturn }: { scrollRef: RefObj
     onReturn();
     focusRef.current?.focus({ preventScroll: true });
   }
-  return <button type="button" className="dock-back-top" data-material-glass="button" aria-label="回到顶部" title="回到顶部" aria-controls="library-content-scroll" onClick={returnToTop}><GlassLayers /><ArrowUp size={20} strokeWidth={1.7} /></button>;
+  return <button type="button" className="dock-back-top" data-material-glass="button" aria-label={t("回到顶部")} title={t("回到顶部")} aria-controls="library-content-scroll" onClick={returnToTop}><GlassLayers /><ArrowUp size={20} strokeWidth={1.7} /></button>;
 }

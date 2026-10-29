@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>栖域 · 卡面材质参考</title>
+  <link rel="stylesheet" href="holo.css">
+</head>
+<body>
+  <main>
+    <header>
+      <span class="eyebrow">栖域 / 独立材质预览</span>
+      <h1>闪箔、镭射与多彩</h1>
+      <p>移动鼠标观察反光。三张卡片使用同一底图，也可以换成自己的封面。</p>
+    </header>
+    <section class="cards" aria-label="三种卡面材质">
+      <figure class="card" data-kind="foil" tabindex="0" aria-label="闪箔，方向键调整反光">
+        <div class="card-face"><canvas id="cv-foil" width="480" height="720" aria-label="闪箔预览"></canvas></div>
+        <figcaption><b>闪箔 <small>FOIL</small></b><span>金属底色 · 银白细环与光束</span></figcaption>
+      </figure>
+      <figure class="card" data-kind="holo" tabindex="0" aria-label="镭射，方向键调整反光">
+        <div class="card-face"><canvas id="cv-holo" width="480" height="720" aria-label="镭射预览"></canvas></div>
+        <figcaption><b>镭射 <small>HOLOGRAPHIC</small></b><span>三角切面 · 色偏与反射</span></figcaption>
+      </figure>
+      <figure class="card" data-kind="poly" tabindex="0" aria-label="多彩，方向键调整反光">
+        <div class="card-face"><canvas id="cv-poly" width="480" height="720" aria-label="多彩预览"></canvas></div>
+        <figcaption><b>多彩 <small>POLYCHROME</small></b><span>宽幅光谱 · 保留牌面</span></figcaption>
+      </figure>
+    </section>
+    <section class="panel" aria-label="预览控制">
+      <div class="controls">
+        <label>纹理强度 <output id="strengthOut" for="strength">65%</output><input id="strength" type="range" min="0" max="100" step="1" value="65"></label>
+        <label>底色滤镜 <output id="filterOut" for="filter">55%</output><input id="filter" type="range" min="0" max="100" step="1" value="55"></label>
+        <label>流动速度 <output id="speedOut" for="speed">35%</output><input id="speed" type="range" min="0" max="100" step="1" value="35"></label>
+        <label class="texture-toggle"><input id="etching" type="checkbox" checked>三角切面</label>
+      </div>
+      <div class="actions">
+        <button id="compare" type="button" aria-pressed="false">查看原图</button>
+        <button id="motion" type="button" aria-pressed="true">暂停流动</button>
+        <label class="file-button" for="coverFile" tabindex="0">更换底图<input id="coverFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
+        <button id="reset" class="quiet" type="button">恢复默认</button>
+      </div>
+      <p id="message" role="status" aria-live="polite"></p>
+    </section>
+    <details class="source">
+      <summary>参考视频与实现</summary>
+      <nav aria-label="参考视频">
+        <a href="https://www.bilibili.com/video/BV1Tr42137Lz" target="_blank" rel="noreferrer">闪箔 · Shader 1 ↗</a>
+        <a href="https://www.bilibili.com/video/BV1ep421S7Hv" target="_blank" rel="noreferrer">镭射 · Shader 4 ↗</a>
+        <a href="https://www.bilibili.com/video/BV1CH4y1A7aW" target="_blank" rel="noreferrer">多彩 · Shader 2 ↗</a>
+      </nav>
+      <p>参考：B站「左右横条的酸葡萄」。用底色滤镜与反光纹理共同表现材质；镭射以三角面内色偏和明暗构成，不绘制网格线或网点。效果为校准实现，并非原工程逐字复刻。更换图片只用于本页预览。</p>
+      <h2 id="srcTitle">闪箔 · fragment shader</h2>
+      <pre id="src"></pre>
+    </details>
+  </main>
+  <script src="shaders.js"></script>
+  <script src="fixtures.js"></script>
+  <script src="holo.js"></script>
+</body>
+</html>

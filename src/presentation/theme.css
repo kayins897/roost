@@ -493,3 +493,7 @@ button:disabled { opacity: .5; }
   [data-glass]::before { display: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .topbar { background: var(--background); }
 }
+
+/* English group names need more room than their compact Chinese labels. */
+:root[lang='en'] .game-filter-group { grid-template-columns: max-content minmax(0,1fr); column-gap: 14px; }
+:root[lang='en'] .game-filter-label { min-width: 105px; }

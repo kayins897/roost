@@ -36,7 +36,8 @@ async function prepare(currentMode) {
 const button = (name, scope = page) => scope.getByRole('button', { name, exact: true });
 const dialog = () => page.getByRole('dialog', { name: '批量导入作品', exact: true });
 async function openAndParse() {
-  await button('批量导入作品').click();
+  await button('收录作品').first().click();
+  await page.locator('.collection-hub-actions').getByRole('button', { name: /批量收录/ }).click();
   const dlg = dialog(); await dlg.waitFor();
   await dlg.getByRole('textbox').first().fill(manifest);
   await button('生成预览', dlg).click();

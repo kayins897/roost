@@ -1,0 +1,18 @@
+@font-face { font-family: 'Noto Serif SC'; src: url('/fonts/NotoSerifSC-VF.ttf') format('truetype'); font-style: normal; font-weight: 200 900; font-display: swap; }
+html:root[data-interface-font="sans"], [data-font-preview="sans"] { font-family: Inter, 'Noto Sans SC', 'Segoe UI', sans-serif; }
+html:root[data-interface-font="serif"], [data-font-preview="serif"] { font-family: 'Noto Serif SC', 'Songti SC', SimSun, serif; }
+html:root[data-interface-font="system"], [data-font-preview="system"] { font-family: system-ui, 'Segoe UI', 'Microsoft YaHei UI', sans-serif; }
+.typography-heading { display: flex; align-items: start; gap: 12px; }
+.typography-heading > svg { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+.typography-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 18px; }
+.typography-options > button { position: relative; display: flex; flex-direction: column; align-items: start; gap: 9px; min-width: 0; padding: 16px 13px; border: 1px solid var(--line); border-radius: 14px; text-align: left; color: var(--muted); background: var(--field); cursor: pointer; transition: border-color .2s ease,background .2s ease,color .2s ease; }
+.typography-options > button:hover { color: var(--text); border-color: var(--accent-line); }
+.typography-options > button.is-selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); color: var(--text); }
+.typography-options > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.typography-options > button > svg { position: absolute; top: 14px; right: 12px; color: var(--accent); }
+.typography-sample { font-size: 29px; line-height: 1.5; letter-spacing: .04em; color: var(--text); }
+.typography-options strong { font-size: 13px; font-weight: 650; }
+.typography-options small { font-size: 10px; line-height: 1.65; overflow-wrap: anywhere; }
+.settings-section .typography-license { margin-top: 17px; font-size: 11px; }
+@media(max-width:650px) { .typography-options { grid-template-columns: minmax(0,1fr); }.typography-options > button { display: grid; grid-template-columns: 80px minmax(0,1fr); gap: 4px 10px; padding-right: 37px; }.typography-sample { grid-row: span 2; }.typography-options > button > svg { top: 50%; transform: translateY(-50%); } }
+@media(prefers-reduced-motion:reduce) { .typography-options > button { transition: none; } }

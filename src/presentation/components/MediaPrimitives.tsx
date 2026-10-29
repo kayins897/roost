@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts';
 import {
 Bookmark,
 CheckCircle2,
@@ -19,14 +20,14 @@ export function Poster({ item, large = false }: { item: MediaItem; large?: boole
       {item.coverUrl ? <img className="poster-image" src={item.coverUrl} alt={`${item.title}封面`} /> : <>
         <div className="poster-aura" aria-hidden="true" />
         <div className="poster-lettermark" aria-hidden="true">{item.title.slice(0, 1)}</div>
-        <div className="poster-copy"><span>{MEDIA_LABELS[item.category]}</span><strong>{item.title}</strong><small>{item.creator || '栖域收藏'}</small></div>
+        <div className="poster-copy"><span>{t(MEDIA_LABELS[item.category])}</span><strong>{item.title}</strong><small>{item.creator || t('栖域收藏')}</small></div>
       </>}
     </div>
   );
 }
 
 export function StatusMark({ status }: { status: ProgressStatus }) {
-  return <span className={`status-mark status--${status}`}><span className="status-dot" />{STATUS_LABELS[status]}</span>;
+  return <span className={`status-mark status--${status}`}><span className="status-dot" />{t(STATUS_LABELS[status])}</span>;
 }
 
 export function GameStateIcon({ state, size = 16 }: { state: GamePlayState; size?: number }) {
@@ -44,7 +45,7 @@ export function Modal({ title, description, onClose, children, wide = false, cla
   return (
     <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
       <section ref={panel} className={`modal ${wide ? 'modal--wide' : ''} ${className}`} data-glass="modal" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="modal-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{headingActions}<button className="icon-button" onClick={onClose} aria-label="关闭"><X size={19} /></button></div>
+        <div className="modal-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{headingActions}<button className="icon-button" onClick={onClose} aria-label={t("关闭")}><X size={19} /></button></div>
         {children}
       </section>
     </div>

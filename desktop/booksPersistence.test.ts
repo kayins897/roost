@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { applyBookAction } from '../src/domain/books.ts';
+import { trashItems, restoreItems, permanentlyDeleteItems } from '../src/domain/lifecycle.ts';
+import type { LibrarySnapshot } from '../src/domain/types.ts';
+import { writeFullBackup, prepareFullBackup } from './fullBackup.ts';
+import { GameAssetStore } from './gameAssets.ts';
+import { LibraryStore } from './store.ts';
+
+test('book root fields, rounds and unknown extensions survive disk, backup and a new store', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qiyu-books-persistence-'));
+  t.after(() => { const absolute = path.resolve(dir); assert.equal(path.dirname(absolute), path.resolve(os.tmpdir())); assert.ok(path.basename(absolute).startsWith('qiyu-books-persistence-')); fs.rmSync(absolute, { recursive: true, force: true }); });
+  const initial = { schemaVersion: 1, futureRoot: { retained: true }, bookTagCatalog: ['计划', '空标签'], bookCollections: [{ id: 'list', title: '专题', description: '', bookIds: ['book', 'missing'], future: true }], items: [{ id: 'book', title: '合成书', category: 'book', creator: '', subcategory: '', year: '', status: 'finished', tags: ['计划'], impression: '旧感想', review: '旧长评', favorite: false, artwork: 'default', createdAt: '', updatedAt: '', bookReading: { arrangement: 'idle', future: true, plan: { reason: '之后再读', future: true }, rounds: [{ id: 'round', finishedOn: '2026-10', impression: '读后记录', review: '完整读后感', future: true }] }, bookDetails: { doubanScore: 0, publisher: '出版社', readingSources: ['纸质'], future: true }, experienceEntries: [{ id: 'zero', date: '2026-10-28', kind: 'progress', note: '', minutes: 0 }] }] } as LibrarySnapshot;
+  const store = new LibraryStore(path.join(dir, 'source')); store.save(initial, 'missing');
+  const first = store.load(); assert.deepEqual(first.snapshot, initial);
+  const changed = { ...initial, items: [applyBookAction(initial.items[0], { type: 'plan', reason: '周末重读' }, '2026-10-28')] };
+  store.save(changed, first.revision);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(store.directory, 'library.previous.json'), 'utf8')), initial);
+  const backup = path.join(dir, '完整备份.roost');
+  writeFullBackup(backup, changed, new GameAssetStore(store.directory, () => { throw new Error('No images expected'); }));
+  const restored = prepareFullBackup(backup).snapshot;
+  const target = new LibraryStore(path.join(dir, 'target')); target.save(restored, 'missing', true);
+  const readBack = new LibraryStore(target.directory).load().snapshot!;
+  assert.deepEqual(readBack.items, JSON.parse(JSON.stringify(changed.items))); assert.deepEqual(readBack.bookCollections, changed.bookCollections);
+  assert.deepEqual(readBack.bookTagCatalog, changed.bookTagCatalog);
+  assert.deepEqual((readBack as unknown as { futureRoot: object }).futureRoot, { retained: true });
+  assert.deepEqual(restoreItems(trashItems(readBack, ['book']), ['book']).bookCollections, readBack.bookCollections);
+  assert.deepEqual(permanentlyDeleteItems(trashItems(readBack, ['book']), ['book']).bookCollections, readBack.bookCollections, 'dangling members remain legal and do not destroy the collection');
+});
