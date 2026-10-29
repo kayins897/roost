@@ -99,7 +99,7 @@ async function setScore(scope, value, label = '通关评分') {
   menu = await context('hours'); await menu.getByLabel('最后运行时间', { exact: true }).fill('2026-10-26T20:30'); await menu.getByRole('button', { name: '保存', exact: true }).click();
   assert.equal(snapshot().items[0].playtimeMinutes, 0); assert.ok(snapshot().items[0].lastPlayedAt); check('0小时与最后运行独立保存');
   const screenshotSource = path.join(data, '合成截图.png'); fs.writeFileSync(screenshotSource, Buffer.from(covers[0].split(',')[1], 'base64')); await nativeOpen(screenshotSource);
-  menu = await context('gallery'); await menu.getByRole('button', { name: '导入截图', exact: true }).click(); await page.waitForFunction(() => document.querySelector('.bento-gallery-heading small')?.textContent === '1 张');
+  menu = await context('gallery'); await menu.getByRole('button', { name: '导入截图', exact: true }).click(); await page.waitForFunction(() => document.querySelector('.bento-gallery-heading small')?.textContent.replace(/\s+/g, ' ').trim() === '1 张');
   let shot = snapshot().items[0].screenshots[0]; assert.ok(fs.existsSync(path.join(data, 'screenshots', shot.assetId + '.original'))); assert.equal(shot.filename, '合成截图.png'); fs.unlinkSync(screenshotSource);
   await menu.getByRole('button', { name: '四宫格', exact: true }).click(); await page.keyboard.press('Escape'); assert.equal(await page.locator('.bento-gallery').getAttribute('data-mode'), '4');
   await page.locator('.bento-gallery-image').click(); await page.getByRole('textbox', { name: '截图说明', exact: true }).fill('第一次抵达这里。'); await page.getByRole('textbox', { name: '截图说明', exact: true }).press('Tab'); await page.getByRole('button', { name: '设为封面', exact: true }).click(); await picture('screenshot-original'); await page.getByRole('button', { name: '关闭截图', exact: true }).click();
@@ -109,7 +109,7 @@ async function setScore(scope, value, label = '通关评分') {
   assert.equal(await page.getByRole('dialog', { name: '截图原图', exact: true }).isVisible(), true); assert.equal(await page.getByRole('textbox', { name: '截图说明', exact: true }).inputValue(), '保存失败时也保留这句话。');
   fs.writeFileSync(libraryFile(), rawBeforeConflict); await page.keyboard.press('Escape'); assert.equal(snapshot().items[0].screenshots[0].caption, '保存失败时也保留这句话。'); check('修订冲突时截图说明草稿不丢失，重试后保存');
   const moreScreenshots = Array.from({ length: 9 }, (_, i) => { const filename = path.join(data, `截图-${i + 2}.png`); fs.writeFileSync(filename, Buffer.from(covers[1].split(',')[1], 'base64')); return filename; });
-  await nativeOpen(moreScreenshots); menu = await context('gallery'); await menu.getByRole('button', { name: '导入截图', exact: true }).click(); await page.waitForFunction(() => document.querySelector('.bento-gallery-heading small')?.textContent === '10 张');
+  await nativeOpen(moreScreenshots); menu = await context('gallery'); await menu.getByRole('button', { name: '导入截图', exact: true }).click(); await page.waitForFunction(() => document.querySelector('.bento-gallery-heading small')?.textContent.replace(/\s+/g, ' ').trim() === '10 张');
   await menu.getByRole('button', { name: '九宫格', exact: true }).click(); await page.keyboard.press('Escape'); assert.equal(await page.locator('.bento-gallery-image').count(), 9);
   await page.getByRole('button', { name: '下一组截图', exact: true }).click(); assert.equal(await page.locator('.bento-gallery-image').count(), 1);
   const beforeRemove = snapshot().items[0].screenshots; await page.locator('.bento-gallery-image').click();

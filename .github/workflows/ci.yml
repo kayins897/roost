@@ -1,7 +1,7 @@
 name: Validate QIYU
 
 # Not yet validated on a hosted runner: desktop stages need a real Electron window.
-# Switch back to push/pull_request after the first green manual run.
+# Keep manual-only while validating the current focused regression scripts.
 on:
   workflow_dispatch:
 
@@ -20,5 +20,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run setup:desktop
-      - run: npx playwright install msedge
-      - run: npm run test:workflow
+      - name: Unit tests
+        run: npm test
+      - name: Desktop build
+        run: npm run desktop:build
+      # Each script launches its own Electron process with synthetic data in a
+      # temporary profile. Keep these steps sequential to avoid GUI interference.
+      - name: Book and screen batch intake
+        run: node scripts/verify-batch-intake.cjs
+      - name: Book controls and import
+        run: node scripts/verify-books-controls-import.cjs
+      - name: Screen library and viewing records
+        run: node scripts/verify-screens.cjs
+      - name: Language and offline fonts
+        run: node scripts/verify-interface-preferences.cjs
+      - name: Game score bands
+        run: node scripts/verify-score-bands.cjs
+      - name: Game card controls and materials
+        run: node scripts/verify-game-card-controls.cjs
+      - name: Bento screenshots and full backup
+        run: node scripts/verify-bento-materials.cjs
+      - name: Upload isolated validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qiyu-validation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
