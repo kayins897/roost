@@ -24,7 +24,7 @@ npm run desktop:build
 - `npm run test:workflow -- --list`：只读列出历史综合套件；部分旧卡面／分类断言尚未适配，不作为本版全量通过证明。
 - 桌面测试使用隔离临时目录，浏览器测试使用独立上下文与合成收藏。浏览器套件依赖Microsoft Edge，必要时先运行 `npx playwright install msedge`。
 
-验证 CI 保持手动触发；预发行工作流只由版本标签触发。托管 Windows runner 上的原生窗口验证尚未验收，不把本机通过等同于 CI 通过。
+验证 CI 保持手动触发；预发行工作流只由版本标签触发。v0.4.36 已完成托管构建及成品导入专项，见[发布结果](release/PUBLISHED-v0.4.36.md)；完整手动 CI 未运行，不把局部结果等同于全量通过。
 
 ## 仓库与发行边界
 
