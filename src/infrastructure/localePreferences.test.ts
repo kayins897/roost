@@ -17,6 +17,7 @@ test('语言翻译仅替换明确的界面模板，保留用户文字及插入�
 });
 test('已格式化的时长和季集提示优先匹配完整模板，不留下半句中文', () => {
   assert.equal(translateMessage('1 小时 20 分钟', 'en'), '1 h 20 min');
+  assert.equal(translateMessage('已新增 1 件作品', 'en'), 'Added 1 items');
   assert.equal(translateMessage('2 小时 0 分', 'en'), '2 h 0 min');
   assert.equal(translateMessage('第 2 季 · 第 3 集', 'en'), 'Season 2 · Episode 3');
   assert.equal(translateMessage('第 2 季 · 尚未开始', 'en'), 'Season 2 · Not started');

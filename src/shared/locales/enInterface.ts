@@ -28,4 +28,12 @@ export const interfaceEnglish: Record<string, string> = {
   "，另有未记录时长": ", with additional time not recorded",
   "无记录": "No records",
   '收录{0}': 'Add {0}', '查看全部{0}': 'View all {0}',
+  "已新增 {0} 件作品": "Added {0} items",
+  "已更新 {0} 款游戏": "Updated {0} games",
+  "已更新 {0} 款游戏的体验分类": "Updated experience categories for {0} games",
+  "已更新 {0} 款游戏的游玩优先级": "Updated play priorities for {0} games",
+  "已更新 {0} 款游戏的通关评级": "Updated completion grades for {0} games",
+  "已更新 {0} 款游戏的通关评分": "Updated completion scores for {0} games",
+  "Steam：新增 {0} 款，更新 {1} 款": "Steam: added {0}, updated {1}",
+  "已将「{0}」移动到{1}": "Moved “{0}” to {1}",
 };

@@ -298,7 +298,7 @@ export function useWorkspaceController() {
       const scope = items.filter(item => !item.hiddenAt && !item.removedAt);
       const edited = new Map(moveGameTag(scope, label, from, to).map(item => [item.id, item]));
       return items.map(item => edited.get(item.id) ?? item);
-    }, `已将「${label}」移动到${GAME_TAG_LABELS[to]}`);
+    }, t('已将「{0}」移动到{1}', [label, t(GAME_TAG_LABELS[to])]));
     if (!saved) return false;
     setSelectedGameTags(current => current[from].some(tag => tag.toLocaleLowerCase() === lower)
       ? { ...current, [from]: current[from].filter(tag => tag.toLocaleLowerCase() !== lower), [to]: normalizeTags([...current[to], label]) }
