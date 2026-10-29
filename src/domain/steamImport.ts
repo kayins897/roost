@@ -3,10 +3,12 @@ import type { ExternalId, GameTagGroups, MediaItem, MediaType, ProgressStatus
 , CompletionStatus, PlayEngagement } from './types.ts';
 import { isImportExcluded } from './importExclusions.ts';
 import { readBookTable } from './bookImportTable.ts';
+import { readScreenTable } from './screenImportTable.ts';
 import { isBookDetails } from './booksValidation.ts';
 import { isPersonalScore } from './gameAssets.ts';
 import type { BookDetails, ScreenDetails } from './types.ts';
 import { isScreenDetails } from './screensValidation.ts';
+import { canonicalIsbn } from './isbn.ts';
 
 export const STEAM_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 export const STEAM_IMPORT_MAX_GAMES = 2000;
@@ -195,8 +197,17 @@ function parseBookRecord(value: unknown): SteamImportGame | string {
 function parseScreenRecord(value: unknown): SteamImportGame | string {
   if (!object(value) || (own(value, 'category') !== undefined && own(value, 'category') !== 'screen') ||
     own(value, 'appid') !== undefined || own(value, 'appId') !== undefined) return '影视数组包含非影视记录';
-  return parseManifestWork({ ...value, category: 'screen', title: own(value, 'title') ?? own(value, 'name') });
+  const details = own(value, 'screenDetails');
+  if (details !== undefined && !object(details)) return '影视资料需要是对象';
+  const flatDetails = Object.fromEntries(['actors', 'regions', 'durationMinutes', 'episodeCount', 'description', 'doubanScore', 'viewingSources', 'metadataSource']
+    .filter(key => own(value, key) !== undefined).map(key => [key, own(value, key)]));
+  return parseManifestWork({ ...value, category: 'screen', title: own(value, 'title') ?? own(value, 'name'),
+    creator: own(value, 'creator') ?? own(value, 'director'),
+    ...(Object.keys(flatDetails).length || details ? { screenDetails: { ...flatDetails, ...details } } : {}) });
 }
+
+/** Reuses the import allowlist for editable preview rows; never accepts personal history. */
+export function validateImportWork(value: unknown): SteamImportGame | string { return parseManifestWork(value); }
 
 /** Only explicit allowlisted fields enter a new item; arbitrary JSON never becomes library data. */
 export function parseSteamImport(text: string, category: MediaType = 'game'): SteamImportResult {
@@ -210,8 +221,8 @@ export function parseSteamImport(text: string, category: MediaType = 'game'): St
   let bookArray = false;
   let screenArray = false;
   const json = /^[\[{]/.test(input);
-  if (!json && category === 'book') {
-    const table = readBookTable(original, STEAM_IMPORT_MAX_GAMES);
+  if (!json && (category === 'book' || category === 'screen')) {
+    const table = (category === 'book' ? readBookTable : readScreenTable)(original, STEAM_IMPORT_MAX_GAMES);
     if (table) {
       if (table.rows.length > STEAM_IMPORT_MAX_GAMES) throw new Error(`一次最多导入 ${STEAM_IMPORT_MAX_GAMES} 件，请拆分清单`);
       result.skipped.push(...table.skipped);
@@ -262,7 +273,7 @@ export function parseSteamImport(text: string, category: MediaType = 'game'): St
       else if (category === 'game' && source && !steamAppIdFromUrl(source)) candidate = '第 2 列需要是 Steam 商店游戏链接';
       else if (category === 'game') candidate = parseGame({ title, ...(source ? { appid: steamAppIdFromUrl(source) } : {}), ...(duration ? { playtimeMinutes: duration } : {}) });
       else if (columns.length > 1) candidate = '书籍、影视和音乐文本请每行仅填写一个名称；详细资料可用批量 JSON 清单';
-      else candidate = parseManifestWork({ title, category, ...(category === 'screen' ? { subcategory: '电影' } : {}) });
+      else candidate = parseManifestWork({ title, category });
     }
     if (typeof candidate === 'string') result.skipped.push({ row: index + 1, reason: candidate });
     else result.games.push(candidate);
@@ -290,6 +301,8 @@ function sourceIdentity(category: MediaType, value: string | undefined): string 
 function identitiesFor(work: SteamImportGame): string[] {
   const category = work.category ?? 'game';
   const result = new Set<string>();
+  const isbn = category === 'book' ? canonicalIsbn(work.bookDetails?.isbn) : undefined;
+  if (isbn) result.add(`book:isbn:${isbn}`);
   const steamId = category === 'game' ? appId(work.appId) : undefined;
   if (steamId) result.add(`game:steam:${steamId}`);
   for (const ref of work.externalIds ?? []) {

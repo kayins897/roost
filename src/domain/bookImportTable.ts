@@ -11,7 +11,6 @@ const aliases: Record<string, string[]> = {
   readingSources: ['阅读来源', 'readingsources'], metadataSource: ['资料来源', 'metadatasource'],
 };
 const normalize = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[\s_-]+/g, '');
-const headerKey = (value: string) => Object.entries(aliases).find(([, names]) => names.some(name => normalize(name) === normalize(value)))?.[0];
 
 function records(text: string, delimiter: string): { line: number; cells: string[] }[] {
   const result: { line: number; cells: string[] }[] = [];
@@ -40,7 +39,9 @@ function records(text: string, delimiter: string): { line: number; cells: string
   return result;
 }
 
-export function readBookTable(text: string, maximumRows: number): BookTable | null {
+/** Shared CSV syntax only; each media reader owns its field mapping and validation. */
+export function readImportTable(text: string, maximumRows: number, fieldAliases: Record<string, string[]>, missingHeader: string, unmappedNote: string) {
+  const headerKey = (value: string) => Object.entries(fieldAliases).find(([, names]) => names.some(name => normalize(name) === normalize(value)))?.[0];
   const firstLine = text.replace(/^\uFEFF/, '').trimStart().split(/\r?\n/)[0] ?? '';
   const delimiter = ['\t', ',', '|'].find(value => firstLine.includes(value)) ?? (headerKey(firstLine) === 'title' ? ',' : undefined);
   if (!delimiter) return null;
@@ -48,7 +49,7 @@ export function readBookTable(text: string, maximumRows: number): BookTable | nu
   // parsing once the first line looks like a header, including one-column CSV.
   const hintKeys = firstLine.split(delimiter).map(cell => headerKey(cell.trim().replace(/^"|"$/g, '')));
   if (!hintKeys.includes('title')) {
-    if (delimiter !== ',') throw new Error('表格第一行需要“书名”表头，可同时包含作者、出版社、豆瓣链接等列');
+    if (delimiter !== ',') throw new Error(missingHeader);
     return null;
   }
   try { records(firstLine, delimiter); }
@@ -59,16 +60,23 @@ export function readBookTable(text: string, maximumRows: number): BookTable | nu
   if (input.length - 1 > maximumRows) throw new Error(`一次最多导入 ${maximumRows} 件，请拆分清单`);
   const keys = header.cells.map(headerKey);
   if (!keys.includes('title')) {
-    if (keys.some(Boolean) || delimiter !== ',') throw new Error('表格第一行需要“书名”表头，可同时包含作者、出版社、豆瓣链接等列');
+    if (keys.some(Boolean) || delimiter !== ',') throw new Error(missingHeader);
     return null; // A comma in an ordinary book title is not automatically a table.
   }
   const known = keys.filter((key): key is string => Boolean(key));
   if (new Set(known).size !== known.length) throw new Error('表格存在重复字段，请每种资料只保留一列');
   const skipped: BookTable['skipped'] = [];
   const ignored = header.cells.filter((_, index) => !keys[index]);
-  if (ignored.length) skipped.push({ row: header.line, reason: `未导入这些列：${ignored.join('、')}。阅读经历不会从未映射列推断` });
+  if (ignored.length) skipped.push({ row: header.line, reason: `未导入这些列：${ignored.join('、')}。${unmappedNote}` });
+  return { records: input.slice(1), keys, skipped };
+}
+
+export function readBookTable(text: string, maximumRows: number): BookTable | null {
+  const table = readImportTable(text, maximumRows, aliases, '表格第一行需要“书名”表头，可同时包含作者、出版社、豆瓣链接等列', '阅读经历不会从未映射列推断');
+  if (!table) return null;
+  const { keys, skipped } = table;
   const rows: BookTableRow[] = [];
-  for (const record of input.slice(1)) {
+  for (const record of table.records) {
     if (record.cells.length > keys.length) { skipped.push({ row: record.line, reason: '列数超过表头；含逗号的单元格请用双引号包裹' }); continue; }
     const value: Record<string, unknown> = { category: 'book' };
     const details: Record<string, unknown> = {};
