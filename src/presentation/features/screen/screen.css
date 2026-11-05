@@ -27,24 +27,30 @@
 
 /* The detail sheet uses the game's Bento surfaces and a fixed layout for viewing records. */
 .screen-detail-backdrop > .modal-backdrop { z-index: 70; }
-.screen-detail-grid {
+.game-bento-grid.screen-detail-grid {
+  grid-template-columns: repeat(12,minmax(0,1fr));
   grid-template-areas:
-    "cover cover score score"
-    "cover cover arrangement runtime"
-    "cover cover facts facts"
-    "impression impression impression tags"
-    "entries entries history history"
-    "review review review review";
-  grid-template-rows: minmax(254px, auto) minmax(164px, auto) minmax(228px, auto);
+    "cover cover cover cover cover score score score score runtime runtime runtime"
+    "cover cover cover cover cover score score score score release release release"
+    "cover cover cover cover cover arrangement arrangement arrangement arrangement arrangement arrangement arrangement"
+    "cover cover cover cover cover credits credits credits credits sources sources sources"
+    "impression impression impression impression impression impression impression impression tags tags tags tags"
+    "synopsis synopsis synopsis synopsis synopsis synopsis synopsis history history history history history"
+    "entries entries entries entries entries entries entries history history history history history"
+    "review review review review review review review review review review review review";
+  grid-template-rows: minmax(120px,auto) minmax(124px,auto) minmax(128px,auto) minmax(152px,auto);
 }
 .screen-detail-grid > .bento-widget { min-height: 0; }
 .screen-detail-grid > .screen-detail-cover { grid-area: cover; }
 .screen-detail-grid > .screen-detail-score { grid-area: score; }
 .screen-detail-grid > .screen-detail-arrangement { grid-area: arrangement; }
 .screen-detail-grid > .screen-detail-runtime { grid-area: runtime; }
+.screen-detail-grid > .screen-detail-release { grid-area: release; }
+.screen-detail-grid > .screen-detail-credits { grid-area: credits; }
+.screen-detail-grid > .screen-detail-sources { grid-area: sources; }
+.screen-detail-grid > .screen-detail-synopsis { grid-area: synopsis; }
 .screen-detail-grid > .screen-detail-impression { grid-area: impression; }
 .screen-detail-grid > .screen-detail-tags { grid-area: tags; }
-.screen-detail-grid > .screen-detail-facts { grid-area: facts; }
 .screen-detail-grid > .screen-detail-entries { grid-area: entries; }
 .screen-detail-grid > .screen-detail-history { grid-area: history; }
 .screen-detail-grid > .screen-detail-review { grid-area: review; }
@@ -57,7 +63,26 @@
 .screen-detail-score .bento-score-display > span { font-size: clamp(10px, 4cqw, 16px); }
 .screen-detail-score .bento-score-caption { margin-top: 12px; }
 .screen-detail .bento-heading { min-height: 30px; margin-bottom: 12px; }
-.screen-detail-runtime > .bento-widget-body { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.screen-detail :is(.screen-detail-runtime,.screen-detail-release) .bento-heading { margin-bottom: 7px; }
+.screen-detail-runtime .bento-stat-number { font-size: clamp(23px, 3.2vw, 38px); }
+.screen-detail-stat-empty { font-size: 14px; font-weight: 500; opacity: .65; letter-spacing: normal; }
+.screen-detail-release { background: #20242b; }
+.screen-release-year { display: block; font-size: clamp(23px, 3vw, 34px); line-height: 1.12; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.screen-metadata-note { margin: 5px 0 0; font-size: 12px; line-height: 1.5; opacity: .72; overflow-wrap: anywhere; }
+.screen-detail-credits .bento-facts { grid-template-columns: minmax(0,1fr); gap: 9px; }
+.screen-detail-sources .bento-facts { gap: 9px 10px; }
+.screen-detail-sources .bento-facts > :first-child { grid-column: 1 / -1; }
+.screen-detail-sources .bento-source-link { margin-top: 9px; overflow-wrap: anywhere; }
+.screen-detail .screen-detail-synopsis .bento-heading { margin-bottom: 7px; }
+.screen-synopsis-details > summary { display: block; list-style: none; }
+.screen-synopsis-details > summary::-webkit-details-marker { display: none; }
+.screen-synopsis-excerpt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; color: #f4f5f9d9; }
+.screen-synopsis-expand,.screen-synopsis-collapse { display: inline-block; margin-top: 6px; color: #bed2ee; }
+.screen-synopsis-collapse,.screen-synopsis-details[open] :is(.screen-synopsis-excerpt,.screen-synopsis-expand) { display: none; }
+.screen-synopsis-details[open] .screen-synopsis-collapse { display: inline-block; }
+.screen-synopsis-details > p,.screen-synopsis-empty { margin: 6px 0 0; }
+.screen-metadata-fields { display: grid; gap: 11px; }
+.screen-metadata-fields textarea { resize: vertical; }
 .screen-detail .screen-detail-score .bento-heading { margin-bottom: 0; }
 .screen-card-edit {
   flex: 0 0 auto; display: inline-grid; place-items: center; width: 30px; height: 30px;
@@ -65,10 +90,14 @@
 }
 .screen-card-edit:hover,.screen-card-edit:focus-visible { background: #ffffff1d; border-color: currentColor; opacity: 1; }
 .screen-detail :is(a,button,summary):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.screen-detail-kind { display: inline-flex; align-items: center; gap: 8px; opacity: .8; font-size: 11px; }
+.screen-detail-kind { display: inline-flex; align-items: center; gap: 8px; opacity: .8; font-size: 11px; min-width: 0; overflow-wrap: anywhere; }
+.screen-detail-kind > svg { flex: 0 0 auto; }
+.screen-detail .screen-detail-arrangement .bento-heading { margin-bottom: 5px; }
+.screen-identity-actions { display: flex; align-items: center; gap: 6px; }
+.screen-identity-body { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
+.screen-identity-name { min-width: 0; }
 .screen-detail-arrangement h2 { margin: 0; color: inherit; font-size: clamp(22px, 2.2vw, 30px); letter-spacing: -.035em; line-height: 1.28; overflow-wrap: anywhere; }
 .screen-original-title { margin: 5px 0 0; opacity: .67; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.screen-arrangement-body { padding-top: 16px; }
 .screen-arrangement-body > p { margin: 8px 0 0; }
 .screen-current-arrangement {
   display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 32px; padding: 5px 10px;
@@ -87,7 +116,6 @@
 .screen-detail-grid details { font-size: 12px; line-height: 1.8; }
 .screen-detail-grid details summary { cursor: pointer; }
 .screen-detail-grid details p { white-space: pre-wrap; overflow-wrap: anywhere; }
-.screen-detail-facts details { margin-top: 16px; }
 .screen-watch-total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
 .screen-watch-total > span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; opacity: .9; }
 .screen-detail-grid .bento-footprints { gap: 0; }
@@ -105,23 +133,27 @@
 .screen-writing-input { display: block; width: 100%; resize: vertical; }
 
 @media (max-width: 1050px) and (min-width: 701px) {
-  .screen-detail-grid {
-    grid-template-columns: repeat(3,minmax(0,1fr));
+  .game-bento-grid.screen-detail-grid {
+    grid-template-columns: repeat(6,minmax(0,1fr));
     grid-template-areas:
-      "cover score score"
-      "cover arrangement runtime"
-      "facts facts facts"
-      "impression impression tags"
-      "entries entries history"
-      "review review review";
-    grid-template-rows: minmax(188px, auto) minmax(134px, auto);
+      "cover cover score score runtime runtime"
+      "cover cover score score release release"
+      "cover cover arrangement arrangement arrangement arrangement"
+      "credits credits credits sources sources sources"
+      "impression impression impression impression tags tags"
+      "synopsis synopsis synopsis synopsis history history"
+      "entries entries entries entries history history"
+      "review review review review review review";
+    grid-template-rows: minmax(108px,auto) minmax(110px,auto) minmax(122px,auto);
   }
+  .screen-detail-score .bento-score-display strong { font-size: clamp(32px, 28cqw, 86px); }
 }
 @media (max-width: 700px) {
   .detail-dialog-backdrop.screen-detail-backdrop { padding: 14px 10px; }
-  .screen-detail-grid {
-    grid-template-areas: "cover score" "arrangement runtime" "facts facts"
-      "impression impression" "tags tags" "entries entries" "history history" "review review";
+  .game-bento-grid.screen-detail-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    grid-template-areas: "cover score" "arrangement arrangement" "runtime release" "credits credits" "sources sources"
+      "impression impression" "tags tags" "synopsis synopsis" "history history" "entries entries" "review review";
     grid-template-rows: auto;
   }
   .screen-detail-grid > .screen-detail-cover { aspect-ratio: 2 / 3; }
@@ -129,7 +161,9 @@
   .screen-detail-grid > .screen-detail-cover .bento-cover-image { height: 100%; }
   .screen-detail-grid > .screen-detail-score { min-height: 0 !important; padding: 14px; }
   .screen-detail-score .bento-score-display { gap: 5px; }
+  .screen-detail-score .bento-score-display strong { font-size: clamp(32px, 37cqw, 70px); }
   .screen-detail-score .bento-score-caption { font-size: 10px; }
+  .screen-detail :is(.screen-detail-runtime,.screen-detail-release) .bento-heading { gap: 3px; }
   .screen-detail-cover .bento-cover-placeholder strong { font-size: 64px; }
   .screen-detail-impression .bento-impression-text { padding-block: 7px; }
   .screen-detail .bento-footprints { max-height: 280px; }

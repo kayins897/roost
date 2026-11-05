@@ -2,7 +2,8 @@
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), assert = require('node:assert/strict');
 const { _electron: electron } = require('playwright');
 const root = path.resolve(__dirname, '..'), packaged = Boolean(process.argv[2]);
-const output = path.join(root, 'evidence', 'screens-v0434', packaged ? 'packaged' : 'source');
+const version = require('../package.json').version;
+const output = path.join(root, 'evidence', 'screens-v' + version.replaceAll('.', ''), packaged ? 'packaged' : 'source');
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'qiyu-screen-production-')), file = path.join(data, 'library.json');
 fs.mkdirSync(output, { recursive: true });
 const raw = () => fs.readFileSync(file, 'utf8'), stored = () => JSON.parse(raw()), item = id => stored().items.find(value => value.id === id);
@@ -49,6 +50,9 @@ async function submit(name) { await dialog(name).getByRole('button', { name: '�
   await kind('番剧'); await page.getByRole('button', { name: '书籍', exact: true }).click(); await page.getByRole('button', { name: '影视', exact: true }).click(); assert.equal(await page.getByRole('navigation', { name: '影视类型', exact: true }).getByRole('button', { name: /^番剧/ }).getAttribute('aria-pressed'), 'true');
   await kind('电影'); await view('全部'); assert.equal(await page.locator('.screen-work').count(), 6);
   await page.getByRole('button', { name: '列表视图', exact: true }).click(); await page.getByRole('button', { name: '封面视图', exact: true }).click();
+  await open('旧自定片');
+  assert.equal(await dialog('旧自定片').locator('.screen-detail-kind').innerText(), '旧自定类型');
+  await close('旧自定片');
   assert.equal(raw(), untouched); check('三种一级菜单和各自二级菜单，电影独有片单，浏览零写入'); await shot('movie-library');
   await card('旧在看电影').click({ button: 'right' });
   const movieMenu = page.getByRole('menu', { name: '旧在看电影快捷编辑', exact: true });
@@ -56,13 +60,13 @@ async function submit(name) { await dialog(name).getByRole('button', { name: '�
   await page.keyboard.press('Escape'); assert.equal(raw(), untouched);
   await open('旧搁置电影'); await dialog('旧搁置电影').getByRole('button', { name: '更改观看安排' }).click();
   assert.deepEqual(await dialog('旧搁置电影').getByRole('group', { name: '观看安排', exact: true }).getByRole('button').allTextContents(), ['想看', '看过']);
-  await dialog('旧搁置电影').getByRole('button', { name: '编辑影视资料' }).click(); await dialog('影视资料').getByLabel('导演', { exact: true }).fill('资料编辑保留旧状态');
-  await dialog('影视资料').getByRole('button', { name: '保存资料', exact: true }).click(); await close('旧搁置电影');
+  await dialog('旧搁置电影').getByRole('button', { name: '编辑演职员', exact: true }).click(); await dialog('演职员').getByLabel('导演', { exact: true }).fill('资料编辑保留旧状态');
+  await dialog('演职员').getByRole('button', { name: '保存资料', exact: true }).click(); await close('旧搁置电影');
   assert.equal(item('s9').status, 'paused'); assert.equal(item('s9').screenViewing, undefined); assert.equal(item('s8').status, 'active'); assert.equal(item('s4').screenViewing.arrangement, 'abandoned');
   check('电影详情与右键无在看搁置弃看，旧状态不被资料编辑改写');
   await kind('连续剧'); await view('全部'); await shot('series-library');
   await open('星河之间'); await dialog('星河之间').getByRole('button', { name: '编辑观看进度' }).click(); await dialog('观看进度').getByLabel('看到第几集').fill('3'); await submit('观看进度'); assert.equal(item('s1').screenViewing.progress.episode, 3); assert.equal(item('s1').screenViewing.rounds, undefined); assert.equal(item('s1').experienceEntries, undefined); check('季集进度独立保存，不生成看过事实或日志');
-  await dialog('星河之间').getByRole('button', { name: '编辑影视资料' }).click(); await dialog('影视资料').getByLabel('导演', { exact: true }).fill('新导演'); await dialog('影视资料').getByRole('button', { name: '保存资料', exact: true }).click(); await dialog('影视资料').waitFor({ state: 'hidden' }); assert.equal(item('s1').screenDetails.episodeCount, 0); assert.equal(item('s1').screenDetails.futureDetails, true); check('合法0集数及未知资料扩展随编辑保留');
+  await dialog('星河之间').getByRole('button', { name: '编辑演职员', exact: true }).click(); await dialog('演职员').getByLabel('导演', { exact: true }).fill('新导演'); await dialog('演职员').getByRole('button', { name: '保存资料', exact: true }).click(); await dialog('演职员').waitFor({ state: 'hidden' }); assert.equal(item('s1').screenDetails.episodeCount, 0); assert.equal(item('s1').screenDetails.futureDetails, true); check('合法0集数及未知资料扩展随编辑保留');
   await dialog('星河之间').getByRole('button', { name: '添加观看记录' }).click(); await dialog('记录观看').getByLabel(/^实际观看时长/).fill('0'); await dialog('记录观看').getByLabel('这次看了什么').fill('只看了片头'); await submit('记录观看'); assert.equal(item('s1').experienceEntries[0].minutes, 0); assert.equal(item('s1').screenViewing.rounds, undefined); assert.equal(item('s1').screenDetails.durationMinutes, 45); check('实际0分钟日志与45分钟片长区分，不自动标记看完');
   await dialog('星河之间').getByRole('button', { name: '补录看过', exact: true }).click(); await dialog('补录看过').getByLabel('这次看完的感想').fill('第一遍感想'); await submit('补录看过'); assert.equal(item('s1').screenViewing.rounds.length, 1); assert.equal(item('s1').screenViewing.rounds[0].finishedOn, undefined); assert.equal(item('s1').screenViewing.arrangement, 'none'); check('看过可日期未知，结束安排与普通日志各自独立');
   await dialog('星河之间').getByRole('button', { name: '更改观看安排' }).click(); await dialog('星河之间').getByRole('group', { name: '观看安排', exact: true }).getByRole('button', { name: '在看', exact: true }).click();
@@ -104,6 +108,16 @@ async function submit(name) { await dialog(name).getByRole('button', { name: '�
   assert.equal(await editScore.evaluate(node => document.activeElement === node), true);
   check('影视详情独立评分卡右键打开，离开编辑才保存');
   const film = dialog('城市来信');
+  const grid = await film.locator('.screen-detail-grid').evaluate(node => {
+    const bounds = name => {
+      const card = node.querySelector('.screen-detail-' + name);
+      return { top: card.offsetTop, bottom: card.offsetTop + card.offsetHeight, width: card.offsetWidth };
+    };
+    return { cover: bounds('cover'), score: bounds('score'), runtime: bounds('runtime'), release: bounds('release'), title: bounds('arrangement') };
+  });
+  assert.ok(grid.cover.width > grid.score.width && grid.cover.width < grid.score.width + grid.runtime.width);
+  assert.ok(grid.score.top === grid.runtime.top && Math.abs(grid.score.bottom - grid.release.bottom) <= 1 && grid.release.top > grid.runtime.bottom);
+  assert.ok(grid.title.width > grid.score.width && grid.title.top > grid.score.bottom);
   const oldCover = item('s2').coverUrl;
   await film.getByRole('button', { name: '编辑封面', exact: true }).click();
   const coverEditor = dialog('编辑封面');
@@ -120,8 +134,34 @@ async function submit(name) { await dialog(name).getByRole('button', { name: '�
   await film.getByRole('button', { name: /长文观后感.*字/ }).click();
   assert.match(await film.locator('.bento-review-body').innerText(), /留意了配乐/);
   assert.equal(item('s2').impression, '旧感想保留。');
-  await close('城市来信');
   check('封面可独立替换，长文与一句话印象独立编辑');
+  const saveCard = async (card, title, fields) => {
+    await film.locator('.screen-detail-' + card).click({ button: 'right' });
+    const editor = dialog(title);
+    assert.equal(await editor.locator('input, textarea, select').count(), fields.length);
+    for (const [label, value] of fields) if (value !== undefined) await editor.getByLabel(label, { exact: true }).fill(value);
+    await editor.getByRole('button', { name: '保存资料', exact: true }).click();
+    await editor.waitFor({ state: 'hidden' });
+  };
+  await saveCard('runtime', '片长', [['片长（分钟）', '0']]);
+  await saveCard('release', '发行信息', [['发行年份', '2020'], ['地区（逗号分隔）', '日本，法国']]);
+  await saveCard('sources', '来源与评分', [['观看来源（逗号分隔）', '影院'], ['资料来源', '豆瓣'], ['来源链接', 'https://example.com/film'], ['豆瓣评分', '8.8']]);
+  const beforeSynopsis = item('s2');
+  await saveCard('synopsis', '作品简介', [['简介', '他带着那封信回到了城市。']]);
+  const afterSynopsis = item('s2');
+  assert.deepEqual(afterSynopsis, {
+    ...beforeSynopsis, updatedAt: afterSynopsis.updatedAt,
+    screenDetails: { ...beforeSynopsis.screenDetails, description: '他带着那封信回到了城市。' },
+  });
+  assert.equal(afterSynopsis.screenDetails.durationMinutes, 0);
+  assert.equal(afterSynopsis.year, '2020');
+  assert.equal(afterSynopsis.screenDetails.doubanScore, 8.8);
+  assert.equal(afterSynopsis.personalScore, 1.1);
+  assert.equal(afterSynopsis.sourceUrl, 'https://example.com/film');
+  await film.getByText('展开简介', { exact: true }).click();
+  assert.equal(await film.locator('.screen-synopsis-details').getAttribute('open'), '');
+  await close('城市来信');
+  check('片长、发行、来源与简介可逐卡编辑，0值和其他卡片原值保留');
   await page.getByRole('button', { name: '管理影视标签' }).click(); await dialog('管理影视标签').getByLabel('标签名称', { exact: true }).fill('周末'); await dialog('管理影视标签').getByLabel('星河之间', { exact: true }).check(); await dialog('管理影视标签').getByRole('button', { name: '保存标签', exact: true }).click(); assert.ok(item('s1').tags.includes('周末')); assert.deepEqual(item('s6').tags, ['剧情']); await dialog('管理影视标签').getByRole('button', { name: '完成', exact: true }).click(); check('标签可创建并分配，隐藏作品保留');
   await page.getByRole('button', { name: '编辑片单周末片单', exact: true }).click(); await dialog('编辑主题片单').getByLabel('主题与想法').fill('留给周末'); await dialog('编辑主题片单').getByRole('button', { name: '保存片单', exact: true }).click(); assert.ok(stored().screenCollections[0].screenIds.includes('missing')); assert.ok(stored().screenCollections[0].screenIds.includes('s1')); assert.equal(await dialog('编辑主题片单').count(), 0); assert.equal(stored().screenCollections[0].extension, true); check('电影片单编辑保留历史剧集、失联成员与未知扩展');
   await card('下一场雨').click({ button: 'right' }); await page.getByRole('menu', { name: '下一场雨快捷编辑', exact: true }).getByRole('menuitem', { name: '移到回收站', exact: true }).click(); assert.ok(item('s5').removedAt); await page.getByRole('button', { name: '回收站', exact: true }).click(); assert.equal(await page.locator('.screen-menu').count(), 0); await card('下一场雨').click({ button: 'right' }); await page.getByRole('menu', { name: '下一场雨快捷编辑', exact: true }).getByRole('menuitem', { name: '恢复作品', exact: true }).click(); await page.getByRole('button', { name: '回收站', exact: true }).click(); assert.equal(await page.locator('.screen-menu').count(), 0); assert.equal(item('s5').removedAt, undefined); check('移入、退出、恢复回收站不复活旧菜单');
@@ -139,5 +179,5 @@ async function submit(name) { await dialog(name).getByRole('button', { name: '�
   check('1024与390宽详情无横向溢出，紧凑筛选可打开关闭');
   assert.deepEqual(item('b1'), fixture.items.find(i => i.id === 'b1')); assert.deepEqual(item('g1'), fixture.items.find(i => i.id === 'g1')); assert.deepEqual(stored().futureRoot, { keep: true }); assert.equal(item('s1').screenViewing.progress.futureProgress, true); check('原有游戏、书籍及根和嵌套未知扩展保留');
   const persisted = raw(); await app.close(); await launch(); assert.equal(raw(), persisted); await kind('连续剧'); await view('全部'); await open('星河之间'); assert.ok((await dialog('星河之间').textContent()).includes('第二遍感想')); assert.deepEqual(errors, []); check('真正退出重启后读回一致，零页面错误');
-  fs.writeFileSync(path.join(output, 'validation.json'), JSON.stringify({ passed: true, checks, errors, dataDirectory: data, version: require('../package.json').version, executable: process.argv[2] || 'source Electron' }, null, 2));
+  fs.writeFileSync(path.join(output, 'validation.json'), JSON.stringify({ passed: true, checks, errors, dataDirectory: data, version, executable: process.argv[2] || 'source Electron' }, null, 2));
 })().catch(async error => { console.error(error); if (page) { await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {}); fs.writeFileSync(path.join(output, 'failure.txt'), await page.locator('body').innerText().catch(() => '')); } process.exitCode = 1; }).finally(async () => { if (app) await app.close().catch(() => {}); });

@@ -1,9 +1,9 @@
 import { t } from '../../i18n/index.ts';
-import { ChevronDown, Clock3, Film, Heart, Pencil, Plus, Tags, Trash2, X } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, Clock3, Film, Heart, Tags, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { isScreenSeries, screenHasWatched, screenProgressLabel, screenRounds, type ScreenAction } from '../../../domain/screens.ts';
 import { screenArrangementOptions, screenDisplayArrangement, screenKind } from '../../../domain/screenConsumption.ts';
-import type { ExperienceEntry, MediaItem, ScreenArrangement, ScreenViewingRound } from '../../../domain/types.ts';
+import type { ExperienceEntry, ScreenArrangement, ScreenViewingRound } from '../../../domain/types.ts';
 import { QuickEditor } from '../../RecordEditors.tsx';
 import { InlineScoreControl, type InlineScoreControlHandle } from '../../components/InlineScoreControl.tsx';
 import { Modal } from '../../components/MediaPrimitives.tsx';
@@ -13,50 +13,15 @@ import { BentoArtwork } from '../detail/BentoReadCards.tsx';
 import type { DetailPanelProps } from '../detail/DetailPanel.tsx';
 import { usePersonalWriting } from '../detail/usePersonalWriting.ts';
 import { ScreenActionForm, type ScreenFormKind } from './ScreenActionForm.tsx';
-import { ScreenFactsForm } from './ScreenFactsForm.tsx';
-import { facetValues, formatMinutes, viewingLabel, viewingMinutes } from './screenView.ts';
+import { CardEdit, ScreenDetailCard, ScreenMetadataCard } from './ScreenDetailCards.tsx';
+import { ScreenFactsForm, type ScreenFactsScope } from './ScreenFactsForm.tsx';
+import { formatMinutes, viewingLabel, viewingMinutes } from './screenView.ts';
 import '../books/books.css';
 import '../detail/bento.css';
 import './screen.css';
 
 export interface ScreenDetailProps extends DetailPanelProps { onAction: (action: ScreenAction) => boolean; catalogTags?: string[] }
-type Edit = { kind: ScreenFormKind; round?: ScreenViewingRound; entry?: ExperienceEntry } | 'cover' | 'score' | 'impression' | 'review' | 'facts' | 'tags' | null;
-
-function ScreenDetailCard({ card, tone, edit, children }: {
-  card: string; tone?: string; edit?: () => void; children: ReactNode;
-}) {
-  return <section className={['bento-widget', tone && 'bento-widget--' + tone, 'screen-detail-' + card].filter(Boolean).join(' ')}
-    onContextMenu={edit && (event => { event.preventDefault(); edit(); })}
-    onKeyDown={edit && (event => {
-      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); edit(); }
-    })}>
-    <div className="bento-widget-body">{children}</div>
-  </section>;
-}
-
-function CardEdit({ label, onClick, add = false }: { label: string; onClick: () => void; add?: boolean }) {
-  return <button type="button" className="screen-card-edit" aria-label={t(label)} title={t(label)} onClick={onClick}>
-    {add ? <Plus size={16} /> : <Pencil size={14} />}
-  </button>;
-}
-
-function ScreenFacts({ item }: { item: MediaItem }) {
-  const facts = item.screenDetails;
-  const type = item.subcategory;
-  const rows = [
-    [t('导演'), item.creator], [t('发行年份'), item.year],
-    [t('类型'), type && ['电影', '连续剧', '番剧', '动漫'].includes(type) ? t(type) : type],
-    ...(isScreenSeries(item) ? [[t('总集数'), facts?.episodeCount === undefined ? '' : t('{0} 集', [facts.episodeCount])]] : []),
-    [t('豆瓣评分'), facts?.doubanScore === undefined ? t('未评分') : t('{0} 分', [facts.doubanScore.toFixed(1)])],
-    [t('演员'), facts?.actors?.join(' · ')], [t('地区'), facts?.regions?.join(' · ')],
-    [t('观看来源'), facts?.viewingSources?.join(' · ')], [t('资料来源'), facetValues(item, 'metadata')[0]],
-  ];
-  return <>
-    <dl className="bento-facts">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || t('未记录')}</dd></div>)}</dl>
-    {facts?.description && <details><summary>{t('简介')}</summary><p>{facts.description}</p></details>}
-    {item.sourceUrl && <a className="bento-source-link" href={item.sourceUrl} target="_blank" rel="noreferrer">{t('查看来源页面 ↗')}</a>}
-  </>;
-}
+type Edit = { kind: ScreenFormKind; round?: ScreenViewingRound; entry?: ExperienceEntry } | { facts: ScreenFactsScope } | 'cover' | 'score' | 'impression' | 'review' | 'tags' | null;
 
 export function ScreenDetail(props: ScreenDetailProps) {
   const { item, onAction, onPatch, onClose, guardRef } = props;
@@ -98,7 +63,7 @@ export function ScreenDetail(props: ScreenDetailProps) {
   const openScore = () => edit('score');
   const openImpression = () => edit('impression');
   const openReview = () => edit('review');
-  const openFacts = () => edit('facts');
+  const editFacts = (facts: ScreenFactsScope) => locked ? undefined : () => edit({ facts });
   const openTags = () => edit('tags');
   const addRound = () => edit({ kind: 'round' });
   const addEntry = () => edit({ kind: 'entry' });
@@ -118,30 +83,32 @@ export function ScreenDetail(props: ScreenDetailProps) {
           <p className="bento-score-caption">{t(personalScore === undefined ? '尚未评分' : '我的个人评价')}</p>
         </ScreenDetailCard>
 
-        <ScreenDetailCard card="arrangement" edit={locked ? undefined : toggleArrangement}>
-          <div className="bento-heading"><span className="screen-detail-kind"><Film size={15} />{t(kind === 'movie' ? '电影' : kind === 'anime' ? '番剧' : '连续剧')}</span>
-            {!locked && <button type="button" className="bento-favorite" aria-pressed={item.favorite} aria-label={item.favorite ? t('取消喜欢') : t('喜欢这部作品')} onClick={() => onPatch({ favorite: !item.favorite })}><Heart size={16} fill={item.favorite ? 'currentColor' : 'none'} /></button>}
+        <ScreenDetailCard card="arrangement" edit={editFacts('identity')}>
+          <div className="bento-heading">
+            <span className="screen-detail-kind"><Film size={15} />{t(item.subcategory || (kind === 'movie' ? '电影' : kind === 'anime' ? '番剧' : '连续剧'))}</span>
+            {!locked && <div className="screen-identity-actions">
+              <CardEdit label="编辑作品名称与类型" onClick={() => edit({ facts: 'identity' })} />
+              <button type="button" className="bento-favorite" aria-pressed={item.favorite} aria-label={item.favorite ? t('取消喜欢') : t('喜欢这部作品')} onClick={() => onPatch({ favorite: !item.favorite })}><Heart size={16} fill={item.favorite ? 'currentColor' : 'none'} /></button>
+            </div>}
           </div>
-          <h2>{item.title}</h2>
-          {item.originalTitle && item.originalTitle !== item.title && <p className="screen-original-title">{item.originalTitle}</p>}
-          <div className="screen-arrangement-body" data-screen-state={arrangement}>
-            <button type="button" className="screen-current-arrangement" aria-label={t('更改观看安排')} aria-expanded={statesOpen} disabled={locked} onClick={toggleArrangement}><strong>{t(viewingLabel(item))}</strong>{!locked && <ChevronDown size={15} />}</button>
-            {hasWatched && arrangement !== 'none' && <p className="bento-muted">{t('已看过，当前仍可安排重看。')}</p>}
-            {statesOpen && <div className="screen-arrangements" role="group" aria-label={t('观看安排')}>{screenArrangementOptions(item).map(({ value, label }) => <button type="button" key={value} data-screen-state={value} aria-pressed={value === arrangement && (value !== 'none' || hasWatched)} onClick={() => arrange(value)}>{t(label)}</button>)}</div>}
+          <div className="screen-identity-body">
+            <div className="screen-identity-name"><h2>{item.title}</h2>
+              {item.originalTitle && item.originalTitle !== item.title && <p className="screen-original-title">{item.originalTitle}</p>}
+            </div>
+            <div className="screen-arrangement-body" data-screen-state={arrangement}>
+              <button type="button" className="screen-current-arrangement" aria-label={t('更改观看安排')} aria-expanded={statesOpen} disabled={locked} onClick={toggleArrangement}><strong>{t(viewingLabel(item))}</strong>{!locked && <ChevronDown size={15} />}</button>
+              {hasWatched && arrangement !== 'none' && <p className="bento-muted">{t('已看过，当前仍可安排重看。')}</p>}
+              {statesOpen && <div className="screen-arrangements" role="group" aria-label={t('观看安排')}>{screenArrangementOptions(item).map(({ value, label }) => <button type="button" key={value} data-screen-state={value} aria-pressed={value === arrangement && (value !== 'none' || hasWatched)} onClick={() => arrange(value)}>{t(label)}</button>)}</div>}
+            </div>
           </div>
           {isScreenSeries(item) && <div className="screen-progress"><span>{t(screenProgressLabel(item))}</span>{!locked && <CardEdit label="编辑观看进度" onClick={() => edit({ kind: 'progress' })} />}</div>}
           {error && <p className="bento-context-error" role="alert">{t(error)}</p>}
         </ScreenDetailCard>
 
-        <ScreenDetailCard card="runtime" edit={locked ? undefined : openFacts}>
-          <div className="bento-heading"><h3>{t(kind === 'movie' ? '片长' : '单集片长')}</h3><Clock3 size={16} /></div>
-          <strong className="bento-stat-number">{item.screenDetails?.durationMinutes === undefined ? t('未记录') : <>{item.screenDetails.durationMinutes}<small>{t('分钟')}</small></>}</strong>
-        </ScreenDetailCard>
-
-        <ScreenDetailCard card="facts" tone="facts" edit={locked ? undefined : openFacts}>
-          <div className="bento-heading"><h3>{t('作品资料')}</h3>{!locked && <CardEdit label="编辑影视资料" onClick={openFacts} />}</div>
-          <ScreenFacts item={item} />
-        </ScreenDetailCard>
+        <ScreenMetadataCard card="runtime" item={item} edit={editFacts('runtime')} />
+        <ScreenMetadataCard card="release" item={item} edit={editFacts('release')} />
+        <ScreenMetadataCard card="credits" item={item} edit={editFacts('credits')} />
+        <ScreenMetadataCard card="sources" item={item} edit={editFacts('sources')} />
 
         <ScreenDetailCard card="impression" tone="impression" edit={locked ? undefined : openImpression}>
           <div className="bento-heading"><h3>{t('一句话印象')}</h3>{!locked && <CardEdit label="编辑一句话印象" onClick={openImpression} />}</div>
@@ -151,6 +118,21 @@ export function ScreenDetail(props: ScreenDetailProps) {
         <ScreenDetailCard card="tags" tone="tags" edit={locked ? undefined : openTags}>
           <div className="bento-heading"><h3>{t('标签')}</h3>{locked ? <Tags size={16} /> : <CardEdit label="编辑影视标签" onClick={openTags} />}</div>
           <div className="bento-tag-row"><div>{item.tags.length ? item.tags.map(tag => <button type="button" key={tag} onClick={() => { if (flush()) props.onFilterTag(tag); }}>{tag}</button>) : <span className="bento-muted">{t('还没有标签')}</span>}</div></div>
+        </ScreenDetailCard>
+
+        <ScreenMetadataCard card="synopsis" item={item} edit={editFacts('synopsis')} />
+
+        <ScreenDetailCard card="history" edit={locked ? undefined : addRound}>
+          <div className="bento-heading"><h3>{historyTitle}</h3>{!locked && <CardEdit label="补录看过" onClick={addRound} add />}</div>
+          {!rounds.length && <p className="bento-muted">{hasWatched ? t('历史数据已标记看过，实际看完日期未记录。') : t('每次看完可以留一份感想，重看会保留以前的记录。')}</p>}
+          <ol className="bento-footprints">{[...rounds].reverse().map(round => <li key={round.id}>
+            <header><strong>{round.finishedOn || t('看完日期未记录')}</strong>{!locked && <div>
+              <CardEdit label="编辑这次看过记录" onClick={() => edit({ kind: 'round', round })} />
+              <button type="button" className="screen-card-edit" aria-label={t('删除这次看过记录')} onClick={() => remove({ type: 'remove-round', id: round.id })}><Trash2 size={13} /></button>
+            </div>}</header>
+            <p>{round.impression || t('未填写感想')}</p>
+            {round.review && <details><summary>{t('这次的观后感')}</summary><p>{round.review}</p></details>}
+          </li>)}</ol>
         </ScreenDetailCard>
 
         <ScreenDetailCard card="entries" tone="footprint" edit={locked ? undefined : addEntry}>
@@ -163,19 +145,6 @@ export function ScreenDetail(props: ScreenDetailProps) {
               <button type="button" className="screen-card-edit" aria-label={t('删除这条观看记录')} onClick={() => remove({ type: 'remove-entry', id: entry.id })}><Trash2 size={13} /></button>
             </div>}</header>
             {entry.note && <p>{entry.note}</p>}
-          </li>)}</ol>
-        </ScreenDetailCard>
-
-        <ScreenDetailCard card="history" edit={locked ? undefined : addRound}>
-          <div className="bento-heading"><h3>{historyTitle}</h3>{!locked && <CardEdit label="补录看过" onClick={addRound} add />}</div>
-          {!rounds.length && <p className="bento-muted">{hasWatched ? t('历史数据已标记看过，实际看完日期未记录。') : t('每次看完可以留一份感想，重看会保留以前的记录。')}</p>}
-          <ol className="bento-footprints">{[...rounds].reverse().map(round => <li key={round.id}>
-            <header><strong>{round.finishedOn || t('看完日期未记录')}</strong>{!locked && <div>
-              <CardEdit label="编辑这次看过记录" onClick={() => edit({ kind: 'round', round })} />
-              <button type="button" className="screen-card-edit" aria-label={t('删除这次看过记录')} onClick={() => remove({ type: 'remove-round', id: round.id })}><Trash2 size={13} /></button>
-            </div>}</header>
-            <p>{round.impression || t('未填写感想')}</p>
-            {round.review && <details><summary>{t('这次的观后感')}</summary><p>{round.review}</p></details>}
           </li>)}</ol>
         </ScreenDetailCard>
 
@@ -197,8 +166,8 @@ export function ScreenDetail(props: ScreenDetailProps) {
       <textarea className="screen-writing-input" rows={editing === 'impression' ? 3 : 9} aria-label={t(editing === 'impression' ? '影视一句话印象' : '长文观后感')} maxLength={editing === 'impression' ? 80 : undefined} value={writing.draft[editing]} onChange={event => writing.edit(editing, event.target.value)} onBlur={writing.save} />
       {(writing.validation || writing.saveError) && <p className="books-danger" role="alert">{t(writing.validation || writing.saveError)}</p>}
     </Modal>}
-    {editing === 'facts' && <ScreenFactsForm item={item} onClose={() => setEditing(null)} onSave={onPatch} />}
+    {editing && typeof editing === 'object' && 'facts' in editing && <ScreenFactsForm key={editing.facts} scope={editing.facts} item={item} onClose={() => setEditing(null)} onSave={onPatch} />}
     {editing === 'tags' && <QuickEditor mode="tags" item={item} availableItems={props.availableItems} catalogTags={props.catalogTags} onClose={() => setEditing(null)} onSave={onPatch} />}
-    {editing && typeof editing === 'object' && <ScreenActionForm key={editing.kind + '-' + (editing.round?.id ?? editing.entry?.id ?? 'new')} kind={editing.kind} item={item} initialRound={editing.round} initialEntry={editing.entry} onClose={() => setEditing(null)} onSave={onAction} />}
+    {editing && typeof editing === 'object' && 'kind' in editing && <ScreenActionForm key={editing.kind + '-' + (editing.round?.id ?? editing.entry?.id ?? 'new')} kind={editing.kind} item={item} initialRound={editing.round} initialEntry={editing.entry} onClose={() => setEditing(null)} onSave={onAction} />}
   </div>;
 }
