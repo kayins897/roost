@@ -208,6 +208,28 @@ test('允许来源内的安全跳转，限制循环跳转次数', async () => {
   await assert.rejects(lookupMetadata(bookUrl, { fetch: fake(() => { calls++; return new Response(null, { status: 302, headers: { location: bookUrl } }); }) }), /跳转过多/);
   assert.equal(calls, 4);
 });
+
+test('豆瓣详情接受同一作品的参数跳转，拒绝不同编号或不同板块的详情', async () => {
+  const sameSubject = bookUrl + '?from=canonical#info';
+  const requests: string[] = [];
+  const [detail] = await lookupMetadata(bookUrl, { fetch: fake(url => {
+    requests.push(url);
+    if (url === bookUrl) return new Response(null, { status: 302, headers: { location: sameSubject } });
+    return html('<h1>红楼梦</h1>');
+  }) });
+  assert.deepEqual(requests, [bookUrl, sameSubject]);
+  assert.equal(detail.externalId, '1007305');
+  assert.equal(detail.sourceUrl, bookUrl);
+  for (const location of ['https://book.douban.com/subject/4913064/', 'https://movie.douban.com/subject/1007305/']) {
+    requests.length = 0;
+    await assert.rejects(lookupMetadata(bookUrl, { fetch: fake(url => {
+      requests.push(url);
+      return new Response(null, { status: 302, headers: { location } });
+    }) }), /跳转到了其他作品/);
+    assert.deepEqual(requests, [bookUrl]);
+  }
+});
+
 test('HTTP 限流与验证码显式提示，不尝试绕过', async () => {
   for (const status of [401, 403, 418, 429]) await assert.rejects(lookupMetadata(movieUrl, { fetch: fake(() => new Response(null, { status })) }), /验证或限制/);
   await assert.rejects(lookupMetadata(steamUrl, { fetch: fake(() => new Response(null, { status: 503 })) }), /HTTP 503/);

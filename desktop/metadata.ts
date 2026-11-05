@@ -76,7 +76,11 @@ async function request(value: string, kind: FetchKind, options: MetadataOptions)
         const destination = response.headers.get('location');
         await response.body?.cancel();
         if (!destination || redirects === 3) throw new Error('来源页面跳转过多，请使用作品的直接链接');
-        url = allowedUrl(new URL(destination, url).toString(), kind);
+        const next = allowedUrl(new URL(destination, url).toString(), kind);
+        if (kind === 'douban' && (next.hostname !== url.hostname || next.pathname !== url.pathname)) {
+          throw new Error('豆瓣详情跳转到了其他作品，未采用跳转后的资料。');
+        }
+        url = next;
         continue;
       }
       if ([401, 403, 418, 429].includes(response.status)) { await response.body?.cancel(); throw new Error(BLOCKED); }
