@@ -160,6 +160,7 @@ test('豆瓣建议列表仅跟随当前板块的搜索跳转', async () => {
 test('豆瓣建议列表识别限流、验证页面、无效载荷和过大响应', async () => {
   await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => new Response(null, { status: 429 })) }), /验证或限制/);
   await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => html('<h1>安全验证</h1>')) }), /验证或限制/);
+  await assert.rejects(lookupMetadata(movieUrl, { fetch: fake(() => { throw new Error('Redirect was cancelled'); }) }), /验证或限制/);
   await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => json({ items: [] })) }), /无法识别的搜索结果/);
   await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => new Response(' '.repeat(128 * 1024 + 1), { headers: { 'content-type': 'text/plain' } })) }), /内容过大/);
 });

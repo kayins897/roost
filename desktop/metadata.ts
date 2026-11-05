@@ -103,6 +103,10 @@ async function request(value: string, kind: FetchKind, options: MetadataOptions)
     throw new Error('来源页面跳转过多');
   } catch (error) {
     if (abort.signal.aborted) throw new Error('连接来源超时，请检查网络后重试，也可以手动收录。');
+    if ((kind === 'douban' || isDoubanSearch(kind)) && error instanceof Error && error.message === 'Redirect was cancelled') {
+      // Chromium can reject a manual redirect before exposing the response headers.
+      throw new Error(BLOCKED);
+    }
     if (error instanceof TypeError) throw new Error('无法连接来源，请检查网络后重试，也可以手动收录。');
     throw error;
   } finally { clearTimeout(timer); }
