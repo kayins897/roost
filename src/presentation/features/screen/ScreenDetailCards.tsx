@@ -1,27 +1,20 @@
-import { Clock3, Pencil, Plus } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Clock3 } from 'lucide-react';
+import type { ComponentProps, ReactNode } from 'react';
 import { isScreenSeries } from '../../../domain/screens.ts';
 import type { MediaItem } from '../../../domain/types.ts';
 import { t } from '../../i18n/index.ts';
+import { BentoCardAction, BentoDetailCard } from '../detail/BentoDetailCard.tsx';
 import type { ScreenFactsScope } from './ScreenFactsForm.tsx';
 import { facetValues } from './screenView.ts';
 
 export function ScreenDetailCard({ card, tone, edit, children }: {
   card: string; tone?: string; edit?: () => void; children: ReactNode;
 }) {
-  return <section className={['bento-widget', tone && 'bento-widget--' + tone, 'screen-detail-' + card].filter(Boolean).join(' ')}
-    onContextMenu={edit && (event => { event.preventDefault(); edit(); })}
-    onKeyDown={edit && (event => {
-      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); edit(); }
-    })}>
-    <div className="bento-widget-body">{children}</div>
-  </section>;
+  return <BentoDetailCard className={'screen-detail-' + card} tone={tone} edit={edit}>{children}</BentoDetailCard>;
 }
 
-export function CardEdit({ label, onClick, add = false }: { label: string; onClick: () => void; add?: boolean }) {
-  return <button type="button" className="screen-card-edit" aria-label={t(label)} title={t(label)} onClick={onClick}>
-    {add ? <Plus size={16} /> : <Pencil size={14} />}
-  </button>;
+export function CardEdit(props: Omit<ComponentProps<typeof BentoCardAction>, 'className'>) {
+  return <BentoCardAction {...props} className="screen-card-edit" />;
 }
 
 function FactsList({ rows }: { rows: Array<[string, string | undefined]> }) {

@@ -44,11 +44,11 @@ const sections: Record<BookFactsScope, { title: string; fields: Field[] }> = {
   sources: { title: '阅读来源', fields: [
     { key: 'readingSources', label: '阅读来源（逗号分隔）' },
     { key: 'metadataSource', label: '资料来源' },
+    { key: 'douban', label: '豆瓣评分' },
   ] },
   synopsis: { title: '简介', fields: [{ key: 'description', label: '简介' }] },
   score: { title: '评分', fields: [
     { key: 'score', label: '我的评分' },
-    { key: 'douban', label: '豆瓣评分' },
   ] },
 };
 
@@ -81,6 +81,13 @@ export function BookFactsForm({ scope, item, onClose, onSave }: {
     if (!dirty) { onClose(); return; }
     const patch: Partial<MediaItem> = {};
     const details: Partial<BookDetails> = {};
+    const score = readScore(draft.score);
+    const douban = readScore(draft.douban);
+    if ((changed('score') && score !== undefined && !isPersonalScore(score)) ||
+      (changed('douban') && douban !== undefined && !isPersonalScore(douban))) {
+      setError('评分应为 0–10 分，最多一位小数；未评分请留空。');
+      return;
+    }
 
     if (scope === 'identity') {
       if (!draft.title.trim()) { setError('书名不能为空。'); return; }
@@ -99,18 +106,11 @@ export function BookFactsForm({ scope, item, onClose, onSave }: {
         details.readingSources = [...new Set(sources)];
       }
       if (changed('metadataSource')) details.metadataSource = draft.metadataSource.trim();
+      if (changed('douban')) details.doubanScore = douban;
     } else if (scope === 'synopsis') {
       if (changed('description')) details.description = draft.description;
-    } else {
-      const score = readScore(draft.score);
-      const douban = readScore(draft.douban);
-      if ((changed('score') && score !== undefined && !isPersonalScore(score)) ||
-        (changed('douban') && douban !== undefined && !isPersonalScore(douban))) {
-        setError('评分应为 0–10 分，最多一位小数；未评分请留空。');
-        return;
-      }
-      if (changed('score')) patch.personalScore = score;
-      if (changed('douban')) details.doubanScore = douban;
+    } else if (changed('score')) {
+      patch.personalScore = score;
     }
 
     if (Object.keys(details).length) patch.bookDetails = { ...item.bookDetails, ...details };

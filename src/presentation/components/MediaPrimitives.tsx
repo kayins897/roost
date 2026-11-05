@@ -39,8 +39,8 @@ export function GameStateIcon({ state, size = 16 }: { state: GamePlayState; size
   return <Bookmark size={size} strokeWidth={2.2} />;
 }
 
-export function Modal({ title, displayTitle = title, description, onClose, children, wide = false, className = '', headingActions, initialFocus, panelRef }: {
-  title: string; displayTitle?: string; description?: string; onClose: () => void; children: ReactNode; wide?: boolean; className?: string; headingActions?: ReactNode;
+export function Modal({ title, description, onClose, children, wide = false, className = '', headingActions, initialFocus, panelRef }: {
+  title: string; description?: string; onClose: () => void; children: ReactNode; wide?: boolean; className?: string; headingActions?: ReactNode;
   initialFocus?: (panel: HTMLElement) => HTMLElement | null; panelRef?: RefObject<HTMLElement | null>;
 }) {
   const defaultPanel = useRef<HTMLElement>(null);
@@ -49,7 +49,7 @@ export function Modal({ title, displayTitle = title, description, onClose, child
   return (
     <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
       <section ref={panel} className={`modal ${wide ? 'modal--wide' : ''} ${className}`} data-glass="modal" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="modal-heading"><div><h2>{displayTitle}</h2>{description && <p>{description}</p>}</div>{headingActions}<button className="icon-button" onClick={onClose} aria-label={t("关闭")}><X size={19} /></button></div>
+        <div className="modal-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{headingActions}<button className="icon-button" onClick={onClose} aria-label={t("关闭")}><X size={19} /></button></div>
         {children}
       </section>
     </div>

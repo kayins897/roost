@@ -4,6 +4,8 @@
 
 [下载免安装版](https://github.com/kayins897/roost/releases/tag/v0.4.36) · [更新说明](CHANGELOG.md) · [本版验收步骤](docs/release/验收步骤-0.4.36.md) · [开发接手指南](docs/process/README.md)
 
+PC 本地候选 **v0.4.41** 让书籍详情沿用游戏、影视的 Bento 卡片，独立展示封面与个人评分。见 [候选版验收步骤](docs/release/验收步骤-0.4.41.md)。
+
 PC 本地候选 **v0.4.40** 重排书籍详情，集中展示封面、书名和阅读状态，并提供独立资料卡和阅读记录。见 [候选版验收步骤](docs/release/验收步骤-0.4.40.md)。
 
 PC 本地候选 **v0.4.39** 将影视资料拆成多张可单独编辑的卡片，并强化大小错落的详情布局。见 [候选版验收步骤](docs/release/验收步骤-0.4.39.md)。

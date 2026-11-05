@@ -84,11 +84,6 @@
 .screen-metadata-fields { display: grid; gap: 11px; }
 .screen-metadata-fields textarea { resize: vertical; }
 .screen-detail .screen-detail-score .bento-heading { margin-bottom: 0; }
-.screen-card-edit {
-  flex: 0 0 auto; display: inline-grid; place-items: center; width: 30px; height: 30px;
-  border: 1px solid transparent; border-radius: 50%; color: inherit; opacity: .8;
-}
-.screen-card-edit:hover,.screen-card-edit:focus-visible { background: #ffffff1d; border-color: currentColor; opacity: 1; }
 .screen-detail :is(a,button,summary):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .screen-detail-kind { display: inline-flex; align-items: center; gap: 8px; opacity: .8; font-size: 11px; min-width: 0; overflow-wrap: anywhere; }
 .screen-detail-kind > svg { flex: 0 0 auto; }
