@@ -117,37 +117,39 @@ export function BookDetail(props: BookDetailProps) {
         ]} />
       </BookDetailCard>
 
-      <BookDetailSynopsis description={facts?.description} onEdit={editor({ facts: 'synopsis' })} />
-
-      <BookDetailCard name="plan" title="阅读计划" onEdit={editor({ kind: 'plan' })} action={editAction('编辑阅读计划', { kind: 'plan' })}>
-        {plan?.reason ? <p className="books-detail-prose">{plan.reason}</p> : <p className="books-detail-empty">{t('还没有写下想读的理由')}</p>}
-        {plan?.targetDate && <p className="books-detail-date">{t('计划于')} {plan.targetDate}</p>}
-      </BookDetailCard>
-
-      <BookDetailCard name="writing" title="一句话感想" onEdit={editor('impression')} action={editAction('编辑一句话感想', 'impression')}>
-        <p className={writing.draft.impression ? 'books-detail-quote' : 'books-detail-empty'}>
-          {writing.draft.impression || t('读过之后，留下属于自己的感受。')}
-        </p>
-      </BookDetailCard>
-
-      <BookDetailCard name="sources" title="来源" onEdit={editor({ facts: 'sources' })} action={editAction('编辑书籍来源', { facts: 'sources' })}>
-        <BookDetailFacts fields={[
-          { label: '阅读来源', value: facts?.readingSources?.join(' · ') },
-          { label: '资料来源', value: metadataSource === '未记录' ? undefined : metadataSource },
-        ]} />
-        {item.sourceUrl && <a className="books-detail-more" href={item.sourceUrl} target="_blank" rel="noreferrer">
-          {t('查看资料来源')}<ExternalLink size={13} />
-        </a>}
-      </BookDetailCard>
+      <div className="books-detail-editorial">
+        <div className="books-detail-editorial-main">
+          <BookDetailSynopsis description={facts?.description} onEdit={editor({ facts: 'synopsis' })} />
+          <BookDetailCard name="writing" title="一句话感想" onEdit={editor('impression')} action={editAction('编辑一句话感想', 'impression')}>
+            <p className={writing.draft.impression ? 'books-detail-quote' : 'books-detail-empty'}>
+              {writing.draft.impression || t('读过之后，留下属于自己的感受。')}
+            </p>
+          </BookDetailCard>
+        </div>
+        <div className="books-detail-editorial-side">
+          <BookDetailCard name="plan" title="阅读计划" onEdit={editor({ kind: 'plan' })} action={editAction('编辑阅读计划', { kind: 'plan' })}>
+            {plan?.reason ? <p className="books-detail-prose">{plan.reason}</p> : <p className="books-detail-empty">{t('还没有写下想读的理由')}</p>}
+            {plan?.targetDate && <p className="books-detail-date">{t('计划于')} {plan.targetDate}</p>}
+          </BookDetailCard>
+          <BookDetailCard name="sources" title="来源" onEdit={editor({ facts: 'sources' })} action={editAction('编辑书籍来源', { facts: 'sources' })}>
+            <BookDetailFacts fields={[
+              { label: '阅读来源', value: facts?.readingSources?.join(' · ') },
+              { label: '资料来源', value: metadataSource === '未记录' ? undefined : metadataSource },
+            ]} />
+            {item.sourceUrl && <a className="books-detail-more" href={item.sourceUrl} target="_blank" rel="noreferrer">
+              {t('查看资料来源')}<ExternalLink size={13} />
+            </a>}
+          </BookDetailCard>
+          <BookDetailCard name="tags" title="标签" onEdit={editor('tags')} action={editAction('编辑书籍标签', 'tags')}>
+            {item.tags.length ? <div className="books-tag-chips">{item.tags.map(tag => <span className="tag-filter" key={tag}>{tag}</span>)}</div>
+              : <p className="books-detail-empty">{t('还没有标签')}</p>}
+          </BookDetailCard>
+        </div>
+      </div>
 
       <BookReadingCards item={item} onRemove={remove}
         onEntry={locked ? undefined : entry => editor({ kind: 'entry', entry })?.()}
         onRound={locked ? undefined : round => editor({ kind: 'round', round })?.()} />
-
-      <BookDetailCard name="tags" title="标签" onEdit={editor('tags')} action={editAction('编辑书籍标签', 'tags')}>
-        {item.tags.length ? <div className="books-tag-chips">{item.tags.map(tag => <span className="tag-filter" key={tag}>{tag}</span>)}</div>
-          : <p className="books-detail-empty">{t('还没有标签')}</p>}
-      </BookDetailCard>
 
       <BookDetailCard name="review" onEdit={editor('review')}>
         <header className="books-review-header">
