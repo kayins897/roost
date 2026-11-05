@@ -100,12 +100,14 @@ function registerIpc() {
     finally { steamRequest = null; }
   });
   let metadataBusy = false;
-  ipcMain.handle('qiyu:metadata', async (event, query: unknown) => {
+  ipcMain.handle('qiyu:metadata', async (event, query: unknown, scope: unknown) => {
     if (!trusted(event)) return { ok: false, error: '请求来源无效' };
+    if (scope !== undefined && scope !== 'game' && scope !== 'book' && scope !== 'screen') return { ok: false, error: '作品搜索范围无效' };
     if (metadataBusy) return { ok: false, error: '正在读取作品资料，请稍候再试' };
     metadataBusy = true;
     try {
       const value = await lookupMetadata(query, {
+        scope,
         fetch: (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init),
         imageToDataUrl: bytes => coverToDataUrl(bytes, 480, 680),
       });

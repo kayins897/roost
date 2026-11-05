@@ -1,14 +1,23 @@
 import type { MetadataCandidate } from '../src/domain/catalog.ts';
 import type { BookDetails, ScreenDetails } from '../src/domain/types.ts';
 import { isPersonalScore } from '../src/domain/gameAssets.ts';
+import type { MetadataSearchScope } from '../src/shared/ipc-contract.ts';
 
 /** Public store/page requests only. No account credentials or library data are sent. */
 export interface MetadataOptions {
+  scope?: MetadataSearchScope;
   fetch?: typeof globalThis.fetch;
   timeoutMs?: number;
   imageToDataUrl?: (bytes: Uint8Array) => string | undefined;
 }
-type FetchKind = 'steam' | 'douban' | 'cover';
+const DOUBAN_SEARCH_HOSTS = {
+  'douban-book-search': 'book.douban.com',
+  'douban-screen-search': 'movie.douban.com',
+} as const;
+type DoubanSearchKind = keyof typeof DOUBAN_SEARCH_HOSTS;
+type FetchKind = 'steam' | 'douban' | 'cover' | DoubanSearchKind;
+const DOUBAN_SUGGEST_PATH = '/j/subject_suggest';
+const SUGGEST_LIMIT = 128 * 1024;
 const TEXT_LIMIT = 2 * 1024 * 1024;
 const COVER_LIMIT = 2 * 1024 * 1024;
 const COVER_HOSTS = new Set([
@@ -31,6 +40,9 @@ function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(v => string(v)).filter((v): v is string => Boolean(v)).slice(0, 12) : [];
 }
 function year(value: unknown): string | undefined { return string(value)?.match(/(?:18|19|20|21)\d{2}/)?.[0]; }
+function isDoubanSearch(kind: FetchKind): kind is DoubanSearchKind {
+  return kind === 'douban-book-search' || kind === 'douban-screen-search';
+}
 function allowedUrl(value: string, kind: FetchKind): URL {
   let url: URL;
   try { url = new URL(value); } catch { throw new Error('来源链接无效'); }
@@ -39,21 +51,26 @@ function allowedUrl(value: string, kind: FetchKind): URL {
     ? url.hostname === 'store.steampowered.com' && ['/api/storesearch/', '/api/appdetails'].includes(url.pathname)
     : kind === 'douban'
       ? ['book.douban.com', 'movie.douban.com'].includes(url.hostname) && /^\/subject\/\d+\/$/.test(url.pathname)
-      : COVER_HOSTS.has(url.hostname);
-  if (!valid) throw new Error(kind === 'douban' ? BLOCKED : '来源返回了不受支持的链接');
+      : isDoubanSearch(kind)
+        ? url.hostname === DOUBAN_SEARCH_HOSTS[kind] && url.pathname === DOUBAN_SUGGEST_PATH
+        : COVER_HOSTS.has(url.hostname);
+  if (!valid) throw new Error(kind === 'douban' || isDoubanSearch(kind) ? BLOCKED : '来源返回了不受支持的链接');
   return url;
 }
 
 async function request(value: string, kind: FetchKind, options: MetadataOptions): Promise<{ bytes: Uint8Array; contentType: string }> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), options.timeoutMs ?? 12000);
-  const limit = kind === 'cover' ? COVER_LIMIT : TEXT_LIMIT;
+  const limit = kind === 'cover' ? COVER_LIMIT : isDoubanSearch(kind) ? SUGGEST_LIMIT : TEXT_LIMIT;
+  const accept = kind === 'cover' ? 'image/jpeg,image/png,image/webp'
+    : kind === 'douban' ? 'text/html'
+      : isDoubanSearch(kind) ? 'application/json,text/plain' : 'application/json';
   try {
     let url = allowedUrl(value, kind);
     for (let redirects = 0; redirects <= 3; redirects++) {
       const response = await (options.fetch ?? globalThis.fetch)(url.toString(), {
         signal: abort.signal, redirect: 'manual', credentials: 'omit',
-        headers: { Accept: kind === 'cover' ? 'image/jpeg,image/png,image/webp' : kind === 'steam' ? 'application/json' : 'text/html' },
+        headers: { Accept: accept },
       });
       if (response.status >= 300 && response.status < 400) {
         const destination = response.headers.get('location');
@@ -90,10 +107,11 @@ async function request(value: string, kind: FetchKind, options: MetadataOptions)
     throw error;
   } finally { clearTimeout(timer); }
 }
-async function textRequest(url: string, kind: 'steam' | 'douban', options: MetadataOptions): Promise<string> {
+async function textRequest(url: string, kind: Exclude<FetchKind, 'cover'>, options: MetadataOptions): Promise<string> {
   const response = await request(url, kind, options);
   if (kind === 'steam' && !['application/json', 'text/json'].includes(response.contentType)) throw new Error('Steam 返回了无法识别的资料，请稍后再试');
   if (kind === 'douban' && !['text/html', 'application/xhtml+xml'].includes(response.contentType)) throw new Error(BLOCKED);
+  if (isDoubanSearch(kind) && !['application/json', 'text/json', 'text/plain'].includes(response.contentType)) throw new Error(BLOCKED);
   return new TextDecoder().decode(response.bytes);
 }
 function parseJson(text: string): unknown {
@@ -249,9 +267,39 @@ export function parseDoubanPage(html: string, sourceUrl: string): MetadataCandid
   };
 }
 
-/** A query is either a Steam name or a canonical supported subject/store URL. */
+async function searchDouban(input: string, category: 'book' | 'screen', options: MetadataOptions): Promise<MetadataCandidate[]> {
+  const kind = category === 'book' ? 'douban-book-search' : 'douban-screen-search';
+  const host = DOUBAN_SEARCH_HOSTS[kind];
+  const query = new URLSearchParams({ q: input });
+  const value = parseJson(await textRequest(`https://${host}${DOUBAN_SUGGEST_PATH}?${query}`, kind, options));
+  if (!Array.isArray(value)) throw new Error('豆瓣返回了无法识别的搜索结果');
+
+  const candidates: MetadataCandidate[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    const row = record(entry);
+    const id = row?.id;
+    const title = string(row?.title, 160);
+    if (!row || row.type !== (category === 'book' ? 'b' : 'movie') || !title ||
+      typeof id !== 'string' || !/^[1-9]\d{0,11}$/.test(id) || seen.has(id)) continue;
+    seen.add(id);
+    // Suggestions include TV series under "movie". Read the selected subject for its kind.
+    candidates.push({
+      provider: 'douban', externalId: id, category, title,
+      creator: category === 'book' ? string(row.author_name) : undefined,
+      originalTitle: category === 'screen' ? string(row.sub_title, 160) : undefined,
+      year: year(row.year),
+      sourceUrl: `https://${host}/subject/${id}/`,
+      coverSourceUrl: coverSource(category === 'book' ? row.pic : row.img),
+    });
+    if (candidates.length === 8) break;
+  }
+  return candidates;
+}
+
+/** Text uses the selected catalog. Supported subject URLs always choose their own source. */
 export async function lookupMetadata(query: unknown, options: MetadataOptions = {}): Promise<MetadataCandidate[]> {
-  if (typeof query !== 'string' || !query.trim() || query.length > 2048) throw new Error('请输入游戏名称或支持的作品链接');
+  if (typeof query !== 'string' || !query.trim() || query.length > 2048) throw new Error('请输入作品名称或支持的作品链接');
   const input = query.trim();
   if (/^(?:[a-z][a-z\d+.-]*:\/\/|https?:|file:|data:|javascript:|about:)|^\/\//i.test(input)) {
     let url: URL;
@@ -269,9 +317,10 @@ export async function lookupMetadata(query: unknown, options: MetadataOptions = 
       const canonical = `https://${url.hostname}/subject/${id}/`;
       return [await withCover(parseDoubanPage(await textRequest(canonical, 'douban', options), canonical), options)];
     }
-    throw new Error('目前支持 Steam 商店、豆瓣图书和豆瓣电影的作品链接，也可以输入游戏名称搜索 Steam。');
+    throw new Error('请粘贴 Steam 商店、豆瓣图书或豆瓣影视的作品链接，也可以直接搜索作品名称。');
   }
-  if (input.length > 160) throw new Error('游戏搜索名称请控制在 160 字以内');
+  if (input.length > 160) throw new Error('搜索名称请控制在 160 字以内');
+  if (options.scope === 'book' || options.scope === 'screen') return searchDouban(input, options.scope, options);
   const params = new URLSearchParams({ term: input, l: 'schinese', cc: 'cn' });
   return parseSteamSearch(parseJson(await textRequest(`https://store.steampowered.com/api/storesearch/?${params}`, 'steam', options)));
 }

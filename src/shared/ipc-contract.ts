@@ -12,6 +12,7 @@ import type {
 
 export interface DesktopResult<T> { ok: boolean; value?: T; error?: string }
 export interface StoredRecord { snapshot: LibrarySnapshot | null; revision: string; error?: string }
+export type MetadataSearchScope = 'game' | 'book' | 'screen';
 export type {
   LibrarySnapshot, MetadataCandidate, SteamImportGame,
   SteamConnectionState, SteamLibraryRequest, SteamLibraryResult,
@@ -29,7 +30,7 @@ export interface DesktopBridge {
   chooseFullBackup(): Promise<DesktopResult<{ snapshot: LibrarySnapshot; token?: string } | null>>;
   installBackupAssets(token: string): Promise<DesktopResult<null>>;
   discardBackup(token: string): void;
-  lookupMetadata(query: string): Promise<DesktopResult<MetadataCandidate[]>>;
+  lookupMetadata(query: string, scope?: MetadataSearchScope): Promise<DesktopResult<MetadataCandidate[]>>;
   getSteamConnection(): Promise<DesktopResult<SteamConnectionState>>;
   forgetSteamConnection(): Promise<DesktopResult<SteamConnectionState>>;
   readSteamLibrary(request: SteamLibraryRequest): Promise<DesktopResult<SteamLibraryResult>>;

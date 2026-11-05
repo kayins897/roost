@@ -87,6 +87,83 @@ test('冒号属于游戏名称时保持关键词搜索，不误判为 URL 协议
   await lookupMetadata('DOOM:Eternal', { fetch: fake(url => { searched = new URL(url).searchParams.get('term') ?? ''; return json({ items: [] }); }) });
   assert.equal(searched, 'DOOM:Eternal');
 });
+
+test('豆瓣图书名称搜索保留不同版本，只请求建议列表且不信任返回的作品链接', async () => {
+  const suggestion = { type: 'b', id: '4913064', title: '活着', author_name: '余华', year: '2012',
+    url: 'https://127.0.0.1/private', pic: 'https://img9.doubanio.com/view/subject/s/public/s29869926.jpg' };
+  const rows = [
+    { ...suggestion, id: '4913064/other' },
+    { ...suggestion, type: 'movie' },
+    suggestion,
+    suggestion,
+    { ...suggestion, id: '27064488', year: '2017', pic: 'https://127.0.0.1/private' },
+    ...Array.from({ length: 12 }, (_, index) => ({ ...suggestion, id: String(index + 10) })),
+  ];
+  const requests: string[] = [];
+  const result = await lookupMetadata('活着 & 余华', {
+    scope: 'book',
+    fetch: fake((url, init) => {
+      requests.push(url);
+      assert.equal(init?.credentials, 'omit');
+      assert.equal(init?.redirect, 'manual');
+      return json(rows);
+    }),
+  });
+  assert.deepEqual(requests, ['https://book.douban.com/j/subject_suggest?q=%E6%B4%BB%E7%9D%80+%26+%E4%BD%99%E5%8D%8E']);
+  assert.equal(result.length, 8);
+  assert.deepEqual(result.slice(0, 2).map(item => [item.title, item.creator, item.year]), [['活着', '余华', '2012'], ['活着', '余华', '2017']]);
+  assert.equal(result[0].sourceUrl, 'https://book.douban.com/subject/4913064/');
+  assert.equal(result[0].coverSourceUrl, suggestion.pic);
+  assert.equal(result[0].coverUrl, undefined);
+  assert.equal(result[1].coverSourceUrl, undefined);
+});
+
+test('豆瓣影视支持纯文本 JSON 候选，作品类别与片长在选中后读取详情', async () => {
+  const film = { type: 'movie', id: '1889243', title: '星际穿越', year: '2014', sub_title: 'Interstellar' };
+  const series = { type: 'movie', id: '35588177', title: '漫长的季节', year: '2023', episode: '12' };
+  const requests: string[] = [];
+  const fetch = fake(url => {
+    requests.push(url);
+    if (url.includes('/j/subject_suggest?')) return new Response(JSON.stringify([film, series]), { headers: { 'content-type': 'text/plain' } });
+    return html('<h1>星际穿越</h1><div id="info">导演: 克里斯托弗·诺兰<br/>片长: 169分钟</div>');
+  });
+  const results = await lookupMetadata('星际穿越', { scope: 'screen', fetch });
+  assert.equal(results[0].originalTitle, 'Interstellar');
+  assert.equal(results[0].sourceUrl, 'https://movie.douban.com/subject/1889243/');
+  assert.ok(results.every(item => item.category === 'screen' && item.subcategory === undefined));
+  assert.deepEqual(requests, ['https://movie.douban.com/j/subject_suggest?q=%E6%98%9F%E9%99%85%E7%A9%BF%E8%B6%8A']);
+
+  const [detail] = await lookupMetadata(results[0].sourceUrl, { scope: 'book', fetch });
+  assert.equal(detail.subcategory, '电影');
+  assert.equal(detail.creator, '克里斯托弗·诺兰');
+  assert.equal(detail.screenDetails?.durationMinutes, 169);
+  assert.equal(requests[1], results[0].sourceUrl);
+});
+
+test('豆瓣建议列表仅跟随当前板块的搜索跳转', async () => {
+  let calls = 0;
+  await lookupMetadata('活着', { scope: 'book', fetch: fake(() => {
+    if (++calls === 1) return new Response(null, { status: 302, headers: { location: '/j/subject_suggest?q=%E6%B4%BB%E7%9D%80' } });
+    return json([]);
+  }) });
+  assert.equal(calls, 2);
+  for (const location of ['https://movie.douban.com/j/subject_suggest?q=foo', 'https://book.douban.com/subject/4913064/', 'https://127.0.0.1/j/subject_suggest?q=foo']) {
+    calls = 0;
+    await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => {
+      calls++;
+      return new Response(null, { status: 302, headers: { location } });
+    }) }), /验证或限制/);
+    assert.equal(calls, 1);
+  }
+});
+
+test('豆瓣建议列表识别限流、验证页面、无效载荷和过大响应', async () => {
+  await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => new Response(null, { status: 429 })) }), /验证或限制/);
+  await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => html('<h1>安全验证</h1>')) }), /验证或限制/);
+  await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => json({ items: [] })) }), /无法识别的搜索结果/);
+  await assert.rejects(lookupMetadata('活着', { scope: 'book', fetch: fake(() => new Response(' '.repeat(128 * 1024 + 1), { headers: { 'content-type': 'text/plain' } })) }), /内容过大/);
+});
+
 test('Steam 链接转为固定 API 请求；单张封面校验格式并转本地 data URL', async () => {
   const requests: string[] = [];
   const result = await lookupMetadata(steamUrl + 'Hades/?tracking=private#fragment', { fetch: fake(url => {
