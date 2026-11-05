@@ -12,9 +12,10 @@ let app, page; const checks = [], errors = [];
 const file = () => path.join(data, 'library.json');
 const raw = () => fs.readFileSync(file(), 'utf8');
 const snapshot = () => JSON.parse(raw());
+const synopsis = '作者从港口、山道和小镇出发，讲述地图上的边界如何进入人们的日常。';
 const book = (id, title, extra = {}) => ({ id, title, category: 'book', creator: '合成作者', year: '2026', status: 'want', subcategory: '文学', tags: ['文学'], impression: '', favorite: false, artwork: 'default', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '', ...extra });
 const initial = { schemaVersion: 1, futureRoot: { keep: true }, bookTagCatalog: ['文学', '空标签'], bookCollections: [{ id: 'c1', title: '慢读计划', description: '留给周末', bookIds: ['b1', 'missing'], extension: { keep: true } }], items: [
-  book('b1', '山海之间', { bookReading: { arrangement: 'reading', extension: true }, bookDetails: { publisher: '合成出版社', translator: '合成译者', doubanScore: 8.6, readingSources: ['汉王'], metadataSource: '豆瓣' }, experienceEntries: [{ id: 'e1', date: '2026-10-28', kind: 'progress', note: '第一章', minutes: 0 }] }),
+  book('b1', '山海之间', { bookReading: { arrangement: 'reading', extension: true }, bookDetails: { publisher: '合成出版社', translator: '合成译者', doubanScore: 8.6, readingSources: ['汉王'], metadataSource: '豆瓣', description: synopsis }, experienceEntries: [{ id: 'e1', date: '2026-10-28', kind: 'progress', note: '第一章', minutes: 0 }] }),
   book('b2', '城市的回声', { status: 'finished', impression: '走过一座城，也读过一段人生。', personalScore: 0 }),
   book('b3', '下一次远行', { status: 'paused', experienceEntries: [{ id: 'month', date: '2026-09', kind: 'progress', note: '旧月记录', minutes: 3000 }] }),
   book('b4', '未竟的诗', { bookReading: { arrangement: 'abandoned' } }),
@@ -43,6 +44,24 @@ async function shot(name) {
   await page.screenshot({ path: path.join(output, name + '.png'), timeout: 15000 });
 }
 async function close(name) { await dialog(name).getByRole('button', { name: '关闭', exact: true }).first().click(); }
+async function openImpression(title) {
+  await dialog(title).getByRole('button', { name: '编辑一句话感想', exact: true }).click();
+  return dialog('一句话感想').getByRole('textbox', { name: '一句话感想', exact: true });
+}
+async function assertDetailGeometry(title) {
+  const detail = dialog(title);
+  const image = detail.locator('.books-detail-cover img');
+  await image.evaluate(img => img.decode());
+  const { fitsWidth, portraitRatio } = await image.evaluate(img => {
+    const box = img.getBoundingClientRect();
+    const panel = img.closest('[role="dialog"]');
+    const bounds = panel.getBoundingClientRect();
+    return { fitsWidth: panel.scrollWidth <= panel.clientWidth + 1 && box.left >= bounds.left && box.right <= bounds.right,
+      portraitRatio: box.height / box.width };
+  });
+  assert.ok(fitsWidth, '书籍详情和封面应在对话框宽度内');
+  assert.ok(portraitRatio >= 1.25 && portraitRatio <= 1.8, '封面应保持近似书籍原有的竖版比例');
+}
 (async () => {
   // All assets and data in this script are synthetic and isolated.
   const colors = ['#236175', '#9b644a', '#665b84', '#71805a', '#446889'];
@@ -76,16 +95,23 @@ async function close(name) { await dialog(name).getByRole('button', { name: '关
   await page.getByRole('button', { name: '清空筛选', exact: true }).click(); check('七个筛选维度可用，出版社筛选只显示匹配书籍');
   await page.locator('.books-toolbar-tools').getByRole('button', { name: /^筛选/ }).click();
   await open('山海之间');
+  await assertDetailGeometry('山海之间');
+  const bookDialog = dialog('山海之间');
+  assert.match(await bookDialog.locator('.books-detail-score').textContent(), /8\.6/);
+  assert.ok((await bookDialog.locator('.books-detail-synopsis').textContent()).includes(synopsis));
+  check('封面保持竖版比例，评分与简介分别显示');
   await shot('book-detail');
-  await dialog('山海之间').getByRole('textbox', { name: '一句话感想', exact: true }).fill('想把山海留在自己的记忆中。');
-  await dialog('山海之间').getByRole('heading', { name: '我的阅读', exact: true }).click();
-  assert.equal(snapshot().items[0].impression, '想把山海留在自己的记忆中。');
+  const impression = '想把山海留在自己的记忆中。';
+  await (await openImpression('山海之间')).fill(impression);
+  await close('一句话感想');
+  await bookDialog.getByText(impression, { exact: true }).waitFor();
+  assert.equal(snapshot().items[0].impression, impression);
   await dialog('山海之间').getByRole('button', { name: '闲置', exact: true }).click();
   await page.getByRole('button', { name: '编辑阅读计划', exact: true }).click();
   await dialog('阅读计划').getByRole('textbox', { name: '为什么想读', exact: true }).fill('等待一个安静的周末。');
   await dialog('阅读计划').getByRole('button', { name: '保存记录', exact: true }).click();
   assert.equal(snapshot().items[0].bookReading.arrangement, 'idle'); check('填写计划保留闲置安排与原有读后感');
-  await page.getByRole('button', { name: '添加阅读记录', exact: true }).click();
+  await dialog('山海之间').getByRole('button', { name: '记录阅读', exact: true }).click();
   await dialog('记录阅读').getByRole('spinbutton', { name: /^阅读时长/ }).fill('35');
   await dialog('记录阅读').getByRole('button', { name: '保存记录', exact: true }).click();
   assert.equal(snapshot().items[0].experienceEntries.at(-1).minutes, 35);
@@ -99,14 +125,27 @@ async function close(name) { await dialog(name).getByRole('button', { name: '关
   await dialog('补录已读').getByRole('button', { name: '保存记录', exact: true }).click();
   assert.equal(snapshot().items[0].bookReading.rounds.length, 1);
   assert.equal(snapshot().items[0].status, 'want'); check('合法读完轮次独立保存，不猜测具体日期或改写旧状态');
-  await page.getByRole('button', { name: '编辑书籍资料', exact: true }).click();
-  await dialog('书籍资料').getByRole('textbox', { name: '出版社', exact: true }).fill('新的合成出版社');
+  await bookDialog.getByRole('button', { name: '编辑书籍评分', exact: true }).click();
+  const scoreEditor = dialog('评分');
+  await scoreEditor.waitFor();
+  assert.ok(await scoreEditor.getByLabel('我的评分', { exact: true }).isVisible());
+  assert.equal(await scoreEditor.getByRole('textbox', { name: '出版社', exact: true }).count(), 0);
+  await close('评分');
+  await bookDialog.locator('.books-detail-edition').click({ button: 'right' });
+  const editionEditor = dialog('出版信息');
+  await editionEditor.getByRole('textbox', { name: '出版社', exact: true }).fill('新的合成出版社');
+  assert.equal(await editionEditor.getByLabel('我的评分', { exact: true }).count(), 0);
+  check('评分编辑与出版信息右键编辑分别打开对应表单');
   const beforeConflict = raw(); fs.writeFileSync(file(), beforeConflict + '\n');
-  await dialog('书籍资料').getByRole('button', { name: '保存资料', exact: true }).click();
-  assert.equal(raw(), beforeConflict + '\n'); assert.equal(await dialog('书籍资料').getByRole('textbox', { name: '出版社', exact: true }).inputValue(), '新的合成出版社');
+  await editionEditor.getByRole('button', { name: '保存资料', exact: true }).click();
+  assert.equal(raw(), beforeConflict + '\n'); assert.equal(await editionEditor.getByRole('textbox', { name: '出版社', exact: true }).inputValue(), '新的合成出版社');
   await shot('save-conflict'); fs.writeFileSync(file(), beforeConflict);
-  await dialog('书籍资料').getByRole('button', { name: '保存资料', exact: true }).click(); check('真实仓储修订冲突零覆盖，资料草稿可原位重试');
-  await dialog('书籍资料').waitFor({ state: 'detached' }); await close('山海之间');
+  await editionEditor.getByRole('button', { name: '保存资料', exact: true }).click(); check('真实仓储修订冲突零覆盖，资料草稿可原位重试');
+  await editionEditor.waitFor({ state: 'detached' });
+  assert.equal(snapshot().items[0].bookDetails.publisher, '新的合成出版社');
+  assert.equal(snapshot().items[0].bookDetails.doubanScore, 8.6);
+  assert.equal(snapshot().items[0].bookDetails.description, synopsis);
+  await close('山海之间');
   await page.getByRole('button', { name: '编辑书单慢读计划', exact: true }).click();
   await dialog('编辑主题书单').getByRole('textbox', { name: '书单名称', exact: true }).fill('山海慢读');
   await dialog('编辑主题书单').getByLabel('山海之间').check();
@@ -126,8 +165,8 @@ async function close(name) { await dialog(name).getByRole('button', { name: '关
   assert.deepEqual(snapshot().futureRoot, initial.futureRoot); check('书籍写入保留游戏原文与未知根字段');
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ width: 390, height: 844 }));
   await page.waitForTimeout(300); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); await shot('books-mobile');
-  await open('山海之间'); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); await shot('detail-mobile'); await close('山海之间');
-  check('390px书架与详情无页面横向溢出');
+  await open('山海之间'); await assertDetailGeometry('山海之间'); await shot('detail-mobile'); await close('山海之间');
+  check('390px 书架、详情对话框无横向溢出，封面保持竖版比例');
   await view('全部'); await open('下一次远行');
   await dialog('下一次远行').getByRole('button', { name: '编辑这条阅读记录', exact: true }).click();
   await dialog('记录阅读').getByRole('textbox', { name: '这次读了什么', exact: true }).fill('保留旧月累计时长');
@@ -147,6 +186,8 @@ async function close(name) { await dialog(name).getByRole('button', { name: '关
   await dialog('补录已读').getByRole('button', { name: '保存记录', exact: true }).click();
   assert.equal(snapshot().items.find(item => item.id === created.id).bookReading.rounds.length, 2); await close('新录入的合成书'); check('新收录已读日期可未知，重读不覆盖第一轮感想');
   const persisted = snapshot(); await app.close(); app = null; await launch(); await view('全部');
-  assert.deepEqual(snapshot(), persisted); await open('山海之间'); assert.equal(await dialog('山海之间').getByRole('textbox', { name: '一句话感想', exact: true }).inputValue(), persisted.items.find(item => item.id === 'b1').impression); await close('山海之间'); check('完整进程重启后读后感、轮次、日志、计划、标签和书单原样读回');
+  assert.deepEqual(snapshot(), persisted); await open('山海之间');
+  assert.equal(await (await openImpression('山海之间')).inputValue(), persisted.items.find(item => item.id === 'b1').impression);
+  await close('一句话感想'); await close('山海之间'); check('完整进程重启后读后感、轮次、日志、计划、标签和书单原样读回');
   assert.deepEqual(errors, []); check('无渲染进程异常');
 })().then(() => console.log(JSON.stringify({ passed: checks.length, data, output }))).catch(async error => { console.error(error); if (page && !page.isClosed()) { console.log(await page.locator('.books-heatmap-year, .toast, .error-banner').allTextContents()); await shot('failure').catch(() => {}); } process.exitCode = 1; }).finally(async () => { fs.writeFileSync(path.join(output, 'validation.json'), JSON.stringify({ passed: !process.exitCode, checks, errors, data }, null, 2)); if (app) await app.close(); });

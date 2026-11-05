@@ -1,24 +1,143 @@
+import { useState } from 'react';
+import { isPersonalScore } from '../../../domain/gameAssets.ts';
+import type { BookDetails, MediaItem } from '../../../domain/types.ts';
+import { Modal } from '../../components/MediaPrimitives.tsx';
 import { t } from '../../i18n/index.ts';
 import { useUnsavedChanges } from '../../RecordEditors.tsx';
-import { useState } from 'react';
-import type { MediaItem } from '../../../domain/types.ts';
-import { Modal } from '../../components/MediaPrimitives.tsx';
 
-export function BookFactsForm({ item, onClose, onSave }: { item: MediaItem; onClose: () => void; onSave: (patch: Partial<MediaItem>) => boolean }) {
-  const initial = { title: item.title, originalTitle: item.originalTitle ?? '', author: item.creator, year: item.year, type: item.subcategory, publisher: item.bookDetails?.publisher ?? '', translator: item.bookDetails?.translator ?? '', isbn: item.bookDetails?.isbn ?? '', description: item.bookDetails?.description ?? '', douban: item.bookDetails?.doubanScore === undefined ? '' : String(item.bookDetails.doubanScore), score: item.personalScore === undefined ? '' : String(item.personalScore), readingSources: (item.bookDetails?.readingSources ?? []).join('，'), metadataSource: item.bookDetails?.metadataSource ?? '' };
+export type BookFactsScope = 'identity' | 'edition' | 'sources' | 'synopsis' | 'score';
+
+function draftFor(item: MediaItem) {
+  const details = item.bookDetails;
+  return {
+    title: item.title,
+    originalTitle: item.originalTitle ?? '',
+    author: item.creator,
+    translator: details?.translator ?? '',
+    publisher: details?.publisher ?? '',
+    year: item.year,
+    type: item.subcategory,
+    isbn: details?.isbn ?? '',
+    readingSources: details?.readingSources?.join('，') ?? '',
+    metadataSource: details?.metadataSource ?? '',
+    description: details?.description ?? '',
+    score: String(item.personalScore ?? ''),
+    douban: String(details?.doubanScore ?? ''),
+  };
+}
+
+type Draft = ReturnType<typeof draftFor>;
+type Field = { key: keyof Draft; label: string };
+const sections: Record<BookFactsScope, { title: string; fields: Field[] }> = {
+  identity: { title: '书籍资料', fields: [
+    { key: 'title', label: '书名' },
+    { key: 'originalTitle', label: '原名' },
+    { key: 'author', label: '作者' },
+  ] },
+  edition: { title: '出版信息', fields: [
+    { key: 'translator', label: '译者' },
+    { key: 'publisher', label: '出版社' },
+    { key: 'year', label: '出版年份' },
+    { key: 'type', label: '书籍类型' },
+    { key: 'isbn', label: 'ISBN' },
+  ] },
+  sources: { title: '阅读来源', fields: [
+    { key: 'readingSources', label: '阅读来源（逗号分隔）' },
+    { key: 'metadataSource', label: '资料来源' },
+  ] },
+  synopsis: { title: '简介', fields: [{ key: 'description', label: '简介' }] },
+  score: { title: '评分', fields: [
+    { key: 'score', label: '我的评分' },
+    { key: 'douban', label: '豆瓣评分' },
+  ] },
+};
+
+const readScore = (value: string) => value === '' ? undefined : Number(value);
+
+export function BookFactsForm({ scope, item, onClose, onSave }: {
+  scope: BookFactsScope;
+  item: MediaItem;
+  onClose: () => void;
+  onSave: (patch: Partial<MediaItem>) => boolean;
+}) {
+  const { title, fields } = sections[scope];
+  const [initial] = useState(() => draftFor(item));
   const [draft, setDraft] = useState(initial);
   const [error, setError] = useState('');
-  const dirty = JSON.stringify(initial) !== JSON.stringify(draft);
+  const changed = (key: keyof Draft) => draft[key] !== initial[key];
+  const dirty = fields.some(({ key }) => changed(key));
   useUnsavedChanges(dirty);
-  function save() {
-    const score = draft.score === '' ? undefined : Number(draft.score);
-    const doubanScore = draft.douban === '' ? undefined : Number(draft.douban);
-    if (!draft.title.trim()) { setError('书名不能为空。'); return; }
-    if ([score, doubanScore].some(value => value !== undefined && (!Number.isFinite(value) || value < 0 || value > 10 || Math.abs(value * 10 - Math.round(value * 10)) > 1e-6))) { setError('评分应为 0–10 分，最多一位小数；未评分请留空。'); return; }
-    const patch: Partial<MediaItem> = { title: draft.title.trim(), originalTitle: draft.originalTitle.trim(), creator: draft.author.trim(), year: draft.year.trim(), subcategory: draft.type.trim(), personalScore: score, bookDetails: { ...item.bookDetails, publisher: draft.publisher.trim(), translator: draft.translator.trim(), isbn: draft.isbn.trim(), description: draft.description, doubanScore, metadataSource: draft.metadataSource.trim(), readingSources: [...new Set(draft.readingSources.split(/[,，;；\n]/).map(value => value.trim()).filter(Boolean))] } };
-    if (onSave(patch)) onClose(); else setError('保存失败，资料草稿仍保留，请重试。');
+
+  function close() {
+    if (!dirty || window.confirm(t('放弃尚未保存的书籍资料？'))) onClose();
   }
-  const close = () => { if (!dirty || window.confirm(t('放弃尚未保存的书籍资料？'))) onClose(); };
-  const fields: { key: keyof typeof initial; label: string }[] = [{ key: 'title', label: '书名' }, { key: 'originalTitle', label: '原名' }, { key: 'author', label: '作者' }, { key: 'translator', label: '译者' }, { key: 'publisher', label: '出版社' }, { key: 'year', label: '出版年份' }, { key: 'type', label: '书籍类型' }, { key: 'isbn', label: 'ISBN' }, { key: 'readingSources', label: '阅读来源（逗号分隔）' }, { key: 'metadataSource', label: '资料来源' }];
-  return <Modal title={t("书籍资料")} onClose={close} wide className="books-dialog"><form onSubmit={event => { event.preventDefault(); save(); }}><div className="books-facts-fields">{fields.map(({ key, label }) => <label className="form-field" key={key}>{t(label)}<input value={draft[key]} onChange={event => setDraft(current => ({ ...current, [key]: event.target.value }))}/></label>)}<label className="form-field">{t("我的评分")}<input type="number" min={0} max={10} step={.1} placeholder={t("未评分")} value={draft.score} onChange={event => setDraft(current => ({ ...current, score: event.target.value }))}/></label><label className="form-field">{t("豆瓣评分")}<input type="number" min={0} max={10} step={.1} placeholder={t("未评分")} value={draft.douban} onChange={event => setDraft(current => ({ ...current, douban: event.target.value }))}/></label></div><label className="form-field">{t("简介")}<textarea rows={4} value={draft.description} onChange={event => setDraft(current => ({ ...current, description: event.target.value }))}/></label>{error && <p role="alert" className="books-danger">{t(error)}</p>}<footer className="books-dialog-actions"><button type="button" className="button button--secondary" onClick={close}>{t("取消")}</button><button type="submit" className="button button--primary">{t("保存资料")}</button></footer></form></Modal>;
+
+  function edit(key: keyof Draft, value: string) {
+    setDraft(current => ({ ...current, [key]: value }));
+    setError('');
+  }
+
+  function save() {
+    if (!dirty) { onClose(); return; }
+    const patch: Partial<MediaItem> = {};
+    const details: Partial<BookDetails> = {};
+
+    if (scope === 'identity') {
+      if (!draft.title.trim()) { setError('书名不能为空。'); return; }
+      if (changed('title')) patch.title = draft.title.trim();
+      if (changed('originalTitle')) patch.originalTitle = draft.originalTitle.trim();
+      if (changed('author')) patch.creator = draft.author.trim();
+    } else if (scope === 'edition') {
+      if (changed('translator')) details.translator = draft.translator.trim();
+      if (changed('publisher')) details.publisher = draft.publisher.trim();
+      if (changed('year')) patch.year = draft.year.trim();
+      if (changed('type')) patch.subcategory = draft.type.trim();
+      if (changed('isbn')) details.isbn = draft.isbn.trim();
+    } else if (scope === 'sources') {
+      if (changed('readingSources')) {
+        const sources = draft.readingSources.split(/[,，;；\n]/).map(value => value.trim()).filter(Boolean);
+        details.readingSources = [...new Set(sources)];
+      }
+      if (changed('metadataSource')) details.metadataSource = draft.metadataSource.trim();
+    } else if (scope === 'synopsis') {
+      if (changed('description')) details.description = draft.description;
+    } else {
+      const score = readScore(draft.score);
+      const douban = readScore(draft.douban);
+      if ((changed('score') && score !== undefined && !isPersonalScore(score)) ||
+        (changed('douban') && douban !== undefined && !isPersonalScore(douban))) {
+        setError('评分应为 0–10 分，最多一位小数；未评分请留空。');
+        return;
+      }
+      if (changed('score')) patch.personalScore = score;
+      if (changed('douban')) details.doubanScore = douban;
+    }
+
+    if (Object.keys(details).length) patch.bookDetails = { ...item.bookDetails, ...details };
+    if (onSave(patch)) onClose();
+    else setError('保存失败，资料草稿仍保留，请重试。');
+  }
+
+  return <Modal title={t(title)} onClose={close} wide={scope === 'synopsis'} className="books-dialog">
+    <form onSubmit={event => { event.preventDefault(); save(); }}>
+      <div className={scope === 'synopsis' ? undefined : 'books-facts-fields'}>
+        {fields.map(({ key, label }) => {
+          const score = key === 'score' || key === 'douban';
+          return <label className="form-field" key={key}>
+            {t(label)}
+            {key === 'description'
+              ? <textarea rows={7} value={draft[key]} onChange={event => edit(key, event.target.value)} />
+              : <input type={score ? 'number' : 'text'} min={score ? 0 : undefined} max={score ? 10 : undefined}
+                step={score ? .1 : undefined} placeholder={score ? t('未评分') : undefined}
+                value={draft[key]} onChange={event => edit(key, event.target.value)} />}
+          </label>;
+        })}
+      </div>
+      {error && <p role="alert" className="books-danger">{t(error)}</p>}
+      <footer className="books-dialog-actions">
+        <button type="button" className="button button--secondary" onClick={close}>{t('取消')}</button>
+        <button type="submit" className="button button--primary">{t('保存资料')}</button>
+      </footer>
+    </form>
+  </Modal>;
 }
