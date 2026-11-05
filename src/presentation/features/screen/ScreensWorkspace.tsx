@@ -1,5 +1,5 @@
 import { t } from '../../i18n/index.ts';
-import { CheckCircle2, ListPlus, Plus } from 'lucide-react';
+import { CheckCircle2, ListPlus, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { applyScreenAction, screenHasWatched, type ScreenAction } from '../../../domain/screens.ts';
 import { normalizeTags } from '../../../domain/library.ts';
@@ -19,7 +19,7 @@ import './screen.css';
 
 export interface ScreensWorkspaceProps {
   snapshot: LibrarySnapshot; query: string; libraryView: 'library' | 'trash' | 'hidden'; disabled: boolean;
-  onBatch: (kind: ScreenKind) => void; onCommit: ScreenCommit; onOpen: (id: string) => void; onCreate: (kind: ScreenKind) => void; onEdit: (id: string) => void;
+  onBatch: (kind: ScreenKind) => void; onSearch?: (kind: ScreenKind) => void; onCommit: ScreenCommit; onOpen: (id: string) => void; onCreate: (kind: ScreenKind) => void; onEdit: (id: string) => void;
   initialKind?: ScreenKind;
   onKindChange?: (kind: ScreenKind) => void;
   onLifecycle: (action: 'trash' | 'restore' | 'delete', ids: string[]) => void; onNotice: (message: string) => void;
@@ -80,7 +80,7 @@ export function ScreensWorkspace(props: ScreensWorkspaceProps) {
   useEffect(() => { setMenu(null); }, [libraryView]);
   return <div className="books-workspace screen-workspace">
     {libraryView === 'library' && <>
-      <div className="screen-primary-row"><nav className="status-tabs books-views screen-kind-tabs" aria-label={t("影视类型")}>{SCREEN_KINDS.map(kind => <button key={kind.id} className={ui.kind === kind.id ? 'is-selected' : ''} aria-pressed={ui.kind === kind.id} onClick={() => changeKind(kind.id)}>{t(kind.label)}<small>{screens.filter(item => screenKind(item) === kind.id).length}</small></button>)}</nav><div className="books-primary-actions"><button className="button button--secondary" disabled={disabled} onClick={() => update({ selecting: !ui.selecting, selected: [] })}><CheckCircle2 size={14}/>{t("多选整理")}</button><button className="button button--secondary" disabled={disabled} onClick={() => props.onBatch(ui.kind)}><ListPlus size={15}/>{t("批量收录")}</button><button className="button button--primary" disabled={disabled} onClick={() => props.onCreate(ui.kind)}><Plus size={15}/>{t('收录{0}', [t(kindLabel)])}</button></div></div>
+      <div className="screen-primary-row"><nav className="status-tabs books-views screen-kind-tabs" aria-label={t("影视类型")}>{SCREEN_KINDS.map(kind => <button key={kind.id} className={ui.kind === kind.id ? 'is-selected' : ''} aria-pressed={ui.kind === kind.id} onClick={() => changeKind(kind.id)}>{t(kind.label)}<small>{screens.filter(item => screenKind(item) === kind.id).length}</small></button>)}</nav><div className="books-primary-actions"><button className="button button--secondary" disabled={disabled} onClick={() => update({ selecting: !ui.selecting, selected: [] })}><CheckCircle2 size={14}/>{t("多选整理")}</button><button className="button button--secondary" disabled={disabled} onClick={() => props.onBatch(ui.kind)}><ListPlus size={15}/>{t("批量收录")}</button>{props.onSearch && <button className="button button--secondary" disabled={disabled} onClick={() => props.onSearch?.(ui.kind)}><Search size={15}/>{t("搜索收录")}</button>}<button className="button button--primary" disabled={disabled} onClick={() => props.onCreate(ui.kind)}><Plus size={15}/>{t('收录{0}', [t(kindLabel)])}</button></div></div>
       <ScreenFilters items={kindScreens} kind={ui.kind} view={ui.view} onView={view => update({ view, sort: view === 'watched' ? 'finished' : 'recent', descending: true })} count={visible.length} layout={ui.layout} onLayout={layout => update({ layout })} sort={ui.sort} onSort={sort => update({ sort })} descending={ui.descending} onDirection={() => update({ descending: !ui.descending })} expanded={ui.facetsOpen} onExpand={() => update({ facetsOpen: !ui.facetsOpen })} facets={ui.facets} onFacet={toggleFacet} onClear={() => update({ facets: {} })}/>
     </>}
     <div className={libraryView === 'library' && ui.kind === 'movie' ? 'books-content' : 'screen-content-single'}><main className="books-main">
