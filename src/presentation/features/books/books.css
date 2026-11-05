@@ -156,19 +156,19 @@
   grid-template-rows: minmax(120px,auto) minmax(124px,auto) minmax(128px,auto) minmax(152px,auto);
 }
 .books-detail-grid > .bento-widget { min-height: 0; }
-.books-detail-cover { grid-area: cover; }
-.books-detail-score { grid-area: score; }
-.books-detail-duration { grid-area: duration; }
-.books-detail-edition { grid-area: edition; }
-.books-detail-identity { grid-area: identity; }
-.books-detail-plan { grid-area: plan; }
-.books-detail-sources { grid-area: sources; }
-.books-detail-writing { grid-area: writing; }
-.books-detail-tags { grid-area: tags; }
-.books-detail-synopsis { grid-area: synopsis; }
-.books-detail-history { grid-area: history; }
-.books-detail-entries { grid-area: entries; }
-.books-detail-review { grid-area: review; }
+.books-detail-grid > .books-detail-cover { grid-area: cover; }
+.books-detail-grid > .books-detail-score { grid-area: score; }
+.books-detail-grid > .books-detail-duration { grid-area: duration; }
+.books-detail-grid > .books-detail-edition { grid-area: edition; }
+.books-detail-grid > .books-detail-identity { grid-area: identity; }
+.books-detail-grid > .books-detail-plan { grid-area: plan; }
+.books-detail-grid > .books-detail-sources { grid-area: sources; }
+.books-detail-grid > .books-detail-writing { grid-area: writing; }
+.books-detail-grid > .books-detail-tags { grid-area: tags; }
+.books-detail-grid > .books-detail-synopsis { grid-area: synopsis; }
+.books-detail-grid > .books-detail-history { grid-area: history; }
+.books-detail-grid > .books-detail-entries { grid-area: entries; }
+.books-detail-grid > .books-detail-review { grid-area: review; }
 .books-detail-cover .bento-cover-image { max-height: none; }
 .books-detail-cover .bento-cover-placeholder { min-height: 0; }
 .books-detail-cover .bento-card-action {
