@@ -8,7 +8,7 @@ PauseCircle,
 PlayCircle,
 X
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { useRef } from 'react';
 import { MEDIA_LABELS,STATUS_LABELS } from '../../domain/library.ts';
 import type { GamePlayState,MediaItem,ProgressStatus } from '../../domain/types.ts';
@@ -39,9 +39,13 @@ export function GameStateIcon({ state, size = 16 }: { state: GamePlayState; size
   return <Bookmark size={size} strokeWidth={2.2} />;
 }
 
-export function Modal({ title, description, onClose, children, wide = false, className = '', headingActions }: { title: string; description?: string; onClose: () => void; children: ReactNode; wide?: boolean; className?: string; headingActions?: ReactNode }) {
-  const panel = useRef<HTMLElement>(null);
-  useDialogKeyboard(panel, onClose, { filterVisible: true });
+export function Modal({ title, description, onClose, children, wide = false, className = '', headingActions, initialFocus, panelRef }: {
+  title: string; description?: string; onClose: () => void; children: ReactNode; wide?: boolean; className?: string; headingActions?: ReactNode;
+  initialFocus?: (panel: HTMLElement) => HTMLElement | null; panelRef?: RefObject<HTMLElement | null>;
+}) {
+  const defaultPanel = useRef<HTMLElement>(null);
+  const panel = panelRef ?? defaultPanel;
+  useDialogKeyboard(panel, onClose, { filterVisible: true, initialFocus });
   return (
     <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
       <section ref={panel} className={`modal ${wide ? 'modal--wide' : ''} ${className}`} data-glass="modal" role="dialog" aria-modal="true" aria-label={title}>

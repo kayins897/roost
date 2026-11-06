@@ -31,6 +31,11 @@
 .bento-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
 .bento-heading h3{font-size:13px;font-weight:600;margin:0;line-height:1.5;color:inherit}
 .bento-heading>svg{flex-shrink:0;opacity:.8;transition:transform .24s ease-out,color .24s ease-out}
+:is(.bento-card-action,.screen-card-edit) {
+  flex: 0 0 auto; display: inline-grid; place-items: center; width: 30px; height: 30px;
+  border: 1px solid transparent; border-radius: 50%; color: inherit; opacity: .8;
+}
+button:is(.bento-card-action,.screen-card-edit):is(:hover,:focus-visible) { background: #ffffff1d; border-color: currentColor; opacity: 1; }
 .bento-widget--grade .bento-heading{margin-bottom:0}
 .bento-widget--hours .bento-heading,.bento-widget--platform .bento-heading,.bento-widget--count .bento-heading{margin-bottom:0;opacity:.8}
 .bento-muted{color:var(--bento-muted,inherit);opacity:var(--bento-secondary-opacity,.85);font-size:12px;line-height:1.7}

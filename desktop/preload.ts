@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopBridge, DesktopResult, LibrarySnapshot, MetadataCandidate, StoredRecord, SteamImportGame, SteamEnrichmentProgress, SteamLibraryRequest } from '../src/shared/ipc-contract.ts';
+import type { DesktopBridge, DesktopResult, LibrarySnapshot, StoredRecord, SteamImportGame, SteamEnrichmentProgress, SteamLibraryRequest } from '../src/shared/ipc-contract.ts';
 
 // 桥接实现必须与 src/shared/ipc-contract.ts 的 DesktopBridge 逐方法对齐；
 // 载荷类型即契约类型，不在 preload 做运行时改写。
@@ -14,7 +14,7 @@ const bridge: DesktopBridge = {
   chooseFullBackup: () => ipcRenderer.invoke('qiyu:backup-choose'),
   installBackupAssets: (token: string) => ipcRenderer.invoke('qiyu:backup-assets', token),
   discardBackup: (token: string) => ipcRenderer.send('qiyu:backup-discard', token),
-  lookupMetadata: (query: string): Promise<DesktopResult<MetadataCandidate[]>> => ipcRenderer.invoke('qiyu:metadata', query),
+  lookupMetadata: (query, scope) => ipcRenderer.invoke('qiyu:metadata', query, scope),
   getSteamConnection: () => ipcRenderer.invoke('qiyu:steam-state'),
   forgetSteamConnection: () => ipcRenderer.invoke('qiyu:steam-forget'),
   readSteamLibrary: (request: SteamLibraryRequest) => ipcRenderer.invoke('qiyu:steam-read', request),

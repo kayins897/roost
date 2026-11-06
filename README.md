@@ -1,8 +1,10 @@
 # 栖域 · QIYU / Roost
 
-本地优先的个人文娱收藏与体验管理应用。当前版本 **v0.4.36 预发行**，优先支持 Windows x64，包含游戏、书籍和影视；音乐入口暂时撤下，历史收藏仍保留。
+本地优先的个人文娱收藏与体验管理应用。当前版本 **v0.4.41 预发行**，优先支持 Windows x64，包含游戏、书籍和影视。
 
-[下载免安装版](https://github.com/kayins897/roost/releases/tag/v0.4.36) · [更新说明](CHANGELOG.md) · [本版验收步骤](docs/release/验收步骤-0.4.36.md) · [开发接手指南](docs/process/README.md)
+[下载免安装版](https://github.com/kayins897/roost/releases/tag/v0.4.41) · [更新说明](CHANGELOG.md) · [本版验收步骤](docs/release/验收步骤-0.4.41.md) · [开发接手指南](docs/process/README.md)
+
+本版让书籍和影视详情沿用游戏的 Bento 卡片，独立展示封面、个人评分与作品资料。书籍和影视也可按名称搜索豆瓣并连续收录。见 [本版发布说明](docs/release/RELEASE-v0.4.41.md)。
 
 ## 当前功能
 
@@ -18,7 +20,7 @@
 
 ## 开始使用
 
-1. 从 Releases 下载 `Qiyu-NoInstall-0.4.36-x64.zip` 与 `SHA256SUMS.txt`，核对散列后完整解压，保留全部程序文件。
+1. 从 Releases 下载 `Qiyu-NoInstall-0.4.41-x64.zip` 与 `SHA256SUMS.txt`，核对散列后完整解压，保留全部程序文件。
 2. 可先双击「启动演示.cmd」体验合成收藏。演示使用独立数据目录，重复打开保留演示中的修改。
 3. 使用真实收藏前，在旧版导出完整备份并退出旧程序，再双击「栖域.exe」。正常模式沿用 `%APPDATA%\QIYU`，无需重新导入。
 
@@ -59,7 +61,9 @@ npm run desktop
 
 ```powershell
 node scripts/verify-batch-intake.cjs
+node scripts/verify-pc-search-intake.cjs
 node scripts/verify-books-controls-import.cjs
+node scripts/verify-books-production.cjs
 node scripts/verify-screens.cjs
 node scripts/verify-interface-preferences.cjs
 node scripts/verify-score-bands.cjs
@@ -67,7 +71,7 @@ node scripts/verify-game-card-controls.cjs
 node scripts/verify-bento-materials.cjs
 ```
 
-本版已完成 294 项单测、类型／构建及对应源码／成品专项。测试范围、独立审查及未验证项见 [0.4.36 验收记录](docs/tasks/BATCH_INTAKE_V0436_ACCEPTANCE.md) 和 [累计发布说明](docs/release/RELEASE-v0.4.36.md)。在线资料自动化使用合成响应，不等同于真实账号或实时网络验收。
+本版完成 299 项单测、桌面构建及书籍和影视的成品专项。验证范围见 [本版发布说明](docs/release/RELEASE-v0.4.41.md)，托管结果见 [GitHub Actions](https://github.com/kayins897/roost/actions/workflows/prerelease.yml)。
 
 手动 GitHub CI 使用当前专项；托管运行结果以 Actions 为准。旧 `npm run test:workflow` 保留了历史卡面和分类断言，尚未整体适配，不能宣称本版完整套件通过。默认 `npm run dist:zip` 只做免安装包；只有明确授权后合入 main 并推送版本标签才触发预发行，见 [发布流程](docs/release/PUBLISHING.md)。
 

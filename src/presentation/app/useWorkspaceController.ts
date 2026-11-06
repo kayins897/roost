@@ -250,11 +250,12 @@ export function useWorkspaceController() {
       setEditor(null); setImportedDraft(null); setLibraryView('library'); setSection(item.category); setSelectedId(item.id); setStatus('all'); setGameFilter('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
     }
   }
-  function importBatch(additions: MediaItem[]) {
+  function importBatch(additions: MediaItem[], stayInPlace = false) {
     const current = snapshotRef.current;
     const accepted = previewSteamImport(additions, current.items, current.importExclusions).filter(row => !row.duplicate).map(row => additions[Number(row.key)]);
     if (!accepted.length) { setToast('这些作品已在收藏库中，请重新检查清单。'); return false; }
     if (!commit({ ...current, items: [...accepted, ...current.items] }, `已新增 ${accepted.length} 件作品`, false, true)) return false;
+    if (stayInPlace) return true;
     detailGuard.current = null; setSelectedId(null); setLibraryView('library'); setSelecting(false); setSelectionIds(new Set()); setSection(accepted[0].category);
     setStatus('all'); setGameFilter('all'); setSubtypeFilter('all'); setSelectedTags([]); setSelectedGameTags(emptyGameTags()); setFavoriteOnly(false); setQuery(''); setSort('recent');
     return true;
